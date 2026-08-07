@@ -27,6 +27,24 @@ class SourceReference:
 
 
 @dataclass(frozen=True)
+class ListingEntry:
+    """Lo que el índice de una fecha declara sobre un dispositivo.
+
+    Es información de catálogo, no del documento: la sumilla y el emisor los
+    escribe el buscador, no la norma. Sirve para decidir qué se ingiere y para
+    dejar constancia de lo que se vio y se descartó, nunca como evidencia de un
+    hecho: para eso hay que capturar el dispositivo y citar su texto.
+    """
+
+    reference: SourceReference
+    issuer_raw: str | None = None
+    document_type_raw: str | None = None
+    number_raw: str | None = None
+    summary_raw: str | None = None
+    listed_date_raw: str | None = None
+
+
+@dataclass(frozen=True)
 class CaptureRecord:
     """Metadatos completos de una captura (antes de cualquier parsing)."""
 
@@ -66,8 +84,15 @@ class SourceAdapter(Protocol):
     source_family: str
 
     def discover(self, publication_date: date) -> Iterable[SourceReference]:
-        """Enumera dispositivos publicados en una fecha (interfaz preparada; el MVP
-        puede devolver una colección vacía si la fuente no soporta descubrimiento)."""
+        """Enumera los dispositivos que la fuente publicó en una fecha."""
+        ...
+
+    def discover_entries(self, publication_date: date) -> Sequence[ListingEntry]:
+        """Igual que `discover`, conservando lo que el índice declara de cada uno.
+
+        Va aparte porque el filtro de relevancia decide con la sumilla del
+        catálogo, y quien solo necesita las referencias no debería cargar con
+        metadatos de listado."""
         ...
 
     def fetch(self, reference: SourceReference) -> FetchResult: ...

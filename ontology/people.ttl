@@ -1,0 +1,42 @@
+@prefix kipu: <https://kipu.example/ontology#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+kipu:Person a owl:Class ;
+    rdfs:subClassOf prov:Agent, kipu:Resource ;
+    rdfs:label "Persona"@es ;
+    rdfs:comment "Persona canónica. Solo información funcional pública; sin datos personales externos."@es .
+
+kipu:PersonMention a owl:Class ;
+    rdfs:subClassOf kipu:Resource ;
+    rdfs:label "Mención de persona"@es ;
+    rdfs:comment "Forma textual exacta en un documento. Las menciones existen antes que las personas canónicas y nunca se fusionan solo por coincidencia de nombre."@es .
+
+kipu:mentionText a owl:DatatypeProperty ;
+    rdfs:domain kipu:PersonMention ; rdfs:range xsd:string ;
+    rdfs:label "texto original de la mención"@es .
+
+kipu:mentionTextNormalized a owl:DatatypeProperty ;
+    rdfs:domain kipu:PersonMention ; rdfs:range xsd:string .
+
+kipu:resolvesTo a owl:ObjectProperty ;
+    rdfs:domain kipu:PersonMention ; rdfs:range kipu:Person ;
+    rdfs:label "resuelve a"@es .
+
+kipu:resolutionStatus a owl:DatatypeProperty ;
+    rdfs:domain kipu:PersonMention ; rdfs:range xsd:string .
+
+kipu:preferredName a owl:DatatypeProperty ;
+    rdfs:domain kipu:Person ; rdfs:range xsd:string .
+
+kipu:PersonIdentifier a owl:Class ;
+    rdfs:subClassOf kipu:Resource ;
+    rdfs:label "Identificador de persona declarado"@es ;
+    rdfs:comment "Documento de identidad tal como lo declara un documento fuente (DNI, carné de extranjería). Identifica de forma unívoca, así que dos menciones con el mismo identificador son la misma persona por afirmación de la fuente, no por inferencia. NO se proyecta a RDF: es dato personal y kipu:Person se limita a información funcional pública."@es .
+
+kipu:IdentityPrecedent a owl:Class ;
+    rdfs:subClassOf kipu:Resource ;
+    rdfs:label "Precedente de identidad"@es ;
+    rdfs:comment "Decisión humana de identidad reutilizable en ingestas posteriores, con clave nombre normalizado + cargo declarado. Trazable hasta la ReviewDecision que la originó y revocable; sin cargo declarado no puede existir, porque el nombre por sí solo nunca autoriza vincular (regla 13)."@es .

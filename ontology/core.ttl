@@ -1,0 +1,25 @@
+@prefix kipu: <https://kipu.example/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://kipu.example/ontology> a owl:Ontology ;
+    dcterms:title "Kipu Knowledge Core Ontology"@es ;
+    dcterms:description "Núcleo de la ontología de Kipu Knowledge: conocimiento verificable sobre actos publicados en fuentes oficiales."@es ;
+    owl:versionInfo "0.1.0" ;
+    rdfs:seeAlso <https://kipu.example/ontology/legal>, <https://kipu.example/ontology/events> .
+
+# Clase raíz de cosas identificadas por el sistema.
+kipu:Resource a owl:Class ;
+    rdfs:label "Recurso Kipu"@es ;
+    rdfs:comment "Cualquier recurso identificado con URI en el grafo de conocimiento."@es .
+
+kipu:recordedAt a owl:DatatypeProperty ;
+    rdfs:label "registrado en"@es ;
+    rdfs:comment "Momento en que el sistema registró el hecho (tiempo de transacción)."@es ;
+    rdfs:range xsd:dateTime .
+
+kipu:supersededAt a owl:DatatypeProperty ;
+    rdfs:label "sustituido en"@es ;
+    rdfs:range xsd:dateTime .

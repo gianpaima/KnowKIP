@@ -1,0 +1,298 @@
+{
+  "document": {
+    "document_type_code": "RESOLUCION_SUPREMA",
+    "issue_place_raw": "Lima",
+    "issued_on": "2026-08-05",
+    "number_normalized": "250-2026-PCM",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/FCgrJLMYaccAWHWIYPv1Rw/*/2540905-2.PDF",
+    "publication_code": "2540905-2",
+    "published_on": "2026-08-06",
+    "title_raw": "Designan miembros del Directorio del Banco Central de Reserva del Perú, en representación del Poder Ejecutivo"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1.",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1.",
+          "char_end": 153,
+          "char_start": 0,
+          "quoted_text": "Artículo 1. Designar como miembros del Directorio del Banco Central de Reserva del Perú, en representación del Poder Ejecutivo, a los siguientes señores:",
+          "section_index": 11
+        }
+      },
+      {
+        "article_class": "COUNTERSIGNATURE",
+        "article_label": "Artículo 2.",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2.",
+          "char_end": 137,
+          "char_start": 0,
+          "quoted_text": "Artículo 2. La presente Resolución Suprema es refrendada por el Presidente del Consejo de Ministros y el Ministro de Economía y Finanzas.",
+          "section_index": 15
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1.",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "BOARD_MEMBERSHIP",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Banco Central de Reserva del Perú",
+              "path_raw": "miembros del Directorio del Banco Central de Reserva del Perú",
+              "unit_chain": [
+                "Directorio"
+              ]
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 25,
+                "char_start": 2,
+                "quoted_text": "Inés Marylin Choy Chong",
+                "section_index": 12
+              },
+              "identifiers": [],
+              "text_raw": "Inés Marylin Choy Chong"
+            },
+            "position_label_raw": "miembros del Directorio del Banco Central de Reserva del Perú",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          },
+          {
+            "assignment_kind": "BOARD_MEMBERSHIP",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Banco Central de Reserva del Perú",
+              "path_raw": "miembros del Directorio del Banco Central de Reserva del Perú",
+              "unit_chain": [
+                "Directorio"
+              ]
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 30,
+                "char_start": 2,
+                "quoted_text": "Luis Miguel Palomino Bonilla",
+                "section_index": 13
+              },
+              "identifiers": [],
+              "text_raw": "Luis Miguel Palomino Bonilla"
+            },
+            "position_label_raw": "miembros del Directorio del Banco Central de Reserva del Perú",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          },
+          {
+            "assignment_kind": "BOARD_MEMBERSHIP",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Banco Central de Reserva del Perú",
+              "path_raw": "miembros del Directorio del Banco Central de Reserva del Perú",
+              "unit_chain": [
+                "Directorio"
+              ]
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 32,
+                "char_start": 2,
+                "quoted_text": "Gustavo Adolfo Yamada Fukusaki",
+                "section_index": 14
+              },
+              "identifiers": [],
+              "text_raw": "Gustavo Adolfo Yamada Fukusaki"
+            },
+            "position_label_raw": "miembros del Directorio del Banco Central de Reserva del Perú",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 1.",
+          "char_end": 153,
+          "char_start": 0,
+          "quoted_text": "Artículo 1. Designar como miembros del Directorio del Banco Central de Reserva del Perú, en representación del Poder Ejecutivo, a los siguientes señores:",
+          "section_index": 11
+        },
+        "is_collective": true,
+        "legal_verb_raw": "Designar",
+        "mandate_hint": "período constitucional",
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 25,
+                "char_start": 2,
+                "quoted_text": "Inés Marylin Choy Chong",
+                "section_index": 12
+              },
+              "identifiers": [],
+              "text_raw": "Inés Marylin Choy Chong"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          },
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 30,
+                "char_start": 2,
+                "quoted_text": "Luis Miguel Palomino Bonilla",
+                "section_index": 13
+              },
+              "identifiers": [],
+              "text_raw": "Luis Miguel Palomino Bonilla"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          },
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 32,
+                "char_start": 2,
+                "quoted_text": "Gustavo Adolfo Yamada Fukusaki",
+                "section_index": 14
+              },
+              "identifiers": [],
+              "text_raw": "Gustavo Adolfo Yamada Fukusaki"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 223,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en el artículo 86 de la Constitución Política del Perú; y en la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; y,",
+          "section_index": 8
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "27594"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Presidenta de la República",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 28,
+            "char_start": 0,
+            "quoted_text": "KEIKO SOFÍA FUJIMORI HIGUCHI",
+            "section_index": 17
+          },
+          "identifiers": [],
+          "text_raw": "KEIKO SOFÍA FUJIMORI HIGUCHI"
+        },
+        "signature_order": 1
+      },
+      {
+        "capacity_raw": "Presidente del Consejo de Ministros",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 31,
+            "char_start": 0,
+            "quoted_text": "LUIS FERNANDO GALARRETA VELARDE",
+            "section_index": 19
+          },
+          "identifiers": [],
+          "text_raw": "LUIS FERNANDO GALARRETA VELARDE"
+        },
+        "signature_order": 2
+      },
+      {
+        "capacity_raw": "Ministro de Economía y Finanzas",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 19,
+            "char_start": 0,
+            "quoted_text": "ELMER CUBA BUSTINZA",
+            "section_index": 21
+          },
+          "identifiers": [],
+          "text_raw": "ELMER CUBA BUSTINZA"
+        },
+        "signature_order": 3
+      }
+    ],
+    "warnings": []
+  }
+}

@@ -1,0 +1,135 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix kipu: <https://kipu.example/ontology#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Shapes de validación del grafo de personal.
+
+kipu:PersonnelEventShape a sh:NodeShape ;
+    sh:targetClass kipu:PersonnelEvent ;
+    sh:property [
+        sh:path kipu:declaredBy ;
+        sh:minCount 1 ;
+        sh:message "Todo evento debe estar declarado por un documento."@es ;
+    ] ;
+    sh:property [
+        sh:path kipu:evidence ;
+        sh:minCount 1 ;
+        sh:message "Todo evento debe tener evidencia textual."@es ;
+    ] ;
+    sh:property [
+        sh:path kipu:effectiveFromStatus ;
+        sh:maxCount 1 ;
+        sh:in ( "EXPLICIT" "DERIVED" "INFERRED" "NOT_STATED" "CONDITIONAL" ) ;
+    ] .
+
+# Toda designación (evento START) debe tener al menos una mención de persona.
+kipu:StartEventNeedsPersonShape a sh:NodeShape ;
+    sh:targetClass kipu:PersonnelEvent ;
+    sh:sparql [
+        sh:message "Un evento START debe tener al menos un participante persona."@es ;
+        sh:select """
+            PREFIX kipu: <https://kipu.example/ontology#>
+            SELECT $this WHERE {
+                $this kipu:assignmentEffect "START" .
+                FILTER NOT EXISTS { $this kipu:hasParticipant ?p }
+            }
+        """ ;
+    ] .
+
+# Toda asignación necesita puesto o etiqueta original, y persona o mención.
+kipu:RoleAssignmentShape a sh:NodeShape ;
+    sh:targetClass kipu:RoleAssignment ;
+    sh:or (
+        [ sh:property [ sh:path kipu:assignmentPosition ; sh:minCount 1 ] ]
+        [ sh:property [ sh:path kipu:positionLabelRaw ; sh:minCount 1 ] ]
+    ) ;
+    sh:property [
+        sh:path kipu:assignmentMention ;
+        sh:minCount 1 ;
+        sh:message "Toda asignación debe referir la mención de persona que la sustenta."@es ;
+    ] .
+
+# Toda fecha INFERRED exige base y método de inferencia.
+kipu:InferredDateShape a sh:NodeShape ;
+    sh:targetClass kipu:PersonnelEvent ;
+    sh:sparql [
+        sh:message "Una fecha INFERRED requiere kipu:inferenceBasis."@es ;
+        sh:select """
+            PREFIX kipu: <https://kipu.example/ontology#>
+            SELECT $this WHERE {
+                { $this kipu:effectiveFromStatus "INFERRED" }
+                UNION
+                { $this kipu:effectiveToStatus "INFERRED" }
+                FILTER NOT EXISTS { $this kipu:inferenceBasis ?b }
+            }
+        """ ;
+    ] .
+
+# Toda fecha determinada por norma exige la norma citada: sin fundamento sería
+# exactamente lo que la regla 12 prohíbe, una fecha inventada con otro nombre.
+kipu:LegalEffectDateShape a sh:NodeShape ;
+    sh:targetClass kipu:PersonnelEvent ;
+    sh:sparql [
+        sh:message "Una fecha determinada por norma requiere kipu:legalBasis y kipu:determinationRule."@es ;
+        sh:select """
+            PREFIX kipu: <https://kipu.example/ontology#>
+            SELECT $this WHERE {
+                $this kipu:legalEffectFrom ?d .
+                FILTER (NOT EXISTS { $this kipu:legalBasis ?b }
+                     || NOT EXISTS { $this kipu:determinationRule ?r })
+            }
+        """ ;
+    ] .
+
+# Todo evento END identifica la asignación afectada o se marca no resuelto.
+kipu:EndEventShape a sh:NodeShape ;
+    sh:targetClass kipu:PersonnelEvent ;
+    sh:sparql [
+        sh:message "Un evento END debe vincular la asignación afectada o marcarse unresolved."@es ;
+        sh:select """
+            PREFIX kipu: <https://kipu.example/ontology#>
+            SELECT $this WHERE {
+                $this kipu:assignmentEffect "END" .
+                FILTER NOT EXISTS { $this kipu:endsAssignment ?a }
+                FILTER NOT EXISTS { $this kipu:affectedAssignmentUnresolved true }
+            }
+        """ ;
+    ] .
+
+# Las afirmaciones aceptadas requieren evidencia.
+kipu:AssertionShape a sh:NodeShape ;
+    sh:targetClass kipu:Assertion ;
+    sh:sparql [
+        sh:message "Una afirmación aceptada debe tener evidencia."@es ;
+        sh:select """
+            PREFIX kipu: <https://kipu.example/ontology#>
+            SELECT $this WHERE {
+                $this kipu:reviewStatus ?s .
+                FILTER(?s IN ("AUTO_ACCEPTED", "HUMAN_ACCEPTED"))
+                FILTER NOT EXISTS { $this kipu:evidence ?e }
+            }
+        """ ;
+    ] .
+
+kipu:EvidenceSpanShape a sh:NodeShape ;
+    sh:targetClass kipu:EvidenceSpan ;
+    sh:property [
+        sh:path kipu:quotedText ;
+        sh:minCount 1 ;
+        sh:minLength 1 ;
+        sh:nodeKind sh:Literal ;
+    ] ;
+    sh:property [
+        sh:path kipu:inArtifactVersion ;
+        sh:minCount 1 ;
+        sh:message "Toda evidencia debe apuntar a una versión de artefacto con hash."@es ;
+    ] .
+
+kipu:ArtifactVersionShape a sh:NodeShape ;
+    sh:targetClass kipu:ArtifactVersion ;
+    sh:property [
+        sh:path kipu:sha256 ;
+        sh:minCount 1 ;
+        sh:pattern "^[0-9a-f]{64}$" ;
+        sh:message "Toda versión de artefacto debe tener SHA-256."@es ;
+    ] .

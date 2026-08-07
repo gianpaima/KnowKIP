@@ -1,0 +1,48 @@
+@prefix kipu: <https://kipu.example/ontology#> .
+@prefix org: <http://www.w3.org/ns/org#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+kipu:Position a owl:Class ;
+    rdfs:subClassOf org:Post, kipu:Resource ;
+    rdfs:label "Puesto"@es ;
+    rdfs:comment "La identidad de un puesto considera organización, unidad y, cuando existe, PositionSlot; nunca solo el título."@es .
+
+kipu:PositionSlot a owl:Class ;
+    rdfs:subClassOf kipu:Resource ;
+    rdfs:label "Plaza / correlativo externo"@es ;
+    rdfs:comment "Referencia a un esquema externo de plazas (p.ej. CAP Provisional, correlativo 007)."@es .
+
+kipu:positionLabel a owl:DatatypeProperty ;
+    rdfs:domain kipu:Position ; rdfs:range xsd:string .
+
+kipu:positionIn a owl:ObjectProperty ;
+    rdfs:subPropertyOf org:postIn ;
+    rdfs:domain kipu:Position .
+
+kipu:positionUnit a owl:ObjectProperty ;
+    rdfs:domain kipu:Position ; rdfs:range kipu:OrganizationalUnit .
+
+kipu:hasSlot a owl:ObjectProperty ;
+    rdfs:domain kipu:Position ; rdfs:range kipu:PositionSlot .
+
+kipu:externalScheme a owl:DatatypeProperty ; rdfs:domain kipu:PositionSlot ; rdfs:range xsd:string .
+kipu:externalCode a owl:DatatypeProperty ; rdfs:domain kipu:PositionSlot ; rdfs:range xsd:string .
+
+kipu:Mandate a owl:Class ;
+    rdfs:subClassOf kipu:Resource ;
+    rdfs:label "Mandato / periodo institucional"@es ;
+    rdfs:comment "Periodo institucional separado de la asignación individual (p.ej. periodo constitucional del directorio del BCRP, o periodo de 5 años de SUNAT que el sucesor completa)."@es .
+
+kipu:mandateType a owl:DatatypeProperty ; rdfs:domain kipu:Mandate ; rdfs:range xsd:string .
+kipu:underMandate a owl:ObjectProperty ; rdfs:range kipu:Mandate .
+
+kipu:SingularOffice a owl:Class ;
+    rdfs:subClassOf kipu:Position ;
+    rdfs:label "Oficio unipersonal"@es ;
+    rdfs:comment "Cargo del que existe un solo titular a la vez en todo el país (Presidencia de la República, Presidencia del Consejo de Ministros, cada cartera ministerial). Sirve como señal corroborante de identidad: nombre idéntico más el mismo oficio unipersonal descarta la homonimia. Un cargo genérico como 'Jefe Institucional' NO califica, porque lo ostentan personas distintas en organismos distintos."@es .
+
+kipu:singularOfficeKey a owl:DatatypeProperty ;
+    rdfs:domain kipu:SingularOffice ; rdfs:range xsd:string ;
+    rdfs:comment "Clave estable del oficio, tolerante a variantes de género y de artículo ('Ministro de la Producción' y 'Ministra de Producción' comparten clave)."@es .

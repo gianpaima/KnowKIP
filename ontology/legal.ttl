@@ -1,0 +1,56 @@
+@prefix kipu: <https://kipu.example/ontology#> .
+@prefix eli: <http://data.europa.eu/eli/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Documentos legales: se reutiliza ELI para metadatos de publicación.
+# Mapeo futuro a Akoma Ntoso documentado en ontology/decisions/.
+
+kipu:LegalDocument a owl:Class ;
+    rdfs:subClassOf eli:LegalResource, kipu:Resource ;
+    rdfs:label "Documento legal"@es .
+
+kipu:DocumentSection a owl:Class ;
+    rdfs:subClassOf kipu:Resource ;
+    rdfs:label "Sección de documento"@es ;
+    rdfs:comment "Segmento tipado (VISTOS, CONSIDERANDO, artículo, firma...) que conserva el texto original."@es .
+
+kipu:publicationCode a owl:DatatypeProperty ;
+    rdfs:domain kipu:LegalDocument ; rdfs:range xsd:string ;
+    rdfs:label "código de publicación"@es .
+
+kipu:documentNumber a owl:DatatypeProperty ;
+    rdfs:domain kipu:LegalDocument ; rdfs:range xsd:string ;
+    rdfs:label "número normalizado"@es .
+
+kipu:documentNumberRaw a owl:DatatypeProperty ;
+    rdfs:label "número original"@es .
+
+kipu:issuedOn a owl:DatatypeProperty ;
+    rdfs:subPropertyOf eli:date_document ; rdfs:range xsd:date ;
+    rdfs:label "fecha de emisión"@es .
+
+kipu:publishedOn a owl:DatatypeProperty ;
+    rdfs:subPropertyOf eli:date_publication ; rdfs:range xsd:date ;
+    rdfs:label "fecha de publicación"@es .
+
+kipu:hasSection a owl:ObjectProperty ;
+    rdfs:domain kipu:LegalDocument ; rdfs:range kipu:DocumentSection .
+
+kipu:sectionType a owl:ObjectProperty ;
+    rdfs:range skos:Concept .
+
+kipu:references a owl:ObjectProperty ;
+    rdfs:subPropertyOf eli:cites ;
+    rdfs:label "referencia documental"@es .
+
+kipu:SectionTypeScheme a skos:ConceptScheme ;
+    skos:prefLabel "Tipos de sección"@es .
+
+kipu:sec-VISTOS a skos:Concept ; skos:inScheme kipu:SectionTypeScheme ; skos:prefLabel "VISTOS"@es ;
+    skos:scopeNote "Documentos internos a la vista; NO son citas normativas."@es .
+kipu:sec-CONSIDERANDO a skos:Concept ; skos:inScheme kipu:SectionTypeScheme ; skos:prefLabel "CONSIDERANDO"@es .
+kipu:sec-ARTICLE a skos:Concept ; skos:inScheme kipu:SectionTypeScheme ; skos:prefLabel "Artículo"@es .
+kipu:sec-SIGNATURE a skos:Concept ; skos:inScheme kipu:SectionTypeScheme ; skos:prefLabel "Firma"@es .

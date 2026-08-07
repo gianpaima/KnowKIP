@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div class="meta"><span class="muted">{{ rows | length }} {{ "decisiones" if rows | length != 1 else "decisión" }}</span></div>
+  <h1>Historial de decisiones</h1>
+</div>
+
+{% if not rows %}
+<section class="card"><p class="muted" style="margin:0">Aún no se ha registrado ninguna decisión.</p></section>
+{% else %}
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr><th>Fecha</th><th>Acción</th><th>Revisor</th><th>Tarea</th><th>Motivo original</th><th>Notas</th></tr>
+  </thead>
+  <tbody>
+  {% for decision, task in rows %}
+  <tr>
+    <td class="muted num">{{ decision.decided_at.strftime("%Y-%m-%d %H:%M") }}</td>
+    <td>{{ decision.action.value }}</td>
+    <td>{{ decision.reviewer or "—" }}</td>
+    <td><a href="/review/tasks/{{ task.id }}"><span class="chip">{{ task.task_type.value }}</span></a></td>
+    <td>{{ task.reason }}</td>
+    <td>{{ decision.notes or "—" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

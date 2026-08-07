@@ -1,0 +1,31 @@
+@prefix kipu: <https://kipu.example/ontology#> .
+@prefix org: <http://www.w3.org/ns/org#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Se reutiliza W3C ORG para organizaciones, unidades y jerarquías temporales.
+
+kipu:Organization a owl:Class ;
+    rdfs:subClassOf org:Organization, kipu:Resource ;
+    rdfs:label "Organización"@es .
+
+kipu:OrganizationalUnit a owl:Class ;
+    rdfs:subClassOf org:OrganizationalUnit, kipu:Resource ;
+    rdfs:label "Unidad organizacional"@es .
+
+kipu:OrganizationMention a owl:Class ;
+    rdfs:subClassOf kipu:Resource ;
+    rdfs:label "Mención de organización"@es ;
+    rdfs:comment "Forma textual exacta con la que un documento nombra a una organización."@es .
+
+kipu:unitOf a owl:ObjectProperty ;
+    rdfs:subPropertyOf org:unitOf ;
+    rdfs:domain kipu:OrganizationalUnit .
+
+kipu:parentUnit a owl:ObjectProperty ;
+    rdfs:domain kipu:OrganizationalUnit ; rdfs:range kipu:OrganizationalUnit .
+
+kipu:acronym a owl:DatatypeProperty ; rdfs:range xsd:string .
+kipu:validFrom a owl:DatatypeProperty ; rdfs:range xsd:date .
+kipu:validTo a owl:DatatypeProperty ; rdfs:range xsd:date .

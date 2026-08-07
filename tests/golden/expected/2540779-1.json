@@ -1,0 +1,210 @@
+{
+  "document": {
+    "document_type_code": "RESOLUCION_JEFATURAL",
+    "issue_place_raw": "Lima",
+    "issued_on": "2026-08-05",
+    "number_normalized": "000066-2026-BNP",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/41m_ySmF4OIAVBAIt5vud7/*/2540779-1.PDF",
+    "publication_code": "2540779-1",
+    "published_on": "2026-08-06",
+    "title_raw": "Designan Gerenta General de la Biblioteca Nacional del Perú"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 270,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- DESIGNAR a partir del 06 de agosto de 2026, a la señora SOFÍA MAGALI AGUAYO MORALES en el cargo de confianza de Gerenta General de la Biblioteca Nacional del Perú, previsto en el CAP Provisional de la Biblioteca Nacional del Perú con Número correlativo 007.",
+          "section_index": 13
+        }
+      },
+      {
+        "article_class": "PUBLICATION_NOTICE",
+        "article_label": "Artículo 2.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 229,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- ENCARGAR a la Oficina de Tecnologías de la Información la publicación de la presente Resolución en el portal web institucional (https://www.gob.pe/bnp), el mismo día de su publicación en el Diario Oficial El Peruano.",
+          "section_index": 14
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Biblioteca Nacional del Perú",
+              "path_raw": "Gerenta General de la Biblioteca Nacional del Perú",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 96,
+                "char_start": 69,
+                "quoted_text": "SOFÍA MAGALI AGUAYO MORALES",
+                "section_index": 13
+              },
+              "identifiers": [],
+              "text_raw": "SOFÍA MAGALI AGUAYO MORALES"
+            },
+            "position_label_raw": "Gerenta General de la Biblioteca Nacional del Perú",
+            "position_slot": {
+              "external_code": "007",
+              "external_scheme": "CAP_PROVISIONAL",
+              "source_phrase": "previsto en el CAP Provisional de la Biblioteca Nacional del Perú con Número correlativo 007"
+            },
+            "valid_from": {
+              "source_phrase": "a partir del 06 de agosto de 2026",
+              "status": "EXPLICIT",
+              "value": "2026-08-06"
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": "a partir del 06 de agosto de 2026",
+          "status": "EXPLICIT",
+          "value": "2026-08-06"
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 270,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- DESIGNAR a partir del 06 de agosto de 2026, a la señora SOFÍA MAGALI AGUAYO MORALES en el cargo de confianza de Gerenta General de la Biblioteca Nacional del Perú, previsto en el CAP Provisional de la Biblioteca Nacional del Perú con Número correlativo 007.",
+          "section_index": 13
+        },
+        "is_collective": false,
+        "legal_verb_raw": "DESIGNAR",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 96,
+                "char_start": 69,
+                "quoted_text": "SOFÍA MAGALI AGUAYO MORALES",
+                "section_index": 13
+              },
+              "identifiers": [],
+              "text_raw": "SOFÍA MAGALI AGUAYO MORALES"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 369,
+          "char_start": 0,
+          "quoted_text": "El Informe Técnico Nº 000209-2026-BNP-GG-OA-URH de fecha 05 de agosto de 2026, de la Unidad Funcional de Recursos Humanos de la Oficina de Administración; el Memorando Nº 000945-2026-BNP-GG-OA de fecha 05 de agosto de 2026, de la Oficina de Administración; el Informe Legal N° 000195-2026-BNP-GG-OAJ de fecha 05 de agosto de 2026, de la Oficina de Asesoría Jurídica; y,",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe Técnico",
+        "target_number_raw": "000209-2026-BNP-GG-OA-URH"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 369,
+          "char_start": 0,
+          "quoted_text": "El Informe Técnico Nº 000209-2026-BNP-GG-OA-URH de fecha 05 de agosto de 2026, de la Unidad Funcional de Recursos Humanos de la Oficina de Administración; el Memorando Nº 000945-2026-BNP-GG-OA de fecha 05 de agosto de 2026, de la Oficina de Administración; el Informe Legal N° 000195-2026-BNP-GG-OAJ de fecha 05 de agosto de 2026, de la Oficina de Asesoría Jurídica; y,",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "000945-2026-BNP-GG-OA"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 369,
+          "char_start": 0,
+          "quoted_text": "El Informe Técnico Nº 000209-2026-BNP-GG-OA-URH de fecha 05 de agosto de 2026, de la Unidad Funcional de Recursos Humanos de la Oficina de Administración; el Memorando Nº 000945-2026-BNP-GG-OA de fecha 05 de agosto de 2026, de la Oficina de Administración; el Informe Legal N° 000195-2026-BNP-GG-OAJ de fecha 05 de agosto de 2026, de la Oficina de Asesoría Jurídica; y,",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe Legal",
+        "target_number_raw": "000195-2026-BNP-GG-OAJ"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 354,
+          "char_start": 0,
+          "quoted_text": "De conformidad con la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; y, la Sección Primera del Reglamento de Organización y Funciones de la Biblioteca Nacional del Perú, aprobado por el Decreto Supremo N° 002-2024-MC.",
+          "section_index": 11
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "31419"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 354,
+          "char_start": 0,
+          "quoted_text": "De conformidad con la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; y, la Sección Primera del Reglamento de Organización y Funciones de la Biblioteca Nacional del Perú, aprobado por el Decreto Supremo N° 002-2024-MC.",
+          "section_index": 11
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Supremo",
+        "target_number_raw": "002-2024-MC"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Jefe Institucional",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 24,
+            "char_start": 0,
+            "quoted_text": "JUAN YANGALI QUINTANILLA",
+            "section_index": 16
+          },
+          "identifiers": [],
+          "text_raw": "JUAN YANGALI QUINTANILLA"
+        },
+        "signature_order": 1
+      }
+    ],
+    "warnings": []
+  }
+}

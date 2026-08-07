@@ -1,0 +1,225 @@
+{
+  "document": {
+    "document_type_code": "RESOLUCION_DE_INTENDENCIA",
+    "issue_place_raw": "San Isidro",
+    "issued_on": "2026-08-04",
+    "number_normalized": "050-2026-INBP",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/CBFUqdEfaIoAqea9gbHbYt/*/2540702-1.PDF",
+    "publication_code": "2540702-1",
+    "published_on": "2026-08-06",
+    "title_raw": "Encargan a servidor las funciones de responsable de Acceso a la Información Pública de la Intendencia Nacional de Bomberos del Perú"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1º.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1º.-",
+          "char_end": 661,
+          "char_start": 0,
+          "quoted_text": "Artículo 1º.- ENCARGAR, al servidor civil Arnold Anthony Crisóstomo Quispe, con eficacia anticipada a partir del 30 de julio de 2026, la obligación de brindar y/o proporcionar la información que demanden los administrados ante la Intendencia Nacional de Bomberos del Perú, cuyas funciones u obligaciones se enmarcan en lo dispuesto en el Texto Único Ordenado de la Ley N° 27806, Ley de Transparencia y Acceso a la Información Pública, aprobado por Decreto Supremo N° 021-2019-JUS, y su Reglamento aprobado por Decreto Supremo N° 072-2023-PCM, así como sus normas modificatorias, hasta el retorno del descanso vacacional del servidor Jhon Eduardo Cárcamo Litano.",
+          "section_index": 19
+        }
+      },
+      {
+        "article_class": "NOTIFICATION",
+        "article_label": "Artículo 2°.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2°.-",
+          "char_end": 212,
+          "char_start": 0,
+          "quoted_text": "Artículo 2°.- DISPONER, se le notifique al servidor civil Arnold Anthony Crisóstomo Quispe, con la presente Resolución de Intendencia, para fines de ejercer la encargatura encomendada en el artículo 1° precitado.",
+          "section_index": 20
+        }
+      },
+      {
+        "article_class": "PUBLICATION_NOTICE",
+        "article_label": "Artículo 3º.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 3º.-",
+          "char_end": 312,
+          "char_start": 0,
+          "quoted_text": "Artículo 3º.- DISPONER que la Unidad de Tecnologías de la Información de la Intendencia Nacional de Bomberos del Perú, realice la publicación de la presente Resolución de Intendencia, en el Portal de la página web de la entidad (www.inbp.gob.pe), el mismo día de su publicación en el Diario Oficial “El Peruano”.",
+          "section_index": 21
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1º.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "ADDITIONAL_RESPONSIBILITY",
+            "completes_predecessor_period": false,
+            "end_condition_text": "hasta el retorno del descanso vacacional del servidor Jhon Eduardo Cárcamo Litano",
+            "org_path": {
+              "organization_name": "Intendencia Nacional de Bomberos del Perú",
+              "path_raw": "la obligación de brindar y/o proporcionar la información que demanden los administrados ante la Intendencia Nacional de Bomberos del Perú",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1º.-",
+                "char_end": 74,
+                "char_start": 42,
+                "quoted_text": "Arnold Anthony Crisóstomo Quispe",
+                "section_index": 19
+              },
+              "identifiers": [],
+              "text_raw": "Arnold Anthony Crisóstomo Quispe"
+            },
+            "position_label_raw": "la obligación de brindar y/o proporcionar la información que demanden los administrados ante la Intendencia Nacional de Bomberos del Perú",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": "con eficacia anticipada a partir del 30 de julio de 2026",
+              "status": "EXPLICIT",
+              "value": "2026-07-30"
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.9,
+        "effective_from": {
+          "source_phrase": "con eficacia anticipada a partir del 30 de julio de 2026",
+          "status": "EXPLICIT",
+          "value": "2026-07-30"
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": "hasta el retorno del descanso vacacional del servidor Jhon Eduardo Cárcamo Litano",
+        "event_type": "ADDITIONAL_RESPONSIBILITY",
+        "evidence": {
+          "article_label": "Artículo 1º.-",
+          "char_end": 661,
+          "char_start": 0,
+          "quoted_text": "Artículo 1º.- ENCARGAR, al servidor civil Arnold Anthony Crisóstomo Quispe, con eficacia anticipada a partir del 30 de julio de 2026, la obligación de brindar y/o proporcionar la información que demanden los administrados ante la Intendencia Nacional de Bomberos del Perú, cuyas funciones u obligaciones se enmarcan en lo dispuesto en el Texto Único Ordenado de la Ley N° 27806, Ley de Transparencia y Acceso a la Información Pública, aprobado por Decreto Supremo N° 021-2019-JUS, y su Reglamento aprobado por Decreto Supremo N° 072-2023-PCM, así como sus normas modificatorias, hasta el retorno del descanso vacacional del servidor Jhon Eduardo Cárcamo Litano.",
+          "section_index": 19
+        },
+        "is_collective": false,
+        "legal_verb_raw": "ENCARGAR",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1º.-",
+                "char_end": 74,
+                "char_start": 42,
+                "quoted_text": "Arnold Anthony Crisóstomo Quispe",
+                "section_index": 19
+              },
+              "identifiers": [],
+              "text_raw": "Arnold Anthony Crisóstomo Quispe"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          },
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.85,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1º.-",
+                "char_end": 660,
+                "char_start": 633,
+                "quoted_text": "Jhon Eduardo Cárcamo Litano",
+                "section_index": 19
+              },
+              "identifiers": [],
+              "text_raw": "Jhon Eduardo Cárcamo Litano"
+            },
+            "role": "RETURNING_HOLDER",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 792,
+          "char_start": 0,
+          "quoted_text": "El Memorando N° 325-2026-INBP/OA/URH del 12 de febrero de 2026, donde la Unidad de Recursos Humanos de la Intendencia Nacional de Bomberos del Perú, programa las vacaciones del servidor civil Jhon Eduardo Cárcamo Litano, del 30 de julio de 2026 al 05 de agosto de 2026, quién en adición a sus funciones, es responsable de la función de Acceso a la Información Pública en la Intendencia Nacional de Bomberos del Perú; la Nota Informativa N° 003-2026-INBP/TRANS del 22 de julio de 2026, del responsable de la función de Acceso a la Información Pública en la Intendencia Nacional de Bomberos del Perú, donde pone de conocimiento el uso de su descanso vacacional programado, a fin de que se designe responsable de la precitada función, a otro servidor civil, mientras dure su descanso vacacional;",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "325-2026-INBP/OA/URH"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 792,
+          "char_start": 0,
+          "quoted_text": "El Memorando N° 325-2026-INBP/OA/URH del 12 de febrero de 2026, donde la Unidad de Recursos Humanos de la Intendencia Nacional de Bomberos del Perú, programa las vacaciones del servidor civil Jhon Eduardo Cárcamo Litano, del 30 de julio de 2026 al 05 de agosto de 2026, quién en adición a sus funciones, es responsable de la función de Acceso a la Información Pública en la Intendencia Nacional de Bomberos del Perú; la Nota Informativa N° 003-2026-INBP/TRANS del 22 de julio de 2026, del responsable de la función de Acceso a la Información Pública en la Intendencia Nacional de Bomberos del Perú, donde pone de conocimiento el uso de su descanso vacacional programado, a fin de que se designe responsable de la precitada función, a otro servidor civil, mientras dure su descanso vacacional;",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Nota Informativa",
+        "target_number_raw": "003-2026-INBP/TRANS"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 230,
+          "char_start": 0,
+          "quoted_text": "Que, mediante Resolución Suprema N° 084-2024-IN, de fecha 06 de mayo de 2024, se designa al señor Juan Carlos Morales Carpio, en el cargo público de confianza de Intendente Nacional de la Intendencia Nacional de Bomberos del Perú;",
+          "section_index": 9
+        },
+        "reference_type": "PRIOR_APPOINTMENT",
+        "target_doc_kind_raw": "Resolución Suprema",
+        "target_number_raw": "084-2024-IN"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 580,
+          "char_start": 0,
+          "quoted_text": "Que, mediante Resolución de Intendencia N° 044-2021-INBP de fecha 04 de junio de 2021, se designó al abogado Jhon Eduardo Cárcamo Litano, como responsable de brindar la información que demanden los administrados ante la Intendencia Nacional de Bomberos del Perú, cuyas funciones u obligaciones se enmarcan en lo dispuesto en el Texto Único Ordenado – T.U.O. –, de la Ley N° 27806, Ley de Transparencia y Acceso a la Información Pública, aprobado por Decreto Supremo N° 021-2019-JUS, y su Reglamento aprobado por Decreto Supremo N° 021-2019-JUS, así como sus normas modificatorias;",
+          "section_index": 13
+        },
+        "reference_type": "PRIOR_APPOINTMENT",
+        "target_doc_kind_raw": "Resolución de Intendencia",
+        "target_number_raw": "044-2021-INBP"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Intendente Nacional, Intendencia Nacional de Bomberos del Perú",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 26,
+            "char_start": 0,
+            "quoted_text": "JUAN CARLOS MORALES CARPIO",
+            "section_index": 23
+          },
+          "identifiers": [],
+          "text_raw": "JUAN CARLOS MORALES CARPIO"
+        },
+        "signature_order": 1
+      }
+    ],
+    "warnings": []
+  }
+}

@@ -1,0 +1,56 @@
+### Kipu Knowledge — ejemplos HTTP (VS Code REST Client / IntelliJ)
+@base = http://127.0.0.1:8000
+
+### Salud
+GET {{base}}/health
+
+### Preparación (BD)
+GET {{base}}/ready
+
+### Listar documentos
+GET {{base}}/v1/documents
+
+### Documento por fuente (caso A: MIDAGRI, effective_from NOT_STATED)
+GET {{base}}/v1/documents/by-source/NL/2540861-1
+
+### Documento SUNAT (caso C: dos eventos en un documento)
+GET {{base}}/v1/documents/by-source/NL/2540905-3
+
+### Eventos de tipo aceptación de renuncia
+GET {{base}}/v1/events?event_type=ACCEPT_RESIGNATION
+
+### Búsqueda de texto completo
+GET {{base}}/v1/search?q=GARCES PINTADO
+
+### Tareas de revisión pendientes
+GET {{base}}/v1/review-tasks
+
+### Posibles duplicados de persona por grafía (ELMER CUBA BUSTINZA vs ELMER RAFAEL ...)
+GET {{base}}/v1/review-tasks?status=PENDING
+
+### Precedentes de identidad vigentes (decisiones humanas reutilizadas)
+GET {{base}}/v1/identity-precedents
+
+###
+GET {{base}}/v1/identity-precedents?include_revoked=true
+
+### Decidir una tarea (vincular mención a persona existente)
+POST {{base}}/v1/review-tasks/REEMPLAZAR_TASK_ID/decisions
+Content-Type: application/json
+
+{
+  "action": "LINK_ENTITY",
+  "reviewer": "revisor@example.org",
+  "payload": {"entity_id": "REEMPLAZAR_PERSON_ID"},
+  "notes": "misma persona confirmada por cargo y entidad"
+}
+
+### Línea de tiempo de un puesto con consulta puntual (caso CENEPRED)
+# Obtén el position_id desde /v1/documents/by-source/NL/2540903-2 → events → assignments
+GET {{base}}/v1/positions/REEMPLAZAR_POSITION_ID/timeline?on=2026-08-05
+
+### Exportaciones semánticas
+GET {{base}}/v1/exports/documents/REEMPLAZAR_DOCUMENT_ID.ttl
+
+###
+GET {{base}}/v1/exports/documents/REEMPLAZAR_DOCUMENT_ID.jsonld

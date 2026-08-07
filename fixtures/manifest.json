@@ -1,0 +1,25 @@
+{
+  "description": "Fixtures HTML capturados del buscador de El Peruano. Los bytes son la evidencia original sin modificar.",
+  "captured_at": "2026-08-06T00:00:00Z",
+  "capture_tool": "manual/Invoke-WebRequest",
+  "crawler_version": "fixture-capture/0.1",
+  "user_agent": "KipuKnowledge-Research/0.1",
+  "http_status": 200,
+  "content_type": "text/html; charset=utf-8",
+  "source_family": "EL_PERUANO_NL",
+  "notes": [
+    "robots.txt de busquedas.elperuano.pe permitía 'Allow: /' en la fecha de captura.",
+    "El cuadernillo NL20260806.pdf no estaba disponible en el workspace; las pruebas de PDF se marcan como omitidas (ver docs/source-policy.md)."
+  ],
+  "items": {
+    "2540861-1": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540861-1", "case": "A"},
+    "2540903-1": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540903-1", "case": "B"},
+    "2540903-2": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540903-2", "case": "B"},
+    "2540905-3": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540905-3", "case": "C"},
+    "2540905-4": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540905-4", "case": "D"},
+    "2540779-1": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540779-1", "case": "E"},
+    "2540702-1": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540702-1", "case": "F"},
+    "2540905-2": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540905-2", "case": "G"},
+    "2540896-1": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540896-1", "case": "H"}
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "document": {
+    "document_type_code": "RESOLUCION_MINISTERIAL",
+    "issue_place_raw": "Lima",
+    "issued_on": "2026-08-05",
+    "number_normalized": "000244-2026-PRODUCE",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/BvheKydp45EAAoiBbJX0uo/*/2540896-1.PDF",
+    "publication_code": "2540896-1",
+    "published_on": "2026-08-06",
+    "title_raw": "Designan Jefa de Presupuesto de la Oficina de Presupuesto de la Oficina General de Planeamiento, Presupuesto y Modernización del Ministerio"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 226,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Designar a la señora CELIA MATILDE MEJIA ZULOETA en el puesto de Jefa de Presupuesto de la Oficina de Presupuesto de la Oficina General de Planeamiento, Presupuesto y Modernización del Ministerio de la Producción.",
+          "section_index": 8
+        }
+      },
+      {
+        "article_class": "DERIVED_OBLIGATION",
+        "article_label": "Artículo 2.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 216,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- La mencionada servidora debe presentar su Declaración Jurada de Ingresos, Bienes y Rentas y su Declaración Jurada de Intereses, conforme al procedimiento y plazos establecidos en la normatividad vigente.",
+          "section_index": 9
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Ministerio de la Producción",
+              "path_raw": "Jefa de Presupuesto de la Oficina de Presupuesto de la Oficina General de Planeamiento, Presupuesto y Modernización del Ministerio de la Producción",
+              "unit_chain": [
+                "Oficina de Presupuesto",
+                "Oficina General de Planeamiento, Presupuesto y Modernización"
+              ]
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 61,
+                "char_start": 34,
+                "quoted_text": "CELIA MATILDE MEJIA ZULOETA",
+                "section_index": 8
+              },
+              "identifiers": [],
+              "text_raw": "CELIA MATILDE MEJIA ZULOETA"
+            },
+            "position_label_raw": "Jefa de Presupuesto de la Oficina de Presupuesto de la Oficina General de Planeamiento, Presupuesto y Modernización del Ministerio de la Producción",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 226,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Designar a la señora CELIA MATILDE MEJIA ZULOETA en el puesto de Jefa de Presupuesto de la Oficina de Presupuesto de la Oficina General de Planeamiento, Presupuesto y Modernización del Ministerio de la Producción.",
+          "section_index": 8
+        },
+        "is_collective": false,
+        "legal_verb_raw": "Designar",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 61,
+                "char_start": 34,
+                "quoted_text": "CELIA MATILDE MEJIA ZULOETA",
+                "section_index": 8
+              },
+              "identifiers": [],
+              "text_raw": "CELIA MATILDE MEJIA ZULOETA"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 739,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; el Decreto Legislativo Nº 1047, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de la Producción; y el Decreto Supremo Nº 002-2017-PRODUCE, Decreto Supremo que aprueba el Reglamento de Organización y Funciones del Ministerio de la Producción;",
+          "section_index": 6
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "29158"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 739,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; el Decreto Legislativo Nº 1047, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de la Producción; y el Decreto Supremo Nº 002-2017-PRODUCE, Decreto Supremo que aprueba el Reglamento de Organización y Funciones del Ministerio de la Producción;",
+          "section_index": 6
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "27594"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 739,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; el Decreto Legislativo Nº 1047, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de la Producción; y el Decreto Supremo Nº 002-2017-PRODUCE, Decreto Supremo que aprueba el Reglamento de Organización y Funciones del Ministerio de la Producción;",
+          "section_index": 6
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "31419"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 739,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; el Decreto Legislativo Nº 1047, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de la Producción; y el Decreto Supremo Nº 002-2017-PRODUCE, Decreto Supremo que aprueba el Reglamento de Organización y Funciones del Ministerio de la Producción;",
+          "section_index": 6
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Supremo",
+        "target_number_raw": "053-2022-PCM"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 739,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; el Decreto Legislativo Nº 1047, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de la Producción; y el Decreto Supremo Nº 002-2017-PRODUCE, Decreto Supremo que aprueba el Reglamento de Organización y Funciones del Ministerio de la Producción;",
+          "section_index": 6
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Legislativo",
+        "target_number_raw": "1047"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 739,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; el Decreto Legislativo Nº 1047, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de la Producción; y el Decreto Supremo Nº 002-2017-PRODUCE, Decreto Supremo que aprueba el Reglamento de Organización y Funciones del Ministerio de la Producción;",
+          "section_index": 6
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Supremo",
+        "target_number_raw": "002-2017-PRODUCE"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Ministro de la Producción",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 26,
+            "char_start": 0,
+            "quoted_text": "JUAN CARLOS REQUEJO ALEMAN",
+            "section_index": 11
+          },
+          "identifiers": [],
+          "text_raw": "JUAN CARLOS REQUEJO ALEMAN"
+        },
+        "signature_order": 1
+      }
+    ],
+    "warnings": []
+  }
+}

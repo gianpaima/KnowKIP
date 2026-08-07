@@ -1,0 +1,58 @@
+@prefix kipu: <https://kipu.example/ontology#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Procedencia: se reutiliza PROV-O. El documento original es evidencia; los datos
+# derivados son afirmaciones versionadas que nunca la reemplazan.
+
+kipu:ArtifactVersion a owl:Class ;
+    rdfs:subClassOf prov:Entity, kipu:Resource ;
+    rdfs:label "Versión de artefacto"@es ;
+    rdfs:comment "Bytes capturados e inmutables, direccionados por SHA-256."@es .
+
+kipu:sha256 a owl:DatatypeProperty ;
+    rdfs:domain kipu:ArtifactVersion ; rdfs:range xsd:string .
+
+kipu:capturedAt a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
+
+kipu:EvidenceSpan a owl:Class ;
+    rdfs:subClassOf prov:Entity, kipu:Resource ;
+    rdfs:label "Fragmento de evidencia"@es ;
+    rdfs:comment "Cita textual exacta con localizador dentro de una versión de artefacto."@es .
+
+kipu:quotedText a owl:DatatypeProperty ;
+    rdfs:domain kipu:EvidenceSpan ; rdfs:range xsd:string .
+kipu:quotedTextSha256 a owl:DatatypeProperty ; rdfs:range xsd:string .
+kipu:inArtifactVersion a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:wasDerivedFrom ;
+    rdfs:domain kipu:EvidenceSpan ; rdfs:range kipu:ArtifactVersion .
+kipu:articleLabel a owl:DatatypeProperty .
+
+kipu:evidence a owl:ObjectProperty ;
+    rdfs:range kipu:EvidenceSpan ;
+    rdfs:label "evidencia"@es ;
+    rdfs:comment "Toda afirmación aceptada debe tener al menos un EvidenceSpan."@es .
+
+kipu:ExtractionRun a owl:Class ;
+    rdfs:subClassOf prov:Activity, kipu:Resource ;
+    rdfs:label "Corrida de extracción"@es .
+
+kipu:parserVersion a owl:DatatypeProperty .
+kipu:extractorVersion a owl:DatatypeProperty .
+kipu:ontologyVersion a owl:DatatypeProperty .
+kipu:modelProvider a owl:DatatypeProperty .
+kipu:promptVersion a owl:DatatypeProperty .
+
+kipu:Assertion a owl:Class ;
+    rdfs:subClassOf prov:Entity, kipu:Resource ;
+    rdfs:label "Afirmación"@es .
+
+kipu:confidence a owl:DatatypeProperty ; rdfs:range xsd:decimal .
+kipu:reviewStatus a owl:DatatypeProperty ; rdfs:range xsd:string ;
+    rdfs:comment "CANDIDATE | AUTO_ACCEPTED | HUMAN_ACCEPTED | HUMAN_REJECTED | SUPERSEDED."@es .
+kipu:wasExtractedBy a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:wasGeneratedBy ;
+    rdfs:range kipu:ExtractionRun .
+kipu:supersededBy a owl:ObjectProperty ; rdfs:range kipu:Assertion .

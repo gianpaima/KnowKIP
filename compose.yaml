@@ -1,0 +1,61 @@
+name: kipu-knowledge
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: kipu
+      POSTGRES_PASSWORD: kipu
+      POSTGRES_DB: kipu
+    ports:
+      # 5433 en el host para no chocar con instalaciones nativas de PostgreSQL
+      - "5433:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kipu -d kipu"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: kipu
+      MINIO_ROOT_PASSWORD: kipu-secret-change-me
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Perfil opcional: triple store para consultas SPARQL sobre la proyección RDF.
+  fuseki:
+    profiles: ["semantic"]
+    image: stain/jena-fuseki:latest
+    environment:
+      ADMIN_PASSWORD: kipu-admin
+      FUSEKI_DATASET_1: kipu
+    ports:
+      - "3030:3030"
+
+  # Perfil opcional: búsqueda avanzada (el MVP usa PostgreSQL FTS).
+  opensearch:
+    profiles: ["search"]
+    image: opensearchproject/opensearch:2
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+
+volumes:
+  pg-data:
+  minio-data:

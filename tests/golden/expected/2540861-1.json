@@ -1,0 +1,245 @@
+{
+  "document": {
+    "document_type_code": "RESOLUCION_MINISTERIAL",
+    "issue_place_raw": "Jesús María",
+    "issued_on": "2026-08-05",
+    "number_normalized": "D000284-2026-MIDAGRI-DM",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/9GzJQ8i5avj9po6xjVgsNJ/*/2540861-1.PDF",
+    "publication_code": "2540861-1",
+    "published_on": "2026-08-06",
+    "title_raw": "Designan Jefa de Atención al Ciudadano y Gestión Documental de la Oficina de Atención al Ciudadano y Gestión Documental de la Secretaría General del Ministerio"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo Único.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo Único.-",
+          "char_end": 263,
+          "char_start": 0,
+          "quoted_text": "Artículo Único.- Se designa a la señora ERMELINDA GARCES PINTADO, en el puesto de Jefa de Atención al Ciudadano y Gestión Documental de la Oficina de Atención al Ciudadano y Gestión Documental de la Secretaría General del Ministerio de Desarrollo Agrario y Riego.",
+          "section_index": 11
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo Único.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Ministerio de Desarrollo Agrario y Riego",
+              "path_raw": "Jefa de Atención al Ciudadano y Gestión Documental de la Oficina de Atención al Ciudadano y Gestión Documental de la Secretaría General del Ministerio de Desarrollo Agrario y Riego",
+              "unit_chain": [
+                "Oficina de Atención al Ciudadano y Gestión Documental",
+                "Secretaría General"
+              ]
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo Único.-",
+                "char_end": 64,
+                "char_start": 40,
+                "quoted_text": "ERMELINDA GARCES PINTADO",
+                "section_index": 11
+              },
+              "identifiers": [],
+              "text_raw": "ERMELINDA GARCES PINTADO"
+            },
+            "position_label_raw": "Jefa de Atención al Ciudadano y Gestión Documental de la Oficina de Atención al Ciudadano y Gestión Documental de la Secretaría General del Ministerio de Desarrollo Agrario y Riego",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo Único.-",
+          "char_end": 263,
+          "char_start": 0,
+          "quoted_text": "Artículo Único.- Se designa a la señora ERMELINDA GARCES PINTADO, en el puesto de Jefa de Atención al Ciudadano y Gestión Documental de la Oficina de Atención al Ciudadano y Gestión Documental de la Secretaría General del Ministerio de Desarrollo Agrario y Riego.",
+          "section_index": 11
+        },
+        "is_collective": false,
+        "legal_verb_raw": "Se designa",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo Único.-",
+                "char_end": 64,
+                "char_start": 40,
+                "quoted_text": "ERMELINDA GARCES PINTADO",
+                "section_index": 11
+              },
+              "identifiers": [],
+              "text_raw": "ERMELINDA GARCES PINTADO"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 366,
+          "char_start": 0,
+          "quoted_text": "El Proveído Nº D008222-2026-MIDAGRI-SG de la Secretaría General; el Memorando Nº D000332-2026-MIDAGRI-SG-OGGRH de la Oficina General de Gestión de Recursos Humanos, que adjunta el Informe Nº D000102-2026-MIDAGRI-SG-OGGRH-ODTH de la Oficina de Desarrollo del Talento Humano; y, el Informe Nº D000403-2026-MIDAGRI-SG-OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Proveído",
+        "target_number_raw": "D008222-2026-MIDAGRI-SG"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 366,
+          "char_start": 0,
+          "quoted_text": "El Proveído Nº D008222-2026-MIDAGRI-SG de la Secretaría General; el Memorando Nº D000332-2026-MIDAGRI-SG-OGGRH de la Oficina General de Gestión de Recursos Humanos, que adjunta el Informe Nº D000102-2026-MIDAGRI-SG-OGGRH-ODTH de la Oficina de Desarrollo del Talento Humano; y, el Informe Nº D000403-2026-MIDAGRI-SG-OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "D000332-2026-MIDAGRI-SG-OGGRH"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 366,
+          "char_start": 0,
+          "quoted_text": "El Proveído Nº D008222-2026-MIDAGRI-SG de la Secretaría General; el Memorando Nº D000332-2026-MIDAGRI-SG-OGGRH de la Oficina General de Gestión de Recursos Humanos, que adjunta el Informe Nº D000102-2026-MIDAGRI-SG-OGGRH-ODTH de la Oficina de Desarrollo del Talento Humano; y, el Informe Nº D000403-2026-MIDAGRI-SG-OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe",
+        "target_number_raw": "D000102-2026-MIDAGRI-SG-OGGRH-ODTH"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 366,
+          "char_start": 0,
+          "quoted_text": "El Proveído Nº D008222-2026-MIDAGRI-SG de la Secretaría General; el Memorando Nº D000332-2026-MIDAGRI-SG-OGGRH de la Oficina General de Gestión de Recursos Humanos, que adjunta el Informe Nº D000102-2026-MIDAGRI-SG-OGGRH-ODTH de la Oficina de Desarrollo del Talento Humano; y, el Informe Nº D000403-2026-MIDAGRI-SG-OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe",
+        "target_number_raw": "D000403-2026-MIDAGRI-SG-OGAJ"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 729,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 31075, Ley de Organización y Funciones del Ministerio de Desarrollo Agrario y Riego; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción, y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; y, la Resolución Ministerial Nº 0080-2021-MIDAGRI, que aprueba el Texto Integrado del Reglamento de Organización y Funciones del Ministerio de Desarrollo Agrario y Riego;",
+          "section_index": 9
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "29158"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 729,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 31075, Ley de Organización y Funciones del Ministerio de Desarrollo Agrario y Riego; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción, y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; y, la Resolución Ministerial Nº 0080-2021-MIDAGRI, que aprueba el Texto Integrado del Reglamento de Organización y Funciones del Ministerio de Desarrollo Agrario y Riego;",
+          "section_index": 9
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "31075"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 729,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 31075, Ley de Organización y Funciones del Ministerio de Desarrollo Agrario y Riego; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción, y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; y, la Resolución Ministerial Nº 0080-2021-MIDAGRI, que aprueba el Texto Integrado del Reglamento de Organización y Funciones del Ministerio de Desarrollo Agrario y Riego;",
+          "section_index": 9
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "27594"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 729,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 31075, Ley de Organización y Funciones del Ministerio de Desarrollo Agrario y Riego; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción, y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; y, la Resolución Ministerial Nº 0080-2021-MIDAGRI, que aprueba el Texto Integrado del Reglamento de Organización y Funciones del Ministerio de Desarrollo Agrario y Riego;",
+          "section_index": 9
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "31419"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 729,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto por la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; la Ley Nº 31075, Ley de Organización y Funciones del Ministerio de Desarrollo Agrario y Riego; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción, y su Reglamento aprobado por Decreto Supremo Nº 053-2022-PCM; y, la Resolución Ministerial Nº 0080-2021-MIDAGRI, que aprueba el Texto Integrado del Reglamento de Organización y Funciones del Ministerio de Desarrollo Agrario y Riego;",
+          "section_index": 9
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Supremo",
+        "target_number_raw": "053-2022-PCM"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Ministro de Desarrollo Agrario y Riego",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 26,
+            "char_start": 0,
+            "quoted_text": "MARCO ANTONIO VINELLI RUIZ",
+            "section_index": 13
+          },
+          "identifiers": [],
+          "text_raw": "MARCO ANTONIO VINELLI RUIZ"
+        },
+        "signature_order": 1
+      }
+    ],
+    "warnings": []
+  }
+}

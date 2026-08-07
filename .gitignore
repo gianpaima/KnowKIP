@@ -1,0 +1,27 @@
+# Entornos y dependencias
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Configuración local y secretos
+.env
+*.local.env
+
+# Datos generados en runtime (artefactos capturados, DB locales, exports)
+var/
+*.db
+*.sqlite3
+
+# Docker / MinIO volúmenes locales
+.minio-data/
+.pg-data/
+
+# SO / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,15 @@
+@prefix kipu: <https://kipu.example/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Geografía mínima del MVP: lugar de emisión como literal tipado.
+# Extensible a entidades territoriales (departamento/provincia/distrito) en el futuro.
+
+kipu:Place a owl:Class ;
+    rdfs:subClassOf kipu:Resource ;
+    rdfs:label "Lugar"@es .
+
+kipu:issuePlaceRaw a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "lugar de emisión (texto original)"@es .

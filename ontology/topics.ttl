@@ -1,0 +1,18 @@
+@prefix kipu: <https://kipu.example/ontology#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+# Temas: vocabulario SKOS mínimo, gobernado por ontology-governance.md.
+# Los términos nuevos entran como DRAFT vía candidatos, nunca automáticamente.
+
+kipu:TopicScheme a skos:ConceptScheme ;
+    skos:prefLabel "Temas"@es .
+
+kipu:topic-personnel a skos:Concept ;
+    skos:inScheme kipu:TopicScheme ;
+    skos:prefLabel "Personal público"@es ;
+    skos:definition "Designaciones, nombramientos, encargaturas, renuncias y conclusiones."@es .
+
+kipu:topic-procurement a skos:Concept ;
+    skos:inScheme kipu:TopicScheme ;
+    skos:prefLabel "Contrataciones"@es ;
+    skos:editorialNote "DRAFT: reservado para fuentes futuras."@es .

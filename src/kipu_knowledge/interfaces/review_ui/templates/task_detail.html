@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+{% block title %}{{ task.task_type }} — Kipu Knowledge{% endblock %}
+
+{# Cita de una mención cualquiera: participante de un evento u origen de una
+   entidad canónica. Si el span dejó de anclar se advierte en vez de resaltar. #}
+{% macro cite(item) %}
+{% if item.evidence and not item.intact %}
+<p class="warn">Integridad: la cita de esta mención ya no coincide con el texto de su
+sección; no se resalta para no señalar texto equivocado.</p>
+{% elif item.highlight %}
+<div class="evidence">{{ item.highlight[0] }}<mark>{{ item.highlight[1] }}</mark>{{ item.highlight[2] }}</div>
+{% elif item.evidence %}
+<div class="evidence">{{ item.evidence.quoted_text }}</div>
+{% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="page-head">
+  <div class="meta">
+    <span class="pill {{ 'pending' if task.status.value == 'PENDING' else 'resolved' }}">{{ task.status.value }}</span>
+    <span class="pill prio-{{ task.priority }}">Prioridad {{ task.priority }}</span>
+    <span class="chip">{{ task.target_type }} · {{ task.target_id }}</span>
+  </div>
+  <h1>{{ task.task_type }}</h1>
+  <p class="lede">{{ task.reason }}</p>
+</div>
+
+<div class="layout">
+<div class="stack">
+
+{% if document %}
+<section class="card">
+<h2>Documento</h2>
+<p style="margin:0"><strong>{{ document.title_raw }}</strong></p>
+<p class="muted" style="margin:.35rem 0 0">{{ document.document_type_raw }} {{ document.number_raw }}
+· emitido {{ document.issued_on or "no expresado" }}
+· publicado {{ document.published_on or "no expresado" }}</p>
+</section>
+{% endif %}
+
+{% if evidence %}
+<section class="card">
+<h2>Evidencia</h2>
+{% if not span_intact %}
+<p class="warn">Integridad: la cita registrada ya no coincide con el texto de su sección
+en el rango declarado ({{ evidence.char_start }}–{{ evidence.char_end }}). No se resalta
+ningún fragmento para no señalar texto equivocado; revisa la sección completa.</p>
+{% endif %}
+{% if highlight %}
+<div class="evidence">{{ highlight[0] }}<mark>{{ highlight[1] }}</mark>{{ highlight[2] }}</div>
+{% else %}
+<div class="evidence">{{ evidence.quoted_text }}</div>
+{% endif %}
+<p class="muted" style="margin:.2rem 0 0">{{ evidence.article_label or "sin etiqueta de artículo" }}
+· cita sha256 <code>{{ evidence.quoted_text_sha256[:16] }}…</code></p>
+{% if section %}
+<details style="margin-top:.6rem">
+  <summary>Texto original vs normalizado de la sección</summary>
+  <h3>Original</h3><div class="evidence">{{ section.text_raw }}</div>
+  <h3>Normalizado</h3><div class="evidence">{{ section.text_normalized }}</div>
+</details>
+{% endif %}
+</section>
+{% endif %}
+
+{% if mention %}
+<section class="card">
+<h2>Mención de persona</h2>
+<p style="margin:0">«{{ mention.text_raw }}» → normalizado «{{ mention.text_normalized }}»<br>
+Estado de resolución: <code>{{ mention.resolution_status.value }}</code>
+{% if mention.role_context_raw %}<br>Cargo declarado en el documento: «{{ mention.role_context_raw }}»{% endif %}</p>
+{% if homonym_count and homonym_count > 1 %}
+<p class="warn">Esta grafía ya corresponde a {{ homonym_count }} personas distintas: no admite alias
+sin cargo, porque vincularía homónimos futuros sin abrir tarea.</p>
+{% endif %}
+{% if precedent %}
+<h3>Vinculada por precedente</h3>
+<p style="margin:0">Decisión de {{ precedent.reviewer or "revisor no identificado" }} del {{ precedent.created_at }}
+(<code>{{ precedent.review_decision_id }}</code>),
+{% if precedent.role_context %}sobre el cargo «{{ precedent.role_context }}»{% else %}como alias de la grafía, sin restricción de cargo{% endif %}.</p>
+{% endif %}
+{# Las fichas candidatas se eligen por nombre en el formulario de decisión. Aquí
+   solo se listan cuando ya no hay nada que decidir, para leer el expediente. #}
+{% if task.status.value != "PENDING" %}
+{% if variants %}
+<h3>Posibles duplicados por grafía</h3>
+<ul style="margin:.3rem 0 0; padding-left:1.2rem">
+  {% for person, prop in variants %}
+  <li>{{ person.preferred_name }} <code>{{ person.id }}</code><br>
+      <span class="muted">{{ prop.rationale }}</span></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% if candidates %}
+<h3>Personas candidatas (nombre normalizado idéntico)</h3>
+<ul style="margin:.3rem 0 0; padding-left:1.2rem">
+  {% for c in candidates %}<li>{{ c.preferred_name }} <code>{{ c.id }}</code></li>{% endfor %}
+</ul>
+{% endif %}
+{% endif %}
+</section>
+{% endif %}
+
+{% if event %}
+<section class="card">
+<h2>Evento</h2>
+<p style="margin:0">{{ event.event_type.value }} ({{ event.assignment_effect.value }}) · verbo «{{ event.legal_verb_raw }}»<br>
+Fecha efectiva: {{ event.effective_from or "no expresada" }} <code>{{ event.effective_from_status.value }}</code>
+{% if event.end_condition_text %}<br>Condición de término: {{ event.end_condition_text }}{% endif %}</p>
+{% if legal_effect %}
+<p style="margin:.5rem 0 0">Inicio de efectos determinado por norma:
+<strong>{{ legal_effect.legal_effect_from }}</strong> <code>DERIVED</code><br>
+<span class="muted">{{ legal_effect.norm }}, artículo {{ legal_effect.article }}
+({{ "cita literal" if legal_effect.quote_kind == "verbatim" else "resumen" }}):
+«{{ legal_effect.rule_text }}»
+{% if legal_effect.source_url %}<a href="{{ legal_effect.source_url }}" rel="noopener noreferrer" target="_blank">norma</a>{% endif %}
+· regla {{ legal_effect.rule }}</span></p>
+{% elif legal_effect_verdict %}
+<p class="muted" style="margin:.5rem 0 0">La norma no determina esta fecha:
+{{ legal_effect_verdict.rationale }}</p>
+{% endif %}
+{% if participants %}
+<h3>Personas involucradas</h3>
+{% for p in participants %}
+<div class="participant">
+<p style="margin:0"><strong>«{{ p.mention.text_raw }}»</strong>
+<span class="chip">{{ p.role.value }}</span>
+{% if p.evidence and p.evidence.article_label %}<span class="muted"> — {{ p.evidence.article_label }}</span>{% endif %}</p>
+{{ cite(p) }}
+</div>
+{% endfor %}
+{% endif %}
+</section>
+{% endif %}
+
+{% if position %}
+<section class="card">
+<h2>Puesto</h2>
+<p style="margin:0">{{ position.preferred_label }}</p>
+<p class="muted" style="margin:.35rem 0 0">Organización:
+{% if position.organization_id %}<code>{{ position.organization_id }}</code>{% else %}sin determinar{% endif %}</p>
+</section>
+{% endif %}
+
+{% if organization %}
+<section class="card">
+<h2>Organización</h2>
+<p style="margin:0">{{ organization.preferred_name }}
+{% if organization.acronym %}<span class="chip">{{ organization.acronym }}</span>{% endif %}<br>
+<span class="muted">normalizado «{{ organization.name_normalized }}» · {{ organization.organization_type }}</span></p>
+</section>
+{% endif %}
+
+{% if org_mention %}
+<section class="card">
+<h2>Mención de organización</h2>
+<p style="margin:0">«{{ org_mention.text_raw }}» → normalizado «{{ org_mention.text_normalized }}»<br>
+Estado de resolución: <code>{{ org_mention.resolution_status.value }}</code></p>
+</section>
+{% endif %}
+
+{# Un puesto o una organización no tienen evidencia propia: la cita de la mención
+   que los originó es lo único que permite decidir sobre ellos. #}
+{% if origins %}
+<section class="card">
+<h2>{{ origins_title }}</h2>
+{% for o in origins %}
+<div class="participant">
+<p style="margin:0"><strong>«{{ o.title }}»</strong>
+{% if o.evidence and o.evidence.article_label %}<span class="chip">{{ o.evidence.article_label }}</span>{% endif %}
+{% if o.detail %}<br><span class="muted">{{ o.detail }}</span>{% endif %}</p>
+{{ cite(o) }}
+{% if not o.evidence %}
+<p class="muted" style="margin:.3rem 0 0">Esta mención no registró cita textual.</p>
+{% endif %}
+</div>
+{% endfor %}
+</section>
+{% elif position or organization %}
+<section class="card">
+<h2>{{ origins_title }}</h2>
+<p class="muted" style="margin:0">No hay ninguna mención registrada que apunte a esta ficha.
+{% if document %}La captura de la derecha es la del documento del que se parseó.{% endif %}</p>
+</section>
+{% endif %}
+
+{% if task.status.value == "PENDING" %}
+<form class="decision card" method="post" action="/review/tasks/{{ task.id }}/decide">
+  <h2>Decisión</h2>
+
+  {# Solo las acciones que este tipo de objetivo admite: las demás fallarían o no
+     harían nada, y ofrecerlas obliga al revisor a adivinar cuál es cuál. #}
+  <fieldset class="choices">
+    <legend>¿Qué corresponde hacer?</legend>
+    {% for value, label in actions %}
+    <label class="choice">
+      <input type="radio" name="action" value="{{ value }}" data-label="{{ label }}"{% if value == default_action %} checked{% endif %}>
+      <span>{{ label }} <code class="chip">{{ value }}</code></span>
+    </label>
+    {% endfor %}
+  </fieldset>
+
+  {% if entity_choices %}
+  <fieldset class="choices" data-when="LINK_ENTITY">
+    <legend>Vincular a</legend>
+    {% for c in entity_choices %}
+    <label class="choice">
+      <input type="radio" name="entity_id" value="{{ c.id }}" data-label="{{ c.label }}"{% if loop.first %} checked{% endif %}>
+      <span><strong>{{ c.label }}</strong><br>
+      <span class="muted">{{ c.rationale }} · {{ c.mentions }} mención(es) registradas</span></span>
+    </label>
+    {% endfor %}
+    <details>
+      <summary>Vincular a otra ficha por identificador</summary>
+      <input type="text" name="entity_id_other" placeholder="identificador de la ficha destino">
+      <p class="hint">Solo si la ficha correcta no aparece arriba. Tiene prioridad sobre la selección.</p>
+    </details>
+  </fieldset>
+  {% endif %}
+
+  {% if organizations %}
+  <fieldset class="choices" data-when="RESOLVE_POSITION">
+    <legend>Organización a la que pertenece el puesto</legend>
+    {% for o in organizations %}
+    <label class="choice">
+      <input type="radio" name="organization_id" value="{{ o.id }}"{% if loop.first %} checked{% endif %}>
+      <span>{{ o.preferred_name }}</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+
+  {% if mention %}
+  <div class="field" data-when="CREATE_ENTITY">
+    <label for="preferred_name">Nombre de la ficha nueva</label>
+    <input type="text" id="preferred_name" name="preferred_name" value="{{ default_preferred_name or '' }}">
+    <p class="hint">Cómo se llamará la persona canónica que se creará para esta mención.</p>
+  </div>
+
+  <fieldset class="choices" data-when="LINK_ENTITY CREATE_ENTITY">
+    <legend>¿Vale esta decisión para el futuro?</legend>
+    {% set alias_blocked = homonym_count and homonym_count > 1 %}
+    <label class="choice">
+      <input type="radio" name="precedent_scope" value="global"{% if alias_blocked %} disabled{% else %} checked{% endif %}>
+      <span>Sí, siempre que aparezca el nombre «{{ mention.text_normalized }}»
+      {% if alias_blocked %}<br><span class="muted">No disponible: la grafía ya corresponde a varias personas.</span>{% endif %}</span>
+    </label>
+    {% if mention.role_context_normalized %}
+    <label class="choice">
+      <input type="radio" name="precedent_scope" value="office"{% if alias_blocked %} checked{% endif %}>
+      <span>Solo cuando además figure como «{{ mention.role_context_normalized }}»</span>
+    </label>
+    {% endif %}
+    <label class="choice">
+      <input type="radio" name="precedent_scope" value="none"{% if alias_blocked and not mention.role_context_normalized %} checked{% endif %}>
+      <span>No, decidir solo este caso</span>
+    </label>
+  </fieldset>
+  {% endif %}
+
+  <div class="field">
+    <label for="reviewer">Revisor</label>
+    <input type="text" id="reviewer" name="reviewer" placeholder="nombre o correo">
+  </div>
+  <div class="field">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2"></textarea>
+  </div>
+  <p class="summary" data-summary hidden></p>
+  <button type="submit">Registrar decisión</button>
+
+{# Progresivo: sin JavaScript se ven todos los bloques, que es el comportamiento
+   anterior y sigue siendo correcto. Con JS solo queda a la vista lo que la acción
+   elegida necesita, y se resume qué va a pasar antes de enviar. #}
+<script>
+(function () {
+  var form = document.currentScript.closest("form");
+  var panels = form.querySelectorAll("[data-when]");
+  var summary = form.querySelector("[data-summary]");
+  function sync() {
+    var chosen = form.querySelector("input[name=action]:checked");
+    if (!chosen) return;
+    var value = chosen.value;
+    panels.forEach(function (panel) {
+      panel.hidden = panel.dataset.when.split(" ").indexOf(value) === -1;
+    });
+    var text = chosen.dataset.label;
+    var entity = form.querySelector("input[name=entity_id]:checked");
+    if (value === "LINK_ENTITY" && entity) {
+      text += " → " + entity.dataset.label;
+    }
+    var scope = form.querySelector("input[name=precedent_scope]:checked");
+    if (scope && !scope.disabled && ["LINK_ENTITY", "CREATE_ENTITY"].indexOf(value) !== -1) {
+      text += scope.value === "none"
+        ? ". No se registrará precedente."
+        : ". Las menciones futuras se resolverán citando esta decisión.";
+    }
+    summary.textContent = text;
+    summary.hidden = false;
+  }
+  form.addEventListener("change", sync);
+  sync();
+})();
+</script>
+</form>
+{% endif %}
+
+{% if decisions %}
+<section class="card">
+<h2>Decisiones previas</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Acción</th><th>Revisor</th><th>Notas</th><th>Fecha</th></tr></thead>
+  <tbody>
+  {% for d in decisions %}
+  <tr><td>{{ d.action.value }}</td><td>{{ d.reviewer or "—" }}</td><td>{{ d.notes or "—" }}</td>
+      <td class="muted num">{{ d.decided_at.strftime("%Y-%m-%d %H:%M") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+{% endif %}
+</div>
+
+<aside class="preview">
+{% if preview %}
+<section class="card">
+<div class="preview-head">
+  <h2>Documento fuente (captura)</h2>
+  <a href="{{ preview.src }}" target="_blank" rel="noopener">Abrir la captura ↗</a>
+</div>
+<p class="muted" style="margin:0 0 .6rem">Bytes inmutables <code>sha256 {{ preview.sha256[:16] }}…</code>
+· capturado {{ preview.captured_at.strftime("%Y-%m-%d %H:%M") }}</p>
+{# Procedencia: la captura es la evidencia, pero el revisor necesita poder
+   contrastarla contra el original publicado. Los enlaces salen del origin de la
+   app, así que van con noreferrer para no filtrar el id de tarea. #}
+<p class="muted" style="margin:0 0 .6rem">
+{% if preview.source_url %}<a href="{{ preview.source_url }}" target="_blank" rel="noopener noreferrer">Ver en El Peruano ↗</a>{% endif %}
+{% if preview.pdf_viewer_url %} · <a href="{{ preview.pdf_viewer_url }}" target="_blank" rel="noopener noreferrer">Ver el PDF en la fuente ↗</a>{% endif %}
+{% if preview.pdf_url %} · <a href="{{ preview.pdf_url }}" target="_blank" rel="noopener noreferrer">Descargar el PDF ↗</a>{% endif %}
+{% if not preview.source_url and not preview.pdf_url %}Esta captura no registró la URL de origen.{% endif %}
+{% if preview.redirected_to %}<br>La captura se solicitó a <code>{{ preview.requested_url }}</code>
+y la fuente redirigió a <code>{{ preview.redirected_to }}</code>.{% endif %}
+</p>
+{% if preview.kind == "html" %}
+{# sandbox sin permisos: la captura es contenido de terceros y nunca ejecuta
+   scripts ni sale del marco. El ancla #x<código> centra el dispositivo correcto
+   aunque la captura contenga otros. #}
+<iframe sandbox src="{{ preview.src }}" title="Captura original del dispositivo"></iframe>
+{% elif preview.kind == "pdf" %}
+<iframe src="{{ preview.src }}" title="PDF original"></iframe>
+{% else %}
+<img src="{{ preview.src }}" alt="Captura original del dispositivo">
+{% endif %}
+</section>
+{% if sources %}
+{# El mismo acto se publica en varios sitios. Cuál de ellos produce efectos, y
+   cuáles están respaldados en el CAS frente a los que son solo un enlace que
+   puede morir, es información que el revisor necesita para citar bien. #}
+<section class="card">
+<h2>Publicaciones de este acto</h2>
+{% for s in sources %}
+<div class="participant">
+<p style="margin:0"><strong>{{ s.name }}</strong>
+{% if s.authority %}<span class="chip">{{ s.authority }}</span>{% endif %}
+{% if s.is_authoritative %}<span class="chip">de aquí se extrajo</span>{% endif %}
+<br><span class="muted">código {{ s.code }}</span></p>
+<p class="muted" style="margin:.25rem 0 0">
+{% if s.canonical_url %}<a href="{{ s.canonical_url }}" target="_blank" rel="noopener noreferrer">Página ↗</a>{% endif %}
+{% if s.pdf_url %} · <a href="{{ s.pdf_url }}" target="_blank" rel="noopener noreferrer">PDF ↗</a>{% endif %}
+</p>
+{% if s.captures %}
+<ul class="captures">
+  {% for c in s.captures %}
+  <li>{{ c.representation }} · <a href="/review/artifacts/{{ c.version_id }}/raw" target="_blank" rel="noopener">respaldo en el CAS ↗</a>
+  <span class="muted"><code>{{ c.sha256[:12] }}…</code> · {{ c.captured_at.strftime("%Y-%m-%d %H:%M") }}{% if c.versions > 1 %} · {{ c.versions }} versiones{% endif %}</span></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="warn" style="margin:.3rem 0 0">Sin respaldo: solo se guarda el enlace, y un enlace se puede
+caer o cambiar de contenido sin aviso. Capturar con <code>kipu capture-pdf</code>.</p>
+{% endif %}
+{% if not s.is_authoritative %}
+<p class="muted" style="margin:.3rem 0 0">Vinculada porque: {{ s.matched_by }}. No se extraen hechos
+de esta fuente; sirve de respaldo y contraste.</p>
+{% endif %}
+</div>
+{% endfor %}
+</section>
+{% endif %}
+{% else %}
+<section class="card">
+<h2>Documento fuente</h2>
+<p class="muted" style="margin:0">Esta tarea no tiene un artefacto capturado que previsualizar.</p>
+</section>
+{% endif %}
+</aside>
+</div>
+{% endblock %}

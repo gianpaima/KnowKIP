@@ -1,0 +1,311 @@
+{
+  "document": {
+    "document_type_code": "RESOLUCION_SUPREMA",
+    "issue_place_raw": "Lima",
+    "issued_on": "2026-08-05",
+    "number_normalized": "028-2026-EF",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/BMHomfig4vM9J2AUZuBTAt/*/2540905-4.PDF",
+    "publication_code": "2540905-4",
+    "published_on": "2026-08-06",
+    "title_raw": "Nombran Presidenta del Tribunal Fiscal"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 181,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Dar por concluido el encargo de puesto de Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas, dispuesto mediante la Resolución Suprema Nº 044-2025-EF.",
+          "section_index": 10
+        }
+      },
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 2.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 139,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- Nombrar a la señora Clara Rossana Urteaga Goldstein como Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas.",
+          "section_index": 11
+        }
+      },
+      {
+        "article_class": "COUNTERSIGNATURE",
+        "article_label": "Artículo 3.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 3.-",
+          "char_end": 97,
+          "char_start": 0,
+          "quoted_text": "Artículo 3.- La presente Resolución Suprema es refrendada por el Ministro de Economía y Finanzas.",
+          "section_index": 12
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1.-",
+        "assignment_effect": "END",
+        "assignments": [
+          {
+            "assignment_kind": "ACTING",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Ministerio de Economía y Finanzas",
+              "path_raw": "Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas",
+              "unit_chain": [
+                "Tribunal Fiscal"
+              ]
+            },
+            "person": null,
+            "position_label_raw": "Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.9,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "END_ACTING_ASSIGNMENT",
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 181,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Dar por concluido el encargo de puesto de Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas, dispuesto mediante la Resolución Suprema Nº 044-2025-EF.",
+          "section_index": 10
+        },
+        "is_collective": false,
+        "legal_verb_raw": "Dar por concluido el encargo",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": "044-2025-EF",
+            "confidence": 0.6,
+            "encargo_position_raw": "Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas",
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 118,
+                "char_start": 93,
+                "quoted_text": "Luisa Ysila Castillo Soto",
+                "section_index": 5
+              },
+              "identifiers": [],
+              "text_raw": "Luisa Ysila Castillo Soto"
+            },
+            "role": "AFFECTED_PERSON_RECITAL_CANDIDATE",
+            "substantive_role_raw": "Asesora del Despacho Viceministerial de Economía II"
+          }
+        ],
+        "prior_document_number_raw": "Resolución Suprema N° 044-2025-EF"
+      },
+      {
+        "article_label": "Artículo 2.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Ministerio de Economía y Finanzas",
+              "path_raw": "Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas",
+              "unit_chain": [
+                "Tribunal Fiscal"
+              ]
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 2.-",
+                "char_end": 64,
+                "char_start": 33,
+                "quoted_text": "Clara Rossana Urteaga Goldstein",
+                "section_index": 11
+              },
+              "identifiers": [],
+              "text_raw": "Clara Rossana Urteaga Goldstein"
+            },
+            "position_label_raw": "Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "APPOINTMENT",
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 139,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- Nombrar a la señora Clara Rossana Urteaga Goldstein como Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas.",
+          "section_index": 11
+        },
+        "is_collective": false,
+        "legal_verb_raw": "Nombrar",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 2.-",
+                "char_end": 64,
+                "char_start": 33,
+                "quoted_text": "Clara Rossana Urteaga Goldstein",
+                "section_index": 11
+              },
+              "identifiers": [],
+              "text_raw": "Clara Rossana Urteaga Goldstein"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 290,
+          "char_start": 0,
+          "quoted_text": "Que, conforme a lo dispuesto en la Resolución Suprema N° 044-2025-EF, se encarga a la señora Luisa Ysila Castillo Soto, Asesora del Despacho Viceministerial de Economía II, el puesto de Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas, hasta que se designe a su titular;",
+          "section_index": 5
+        },
+        "reference_type": "PRIOR_APPOINTMENT",
+        "target_doc_kind_raw": "Resolución Suprema",
+        "target_number_raw": "044-2025-EF"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 614,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; en el Decreto Legislativo N° 183, Ley Orgánica del Ministerio de Economía y Finanzas; en el Texto Único Ordenado del Código Tributario, aprobado por el Decreto Supremo N° 133-2013-EF; en el Procedimiento para el nombramiento y ratificación del Presidente del Tribunal Fiscal y Vocal Administrativo, aprobado por el Decreto Supremo Nº 285-2021-EF; y, en el Texto Integrado Actualizado del Reglamento de Organización y Funciones del Ministerio de Economía y Finanzas, aprobado mediante la Resolución Ministerial N° 291-2026-EF/41;",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "29158"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 614,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; en el Decreto Legislativo N° 183, Ley Orgánica del Ministerio de Economía y Finanzas; en el Texto Único Ordenado del Código Tributario, aprobado por el Decreto Supremo N° 133-2013-EF; en el Procedimiento para el nombramiento y ratificación del Presidente del Tribunal Fiscal y Vocal Administrativo, aprobado por el Decreto Supremo Nº 285-2021-EF; y, en el Texto Integrado Actualizado del Reglamento de Organización y Funciones del Ministerio de Economía y Finanzas, aprobado mediante la Resolución Ministerial N° 291-2026-EF/41;",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Legislativo",
+        "target_number_raw": "183"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 614,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; en el Decreto Legislativo N° 183, Ley Orgánica del Ministerio de Economía y Finanzas; en el Texto Único Ordenado del Código Tributario, aprobado por el Decreto Supremo N° 133-2013-EF; en el Procedimiento para el nombramiento y ratificación del Presidente del Tribunal Fiscal y Vocal Administrativo, aprobado por el Decreto Supremo Nº 285-2021-EF; y, en el Texto Integrado Actualizado del Reglamento de Organización y Funciones del Ministerio de Economía y Finanzas, aprobado mediante la Resolución Ministerial N° 291-2026-EF/41;",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Supremo",
+        "target_number_raw": "133-2013-EF"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 614,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; en el Decreto Legislativo N° 183, Ley Orgánica del Ministerio de Economía y Finanzas; en el Texto Único Ordenado del Código Tributario, aprobado por el Decreto Supremo N° 133-2013-EF; en el Procedimiento para el nombramiento y ratificación del Presidente del Tribunal Fiscal y Vocal Administrativo, aprobado por el Decreto Supremo Nº 285-2021-EF; y, en el Texto Integrado Actualizado del Reglamento de Organización y Funciones del Ministerio de Economía y Finanzas, aprobado mediante la Resolución Ministerial N° 291-2026-EF/41;",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Supremo",
+        "target_number_raw": "285-2021-EF"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Presidenta de la República",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 28,
+            "char_start": 0,
+            "quoted_text": "KEIKO SOFÍA FUJIMORI HIGUCHI",
+            "section_index": 14
+          },
+          "identifiers": [],
+          "text_raw": "KEIKO SOFÍA FUJIMORI HIGUCHI"
+        },
+        "signature_order": 1
+      },
+      {
+        "capacity_raw": "Ministro de Economía y Finanzas",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 26,
+            "char_start": 0,
+            "quoted_text": "ELMER RAFAEL CUBA BUSTINZA",
+            "section_index": 16
+          },
+          "identifiers": [],
+          "text_raw": "ELMER RAFAEL CUBA BUSTINZA"
+        },
+        "signature_order": 2
+      }
+    ],
+    "warnings": []
+  }
+}

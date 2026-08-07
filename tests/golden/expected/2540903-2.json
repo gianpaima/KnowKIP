@@ -1,0 +1,221 @@
+{
+  "document": {
+    "document_type_code": "RESOLUCION_SUPREMA",
+    "issue_place_raw": "Lima",
+    "issued_on": "2026-08-05",
+    "number_normalized": "054-2026-DE",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/5IL1gMpvK7HAMgIuW_-Mnp/*/2540903-2.PDF",
+    "publication_code": "2540903-2",
+    "published_on": "2026-08-06",
+    "title_raw": "Designan Jefe del Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 168,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Designar al señor MIGUEL YAMASAKI KOIZUMI en el cargo de Jefe del Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED.",
+          "section_index": 9
+        }
+      },
+      {
+        "article_class": "COUNTERSIGNATURE",
+        "article_label": "Artículo 2.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 85,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- La presente Resolución Suprema es refrendada por el Ministro de Defensa.",
+          "section_index": 10
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED",
+              "path_raw": "Jefe del Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 54,
+                "char_start": 31,
+                "quoted_text": "MIGUEL YAMASAKI KOIZUMI",
+                "section_index": 9
+              },
+              "identifiers": [],
+              "text_raw": "MIGUEL YAMASAKI KOIZUMI"
+            },
+            "position_label_raw": "Jefe del Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 168,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Designar al señor MIGUEL YAMASAKI KOIZUMI en el cargo de Jefe del Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED.",
+          "section_index": 9
+        },
+        "is_collective": false,
+        "legal_verb_raw": "Designar",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 54,
+                "char_start": 31,
+                "quoted_text": "MIGUEL YAMASAKI KOIZUMI",
+                "section_index": 9
+              },
+              "identifiers": [],
+              "text_raw": "MIGUEL YAMASAKI KOIZUMI"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 711,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; la Ley N° 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; el Decreto Legislativo N° 1134, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de Defensa; y, el Reglamento de Organización y Funciones del Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED, aprobado por Decreto Supremo N° 104-2012-PCM.",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "29158"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 711,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; la Ley N° 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; el Decreto Legislativo N° 1134, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de Defensa; y, el Reglamento de Organización y Funciones del Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED, aprobado por Decreto Supremo N° 104-2012-PCM.",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "27594"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 711,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; la Ley N° 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; el Decreto Legislativo N° 1134, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de Defensa; y, el Reglamento de Organización y Funciones del Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED, aprobado por Decreto Supremo N° 104-2012-PCM.",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "31419"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 711,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; la Ley N° 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; el Decreto Legislativo N° 1134, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de Defensa; y, el Reglamento de Organización y Funciones del Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED, aprobado por Decreto Supremo N° 104-2012-PCM.",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Legislativo",
+        "target_number_raw": "1134"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 711,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; la Ley N° 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; el Decreto Legislativo N° 1134, Decreto Legislativo que aprueba la Ley de Organización y Funciones del Ministerio de Defensa; y, el Reglamento de Organización y Funciones del Centro Nacional de Estimación, Prevención y Reducción del Riesgo de Desastres - CENEPRED, aprobado por Decreto Supremo N° 104-2012-PCM.",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Supremo",
+        "target_number_raw": "104-2012-PCM"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Presidenta de la República",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 28,
+            "char_start": 0,
+            "quoted_text": "KEIKO SOFÍA FUJIMORI HIGUCHI",
+            "section_index": 12
+          },
+          "identifiers": [],
+          "text_raw": "KEIKO SOFÍA FUJIMORI HIGUCHI"
+        },
+        "signature_order": 1
+      },
+      {
+        "capacity_raw": "Ministro de Defensa",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 27,
+            "char_start": 0,
+            "quoted_text": "RAFAEL JORGE BELAUNDE LLOSA",
+            "section_index": 14
+          },
+          "identifiers": [],
+          "text_raw": "RAFAEL JORGE BELAUNDE LLOSA"
+        },
+        "signature_order": 2
+      }
+    ],
+    "warnings": []
+  }
+}

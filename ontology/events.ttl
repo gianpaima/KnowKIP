@@ -1,0 +1,88 @@
+@prefix kipu: <https://kipu.example/ontology#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix org: <http://www.w3.org/ns/org#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+kipu:PersonnelEvent a owl:Class ;
+    rdfs:subClassOf prov:Activity, kipu:Resource ;
+    rdfs:label "Evento de personal"@es ;
+    rdfs:comment "Acto declarado por un documento (designación, renuncia, encargo...). Un documento puede declarar cero, uno o varios eventos; un evento puede involucrar varias personas."@es .
+
+kipu:RoleAssignment a owl:Class ;
+    rdfs:subClassOf org:Membership, kipu:Resource ;
+    rdfs:label "Asignación de rol"@es ;
+    rdfs:comment "Relación persona-puesto con temporalidad doble (validez y registro)."@es .
+
+kipu:declaredBy a owl:ObjectProperty ;
+    rdfs:domain kipu:PersonnelEvent ; rdfs:range kipu:LegalDocument ;
+    rdfs:label "declarado por"@es .
+
+kipu:eventType a owl:ObjectProperty ; rdfs:range skos:Concept .
+kipu:assignmentEffect a owl:DatatypeProperty ; rdfs:range xsd:string .
+kipu:legalVerbRaw a owl:DatatypeProperty ;
+    rdfs:comment "Verbo jurídico original del texto; la clasificación controlada va en eventType."@es .
+
+kipu:effectiveFrom a owl:DatatypeProperty ; rdfs:range xsd:date .
+kipu:effectiveFromStatus a owl:DatatypeProperty ; rdfs:range xsd:string ;
+    rdfs:comment "EXPLICIT | DERIVED | INFERRED | NOT_STATED | CONDITIONAL. Nunca se rellena una fecha sin base textual."@es .
+kipu:effectiveTo a owl:DatatypeProperty ; rdfs:range xsd:date .
+kipu:effectiveToStatus a owl:DatatypeProperty ; rdfs:range xsd:string .
+kipu:endConditionText a owl:DatatypeProperty ;
+    rdfs:comment "Condición textual de término (p.ej. 'hasta el retorno de...'), cuando el final no es una fecha."@es .
+kipu:inferenceBasis a owl:DatatypeProperty ;
+    rdfs:comment "Obligatoria cuando un status es INFERRED: base y método de la inferencia."@es .
+
+# Fecha determinada por norma, separada de la que el documento expresa.
+kipu:legalEffectFrom a owl:DatatypeProperty ; rdfs:range xsd:date ;
+    rdfs:label "inicio de efectos determinado por norma"@es ;
+    rdfs:comment "Día desde el que el acto produce efectos jurídicos cuando el documento no lo expresa pero una norma lo fija (p. ej. Ley N.º 27594 art. 6: el día de la publicación en El Peruano). NO sustituye a effectiveFrom, que sigue diciendo lo que el documento dice."@es .
+kipu:legalEffectTo a owl:DatatypeProperty ; rdfs:range xsd:date ;
+    rdfs:label "término de efectos determinado por norma"@es .
+kipu:legalEffectFromStatus a owl:DatatypeProperty ; rdfs:range xsd:string ;
+    rdfs:comment "Siempre DERIVED: la fecha se deriva de una regla jurídica citada, no del texto ni de una inferencia estadística."@es .
+kipu:legalBasis a owl:DatatypeProperty ;
+    rdfs:comment "Obligatoria cuando hay legalEffectFrom: norma y artículo que fijan el inicio de efectos."@es .
+kipu:legalBasisSource a owl:ObjectProperty ;
+    rdfs:comment "URL de la norma citada como fundamento."@es .
+kipu:determinationRule a owl:DatatypeProperty ;
+    rdfs:comment "Versión de la regla que produjo la determinación (p. ej. legal-effect-date/1.0), para poder re-ejecutarla."@es .
+
+kipu:hasParticipant a owl:ObjectProperty ;
+    rdfs:domain kipu:PersonnelEvent ; rdfs:range kipu:PersonMention .
+kipu:participantRole a owl:DatatypeProperty .
+
+kipu:startsAssignment a owl:ObjectProperty ;
+    rdfs:domain kipu:PersonnelEvent ; rdfs:range kipu:RoleAssignment .
+kipu:endsAssignment a owl:ObjectProperty ;
+    rdfs:domain kipu:PersonnelEvent ; rdfs:range kipu:RoleAssignment .
+kipu:affectedAssignmentUnresolved a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:comment "Verdadero cuando un evento END no pudo vincularse a una asignación concreta."@es .
+
+kipu:assignmentOf a owl:ObjectProperty ;
+    rdfs:subPropertyOf org:member ; rdfs:domain kipu:RoleAssignment .
+kipu:assignmentMention a owl:ObjectProperty ;
+    rdfs:domain kipu:RoleAssignment ; rdfs:range kipu:PersonMention .
+kipu:assignmentPosition a owl:ObjectProperty ;
+    rdfs:subPropertyOf org:role ; rdfs:domain kipu:RoleAssignment .
+kipu:positionLabelRaw a owl:DatatypeProperty ;
+    rdfs:comment "Etiqueta original del puesto tal como aparece en el documento."@es .
+kipu:assignmentKind a owl:DatatypeProperty ;
+    rdfs:comment "TITULAR | ACTING | TEMPORARY | ADDITIONAL_RESPONSIBILITY | BOARD_MEMBERSHIP | UNKNOWN. Terminar un encargo adicional no termina el puesto base."@es .
+kipu:isCollective a owl:DatatypeProperty ; rdfs:range xsd:boolean .
+
+# Vocabulario controlado de tipos de evento
+kipu:EventTypeScheme a skos:ConceptScheme ; skos:prefLabel "Tipos de evento de personal"@es .
+kipu:evt-DESIGNATION a skos:Concept ; skos:inScheme kipu:EventTypeScheme ; skos:prefLabel "Designación"@es .
+kipu:evt-APPOINTMENT a skos:Concept ; skos:inScheme kipu:EventTypeScheme ; skos:prefLabel "Nombramiento"@es .
+kipu:evt-ACTING_ASSIGNMENT a skos:Concept ; skos:inScheme kipu:EventTypeScheme ; skos:prefLabel "Encargatura"@es .
+kipu:evt-ADDITIONAL_RESPONSIBILITY a skos:Concept ; skos:inScheme kipu:EventTypeScheme ; skos:prefLabel "Responsabilidad adicional"@es .
+kipu:evt-ACCEPT_RESIGNATION a skos:Concept ; skos:inScheme kipu:EventTypeScheme ; skos:prefLabel "Aceptación de renuncia"@es .
+kipu:evt-END_DESIGNATION a skos:Concept ; skos:inScheme kipu:EventTypeScheme ; skos:prefLabel "Conclusión de designación"@es .
+kipu:evt-END_ACTING_ASSIGNMENT a skos:Concept ; skos:inScheme kipu:EventTypeScheme ; skos:prefLabel "Conclusión de encargatura"@es .
+kipu:evt-TERMINATION a skos:Concept ; skos:inScheme kipu:EventTypeScheme ; skos:prefLabel "Cese"@es .
+kipu:evt-DELEGATION a skos:Concept ; skos:inScheme kipu:EventTypeScheme ; skos:prefLabel "Delegación"@es .
+kipu:evt-OTHER_PERSONNEL_ACTION a skos:Concept ; skos:inScheme kipu:EventTypeScheme ; skos:prefLabel "Otra acción de personal"@es .

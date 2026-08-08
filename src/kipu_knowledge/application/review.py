@@ -7,7 +7,7 @@ inmutabilidad de la cadena de afirmaciones).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import ColumnElement, or_, select
@@ -84,6 +84,7 @@ class ReviewService:
             e.DecisionAction.SPLIT_ENTITY: self._handle_split_entity,
             e.DecisionAction.MARK_DATE_NOT_STATED: self._handle_mark_not_stated,
             e.DecisionAction.APPLY_LEGAL_EFFECT_DATE: self._handle_apply_legal_effect,
+            e.DecisionAction.SET_LEGAL_EFFECT_DATE: self._handle_set_legal_effect,
             e.DecisionAction.RESOLVE_POSITION: self._handle_resolve_position,
             e.DecisionAction.DISMISS: self._handle_dismiss,
         }.get(action)
@@ -262,6 +263,70 @@ class ReviewService:
                 "bytes del CAS, antes de aplicar la regla desde el panel"
             )
         le.record_assertion(self._s, event, verdict, evidence, run.id)
+
+    def _handle_set_legal_effect(
+        self, task: m.ReviewTask, payload: dict[str, Any], decision: m.ReviewDecision
+    ) -> None:
+        """Fija a mano el inicio de efectos que la norma no determina (ADR-0009).
+
+        Existe para los actos que difieren su vigencia a un momento que estos
+        datos no permiten fechar: sin esta salida la tarea quedaba abierta y las
+        únicas acciones disponibles o fallaban o afirmaban algo falso.
+
+        Se escribe en ``legal_effect_from``, no en ``effective_from``: el
+        documento sigue sin expresar una fecha, y borrar esa distinción haría
+        indistinguible lo que la fuente dijo de lo que un revisor concluyó. El
+        fundamento se marca como decisión humana y cita el ``ReviewDecision``,
+        que es el registro auditable — no se crea ``Assertion`` porque no hay
+        ``EvidenceSpan`` que citar para un juicio humano.
+        """
+        from kipu_knowledge.application import legal_effect as le
+
+        if task.target_type != "personnel_event":
+            raise ReviewError("SET_LEGAL_EFFECT_DATE aplica a personnel_event")
+        event = self._s.get(m.PersonnelEvent, task.target_id)
+        if event is None:
+            raise ReviewError("Evento inexistente")
+
+        raw = (payload.get("legal_effect_from") or "").strip()
+        if not raw:
+            raise ReviewError("SET_LEGAL_EFFECT_DATE requiere payload.legal_effect_from")
+        try:
+            value = date.fromisoformat(raw)
+        except ValueError as exc:
+            raise ReviewError(f"Fecha no válida: {raw!r} (se espera AAAA-MM-DD)") from exc
+        # Una fecha fijada a mano sin motivo escrito no se puede auditar después:
+        # el que la lea no sabrá de dónde salió ni podrá contradecirla.
+        if not (decision.notes or "").strip():
+            raise ReviewError(
+                "SET_LEGAL_EFFECT_DATE exige una nota que justifique la fecha: es un "
+                "juicio humano y sin el motivo no queda auditable"
+            )
+
+        verdict = le.verdict_for_event(self._s, event)
+        if verdict.determined:
+            raise ReviewError(
+                "La norma sí determina la fecha de este acto "
+                f"({verdict.value}): usa APPLY_LEGAL_EFFECT_DATE, que la vuelve a "
+                "derivar de los datos capturados en lugar de fijarla a mano"
+            )
+
+        event.legal_effect_from = value
+        event.legal_effect_basis_json = {
+            "rule": "human-decision/1.0",
+            "outcome": str(le.LegalEffectOutcome.DETERMINED),
+            "method": "decisión humana",
+            "status": str(e.DateStatus.DERIVED),
+            "legal_effect_from": value.isoformat(),
+            "rationale": decision.notes,
+            "review_decision_id": decision.id,
+            "reviewer": decision.reviewer,
+            # Por qué la regla no pudo decidirlo: sin esto, una fecha humana es
+            # indistinguible de un capricho seis meses después.
+            "rule_declined_because": verdict.rationale,
+            "deferral_clause": verdict.deferral.text if verdict.deferral else None,
+        }
+        le.project_to_assignments(self._s, event, value)
 
     def _handle_resolve_position(
         self, task: m.ReviewTask, payload: dict[str, Any], decision: m.ReviewDecision

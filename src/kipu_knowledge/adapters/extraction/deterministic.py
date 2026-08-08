@@ -37,7 +37,7 @@ from kipu_knowledge.domain.extraction_models import (
     ExtractedSignatory,
     ExtractionResult,
 )
-from kipu_knowledge.domain.legal_effect import find_postponement_clause
+from kipu_knowledge.domain.legal_effect import find_deferral_clause
 from kipu_knowledge.domain.normalization import parse_spanish_date
 from kipu_knowledge.domain.parsed import ParsedDocument, ParsedSection
 
@@ -826,9 +826,10 @@ class DeterministicExtractor:
         # Antes que el aviso de publicación: la cláusula de vigencia nombra la
         # publicación ("efectividad a partir del día siguiente de la
         # publicación") y se la llevaba por delante. Se pregunta con la misma
-        # función que decide el veto de la fecha legal, de modo que la
-        # clasificación y el veto no puedan discrepar.
-        elif find_postponement_clause([body]) is not None:
+        # función que clasifica el diferimiento de la fecha legal, de modo que la
+        # clasificación del artículo y la regla no puedan discrepar. Aquí da
+        # igual de qué clase sea: las dos son cláusulas de vigencia.
+        elif find_deferral_clause([body]) is not None:
             cls = ArticleClass.EFFECTIVE_DATE_CLAUSE
         elif p.PUBLICATION_NOTICE_RE.search(body) or (
             p.ENCARGAR_ORG_GUARD_RE.match(body) and "publicaci" in body.lower()

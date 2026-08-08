@@ -26,6 +26,7 @@ from kipu_knowledge.application.person_dossier import build_dossier, search_pers
 from kipu_knowledge.application.review import ReviewError, ReviewService
 from kipu_knowledge.domain import enums as e
 from kipu_knowledge.domain.contracts import ArtifactStore
+from kipu_knowledge.domain.legal_effect import LegalEffectVerdict
 from kipu_knowledge.interfaces.api.deps import get_db, get_store
 
 router = APIRouter(prefix="/review", tags=["review-ui"])
@@ -55,7 +56,11 @@ _ACTIONS_BY_TARGET: dict[str, list[tuple[str, str]]] = {
     "personnel_event": [
         (
             "APPLY_LEGAL_EFFECT_DATE",
-            "La fecha la fija la norma — aplicar el día de publicación",
+            "La fecha la fija la norma — aplicar la que la regla determina",
+        ),
+        (
+            "SET_LEGAL_EFFECT_DATE",
+            "La norma no la determina — fijar la fecha a mano, con motivo",
         ),
         ("MARK_DATE_NOT_STATED", "El documento no expresa la fecha efectiva"),
         ("ACCEPT", "Dar por buena la extracción y cerrar la tarea"),
@@ -94,6 +99,25 @@ _DEFAULT_ACTION = {
 # control de alcance.
 _PRECEDENT_ACTIONS = ("LINK_ENTITY", "CREATE_ENTITY")
 
+
+def _applicable_actions(
+    target_type: str, verdict: LegalEffectVerdict | None
+) -> list[tuple[str, str]]:
+    """Acciones que este objetivo admite **ahora mismo**, no en abstracto.
+
+    El catálogo por `target_type` no basta: sobre un mismo evento de personal,
+    que "aplicar la regla" funcione o falle depende de lo que la regla diga de
+    ese acto en este momento. Ofrecer las dos siempre garantizaba que una de
+    ellas terminara en 422 con el formulario perdido (ADR-0009).
+    """
+    actions = list(_ACTIONS_BY_TARGET.get(target_type, [("DISMISS", "Descartar esta tarea")]))
+    if target_type != "personnel_event" or verdict is None:
+        return actions
+    determined = verdict.determined
+    excluded = "SET_LEGAL_EFFECT_DATE" if determined else "APPLY_LEGAL_EFFECT_DATE"
+    return [(value, label) for value, label in actions if value != excluded]
+
+
 _env = Environment(
     loader=FileSystemLoader(Path(__file__).parent / "templates"),
     autoescape=select_autoescape(["html"]),
@@ -120,6 +144,16 @@ def task_list(db: Session = Depends(get_db), status: str = "PENDING") -> HTMLRes
 
 @router.get("/tasks/{task_id}", response_class=HTMLResponse)
 def task_detail(task_id: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    return _render("task_detail.html", **_task_context(task_id, db))
+
+
+def _task_context(task_id: str, db: Session, error: str | None = None) -> dict[str, Any]:
+    """Todo lo que la página de una tarea necesita para pintarse.
+
+    Está separado de la vista porque un envío rechazado tiene que volver al
+    mismo formulario con el motivo: antes se respondía un 422 desnudo y el
+    revisor perdía lo que había escrito.
+    """
     task = db.get(m.ReviewTask, task_id)
     if task is None:
         raise HTTPException(404, "Tarea no encontrada")
@@ -131,6 +165,7 @@ def task_detail(task_id: str, db: Session = Depends(get_db)) -> HTMLResponse:
         "precedent_actions": _PRECEDENT_ACTIONS,
         "entity_choices": [],
         "organizations": [],
+        "error": error,
     }
     evidence = None
     document = None
@@ -187,8 +222,24 @@ def task_detail(task_id: str, db: Session = Depends(get_db)) -> HTMLResponse:
             # fecha o, cuando la tarea sigue abierta, por qué no la determinó.
             # Sin esto el revisor no puede saber si "aplicar la regla" va a
             # funcionar, y la ofrecería a ciegas.
+            verdict = verdict_for_event(db, event)
             context["legal_effect"] = determined_payload(event)
-            context["legal_effect_verdict"] = verdict_for_event(db, event)
+            context["legal_effect_verdict"] = verdict
+            # El menú se recorta con el veredicto vivo, no con el tipo de
+            # objetivo: es la diferencia entre ofrecer una salida y ofrecer un
+            # 422 (ADR-0009).
+            context["actions"] = _applicable_actions(task.target_type, verdict)
+            if not verdict.determined:
+                # Un acto que difiere su vigencia sí dice cuándo empieza; lo que
+                # falta es la fecha. Proponer "no expresa la fecha" ahí sería
+                # sugerirle al revisor que afirme algo que el artículo contradice.
+                context["default_action"] = (
+                    "SET_LEGAL_EFFECT_DATE"
+                    if verdict.deferral is not None
+                    else "MARK_DATE_NOT_STATED"
+                )
+            else:
+                context["default_action"] = "APPLY_LEGAL_EFFECT_DATE"
     elif task.target_type == "position":
         position = db.get(m.Position, task.target_id)
         context["position"] = position
@@ -292,7 +343,7 @@ def task_detail(task_id: str, db: Session = Depends(get_db)) -> HTMLResponse:
         origins=origins,
         sources=sources,
     )
-    return _render("task_detail.html", **context)
+    return context
 
 
 def _person_choices(
@@ -606,22 +657,36 @@ def submit_decision(
     organization_id: str = Form(""),
     preferred_name: str = Form(""),
     precedent_scope: str = Form("office"),
+    legal_effect_from: str = Form(""),
     notes: str = Form(""),
-) -> RedirectResponse:
+) -> Response:
     task = db.get(m.ReviewTask, task_id)
     if task is None:
         raise HTTPException(404, "Tarea no encontrada")
+
+    def rejected(message: str) -> HTMLResponse:
+        # 422 sigue siendo la respuesta correcta —el envío no se aceptó—, pero
+        # devolviendo la página con el motivo a la vista en lugar de una pantalla
+        # de error que obliga a volver atrás y reescribirlo todo.
+        return HTMLResponse(
+            _env.get_template("task_detail.html").render(
+                **_task_context(task_id, db, error=message)
+            ),
+            status_code=422,
+        )
+
     # El formulario ya solo ofrece las acciones aplicables; validarlas aquí evita
     # que un envío construido a mano llegue a un manejador que no le corresponde.
     allowed = {value for value, _ in _ACTIONS_BY_TARGET.get(task.target_type, [])}
     if action not in allowed:
-        raise HTTPException(
-            422,
+        return rejected(
             f"La acción {action} no aplica a una tarea sobre {task.target_type} "
-            f"(admitidas: {', '.join(sorted(allowed)) or 'ninguna'})",
+            f"(admitidas: {', '.join(sorted(allowed)) or 'ninguna'})"
         )
 
     payload: dict[str, Any] = {}
+    if legal_effect_from.strip():
+        payload["legal_effect_from"] = legal_effect_from.strip()
     # El identificador escrito a mano gana sobre la ficha marcada en la lista: si
     # el revisor se tomó el trabajo de escribirlo es porque la correcta no estaba.
     chosen_entity = entity_id_other.strip() or entity_id
@@ -637,6 +702,11 @@ def submit_decision(
         payload["create_precedent"] = False
     elif precedent_scope:
         payload["scope"] = precedent_scope
+    # La decisión se intenta dentro de un savepoint: `decide` inserta el
+    # ReviewDecision antes de ejecutar el manejador, así que un rechazo a mitad
+    # dejaría registrada una decisión que nunca se aplicó. Se deshace solo el
+    # intento, no lo que la sesión tuviera pendiente por otras razones.
+    savepoint = db.begin_nested()
     try:
         ReviewService(db).decide(
             task_id,
@@ -646,7 +716,8 @@ def submit_decision(
             notes=notes or None,
         )
     except (ReviewError, ValueError) as exc:
-        raise HTTPException(422, str(exc)) from exc
+        savepoint.rollback()
+        return rejected(str(exc))
     return RedirectResponse(url="/review", status_code=303)
 
 

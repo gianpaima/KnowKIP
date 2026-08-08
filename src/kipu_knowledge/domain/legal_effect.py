@@ -19,8 +19,18 @@ La determinación se veta —y el caso vuelve a revisión humana— cuando:
 - la publicación autoritativa no es el diario oficial o no consta su fecha (sin
   publicación en El Peruano la designación carece de efectos jurídicos: no es
   que empiece más tarde, es que no empieza);
-- la parte resolutiva contiene una cláusula que posterga la vigencia, que es
-  justo la excepción que el artículo 6 reserva.
+- la parte resolutiva difiere la vigencia a un momento que estos datos no
+  permiten fechar.
+
+El diferimiento no es una sola cosa (ver ADR-0009). Cuando el acto dice «a
+partir del día siguiente de la publicación» está ejerciendo la disposición en
+contrario que el propio artículo 6 admite, y fija una fecha **calculable con
+exactitud** sobre un dato ya capturado: la publicación más un día. Eso se
+determina, citando la cláusula del acto junto a la norma que lo faculta. Cuando
+en cambio ata la vigencia a un hecho futuro («hasta la instalación del
+Directorio») o al día **hábil** siguiente —cómputo que exige un calendario de
+feriados que este sistema no tiene—, no hay nada que calcular y decide un
+humano.
 
 Señales que se contradicen abren tarea, no eligen.
 """
@@ -30,13 +40,16 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from enum import StrEnum
 from typing import Any
 
 from kipu_knowledge.domain.enums import DateStatus, EventType, SourceAuthority
 
-RULE_VERSION = "legal-effect-date/1.0"
+# 1.1 distingue el diferimiento calculable del indeterminado (ADR-0009). Cambia
+# respuestas que 1.0 dejaba sin determinar, así que la versión viaja en cada
+# afirmación: una fecha guardada dice con qué regla se produjo.
+RULE_VERSION = "legal-effect-date/1.1"
 
 
 @dataclass(frozen=True)
@@ -113,13 +126,43 @@ class LegalEffectOutcome(StrEnum):
     NOT_APPLICABLE = "NOT_APPLICABLE"
 
 
+class DeferralKind(StrEnum):
+    """Qué clase de diferimiento dispone el propio acto sobre su vigencia.
+
+    La distinción es la razón de ser de ADR-0009: mezclarlas mandaba a revisión
+    humana casos cuya respuesta era una suma.
+    """
+
+    # "a partir del día siguiente de la publicación": fecha calculable sobre un
+    # dato capturado (publicación + 1 día natural).
+    DAY_AFTER_PUBLICATION = "DAY_AFTER_PUBLICATION"
+    # Cualquier otro diferimiento: un hecho futuro, o el día *hábil* siguiente,
+    # que exige un calendario de feriados que este sistema no tiene.
+    INDETERMINATE = "INDETERMINATE"
+
+
+@dataclass(frozen=True)
+class DeferralClause:
+    """Cláusula del acto que desplaza la regla general, ya clasificada."""
+
+    kind: DeferralKind
+    text: str
+    # Posición de la sección dispositiva en la que se encontró, para que la capa
+    # de aplicación pueda anclar la cita sin volver a buscarla.
+    source_index: int = 0
+
+    @property
+    def computable(self) -> bool:
+        return self.kind == DeferralKind.DAY_AFTER_PUBLICATION
+
+
 @dataclass(frozen=True)
 class LegalEffectVerdict:
     outcome: LegalEffectOutcome
     rationale: str
     value: date | None = None
     basis: LegalBasis | None = None
-    postponement_clause: str | None = None
+    deferral: DeferralClause | None = None
 
     @property
     def determined(self) -> bool:
@@ -137,23 +180,52 @@ class LegalEffectVerdict:
         }
         if self.basis is not None:
             payload["basis"] = self.basis.as_dict()
-        if self.postponement_clause:
-            payload["postponement_clause"] = self.postponement_clause
+        if self.deferral is not None:
+            # La cláusula viaja siempre, determine o vete: es lo que un revisor
+            # necesita leer para comprobar que la clasificación fue correcta.
+            payload["deferral_kind"] = str(self.deferral.kind)
+            payload["deferral_clause"] = self.deferral.text
         return payload
 
 
-# Cláusulas que postergan la vigencia del acto y, por tanto, desplazan la regla
-# general. Deliberadamente estrechas: solo formas que hablan de la vigencia o de
-# los efectos del propio acto. "A partir del 30 de julio de 2026" no entra aquí
-# porque eso es una fecha expresa, que el extractor ya recoge como EXPLICIT.
-_POSTPONEMENT_RE = re.compile(
+# El día *hábil* siguiente no es el día siguiente: computarlo exige el calendario
+# de feriados, que este sistema no tiene. Se mira antes que nada para que la
+# palabra "hábil" no se pierda dentro del patrón calculable.
+_BUSINESS_DAY_RE = re.compile(r"d[íi]a\s+h[áa]bil\s+siguiente", re.IGNORECASE)
+
+# Ancla que vuelve calculable al "día siguiente": la publicación, en cualquiera
+# de las formas en que la fuente la escribe ("de la publicación", "al de su
+# publicación").
+_PUBLICATION_ANCHOR = r"(?:al\s+)?(?:de\s+)?(?:su\s+|la\s+|el\s+)?publicaci[óo]n"
+
+# Diferimiento calculable: el día siguiente, anclado explícitamente a la
+# publicación. Sin ese ancla no se calcula nada — "rige a partir del día
+# siguiente" a secas no dice siguiente a qué.
+_DAY_AFTER_PUBLICATION_RE = re.compile(
+    rf"d[íi]a\s+siguiente\s+{_PUBLICATION_ANCHOR}",
+    re.IGNORECASE,
+)
+
+# El mismo "día siguiente", pero sin el ancla que lo haría calculable. El
+# lookahead es lo que reparte los casos entre este patrón y el anterior: sin él,
+# toda cláusula calculable caería también aquí.
+_UNANCHORED_NEXT_DAY = rf"d[íi]a\s+siguiente(?!\s+{_PUBLICATION_ANCHOR})"
+
+# Diferimiento que este sistema no puede fechar. Deliberadamente estrecho: solo
+# formas que hablan de la vigencia o de los efectos del propio acto. "A partir
+# del 30 de julio de 2026" no entra aquí porque eso es una fecha expresa, que el
+# extractor ya recoge como EXPLICIT.
+_INDETERMINATE_RE = re.compile(
     r"(?:"
     r"posterg\w+\s+(?:su\s+)?vigencia"
-    r"|entrar?[áa]?\s+en\s+vigencia\s+(?:a\s+partir\s+)?(?:el|del|desde)"
-    r"|(?:rige|regir[áa])\s+a\s+partir\s+del?\s+d[íi]a\s+siguiente"
-    r"|surt\w+\s+efectos?\s+a\s+partir\s+del?\s+d[íi]a\s+siguiente"
-    r"|(?:vigencia|eficacia)\s+a\s+partir\s+del?\s+d[íi]a\s+siguiente"
-    r"|a\s+partir\s+del?\s+d[íi]a\s+siguiente\s+de\s+(?:su|la)\s+publicaci[óo]n"
+    # "entrará en vigencia el 15 de agosto", "...con la instalación del
+    # Directorio", "...una vez aprobado el reglamento": una fecha futura o un
+    # hecho que la regla general no alcanza. Se excluye "el día siguiente", que
+    # es el caso anclado y sí se calcula.
+    r"|entrar?[áa]?\s+en\s+vigencia\s+(?:a\s+partir\s+)?"
+    r"(?:el|del|desde|con|una\s+vez|cuando|tras|luego\s+de)\s+"
+    r"(?!d[íi]a\s+siguiente)"
+    rf"|a\s+partir\s+del?\s+{_UNANCHORED_NEXT_DAY}"
     r")",
     re.IGNORECASE,
 )
@@ -164,28 +236,45 @@ _POSTPONEMENT_RE = re.compile(
 _SENTENCE_BREAK_RE = re.compile(r"\.\s+(?=[A-ZÁÉÍÓÚÑ¿«])")
 
 
-def find_postponement_clause(dispositive_texts: Iterable[str]) -> str | None:
-    """Primera cláusula de la parte resolutiva que posterga la vigencia del acto.
+def _sentence_around(text: str, start: int, end: int) -> str:
+    """Oración completa que contiene el fragmento: el revisor lee la cláusula
+    entera, no solo el trozo que disparó el patrón."""
+    left = 0
+    right = len(text)
+    for boundary in _SENTENCE_BREAK_RE.finditer(text):
+        if boundary.end() <= start:
+            left = boundary.end()
+        elif boundary.start() >= end:
+            right = boundary.start() + 1
+            break
+    return text[left:right].strip()
+
+
+def find_deferral_clause(dispositive_texts: Iterable[str]) -> DeferralClause | None:
+    """Primera cláusula de la parte resolutiva que difiere la vigencia, clasificada.
 
     Solo se examina la parte dispositiva: un considerando que discurre sobre la
     retroactividad de los actos administrativos no dispone nada, y tomarlo por
-    una postergación vetaría la regla sin motivo.
+    un diferimiento desplazaría la regla sin motivo.
+
+    Dentro de un mismo texto se pregunta primero por lo que no se puede calcular:
+    ante una resolución que dijera las dos cosas, lo conservador es devolverla al
+    humano en vez de quedarse con la mitad que sí sabe sumar.
     """
-    for text in dispositive_texts:
-        match = _POSTPONEMENT_RE.search(text)
-        if not match:
-            continue
-        # Se devuelve la oración completa: el revisor tiene que poder leer la
-        # cláusula, no solo el fragmento que disparó el patrón.
-        start = 0
-        end = len(text)
-        for boundary in _SENTENCE_BREAK_RE.finditer(text):
-            if boundary.end() <= match.start():
-                start = boundary.end()
-            elif boundary.start() >= match.end():
-                end = boundary.start() + 1
-                break
-        return text[start:end].strip()
+    for index, text in enumerate(dispositive_texts):
+        for regex, kind in (
+            (_BUSINESS_DAY_RE, DeferralKind.INDETERMINATE),
+            (_INDETERMINATE_RE, DeferralKind.INDETERMINATE),
+            (_DAY_AFTER_PUBLICATION_RE, DeferralKind.DAY_AFTER_PUBLICATION),
+        ):
+            match = regex.search(text)
+            if match is None:
+                continue
+            return DeferralClause(
+                kind=kind,
+                text=_sentence_around(text, match.start(), match.end()),
+                source_index=index,
+            )
     return None
 
 
@@ -195,7 +284,7 @@ def determine_legal_effect(
     stated_status: DateStatus,
     published_on: date | None,
     source_authority: SourceAuthority | None,
-    postponement_clause: str | None = None,
+    deferral: DeferralClause | None = None,
 ) -> LegalEffectVerdict:
     """Decide si la norma determina el inicio de efectos de este evento.
 
@@ -234,21 +323,39 @@ def determine_legal_effect(
             basis=basis,
         )
 
-    if postponement_clause:
+    if deferral is not None and not deferral.computable:
         return LegalEffectVerdict(
             LegalEffectOutcome.VETOED,
-            "la parte resolutiva posterga la vigencia del acto "
-            f"(«{postponement_clause}»), que es la excepción que {basis.citation} reserva: "
-            "la fecha la decide un humano",
+            "la parte resolutiva difiere la vigencia del acto a un momento que estos "
+            f"datos no permiten fechar («{deferral.text}»), amparándose en la "
+            f"disposición en contrario que {basis.citation} reserva: la fecha la "
+            "decide un humano",
             basis=basis,
-            postponement_clause=postponement_clause,
+            deferral=deferral,
+        )
+
+    if deferral is not None:
+        # El acto ejerce la disposición en contrario que la norma le reconoce y
+        # la ata a la publicación: la fecha no se infiere, se suma. Día natural,
+        # no hábil: el patrón que llega hasta aquí excluye "día hábil siguiente".
+        value = published_on + timedelta(days=1)
+        return LegalEffectVerdict(
+            LegalEffectOutcome.DETERMINED,
+            f"el propio acto dispone que sus efectos corren desde el día siguiente de "
+            f"la publicación («{deferral.text}»), que es la disposición en contrario "
+            f"que {basis.citation} admite; publicado en El Peruano el "
+            f"{published_on.isoformat()}, los efectos corren desde el "
+            f"{value.isoformat()}",
+            value=value,
+            basis=basis,
+            deferral=deferral,
         )
 
     return LegalEffectVerdict(
         LegalEffectOutcome.DETERMINED,
         f"{basis.citation}: los efectos corren desde el día de la publicación en El "
         f"Peruano ({published_on.isoformat()}), no desde el día siguiente ni desde la "
-        "fecha de emisión; el documento no posterga la vigencia",
+        "fecha de emisión; el documento no difiere la vigencia",
         value=published_on,
         basis=basis,
     )

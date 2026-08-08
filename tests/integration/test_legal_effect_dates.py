@@ -289,4 +289,238 @@ class TestVeto:
 
         verdict = verdict_for_event(ingested_session, event)
         assert verdict.outcome == LegalEffectOutcome.VETOED
-        assert "15 de agosto" in (verdict.postponement_clause or "")
+        assert verdict.deferral is not None
+        assert not verdict.deferral.computable
+        assert "15 de agosto" in verdict.deferral.text
+
+    def test_the_task_no_longer_claims_the_document_says_nothing(self, ingested_session):
+        """Regresión de ADR-0009: un acto que difiere su vigencia sí dice cuándo
+        empieza. La tarea que afirmaba lo contrario mandaba al revisor a buscar
+        en la captura algo que el artículo ya decía."""
+        event = _midagri_event(ingested_session)
+        article = (
+            ingested_session.execute(
+                select(m.DocumentSection).where(
+                    m.DocumentSection.legal_document_id == event.legal_document_id,
+                    m.DocumentSection.section_type == e.SectionType.ARTICLE,
+                )
+            )
+            .scalars()
+            .first()
+        )
+        article.text_raw += (
+            " Artículo 2.- La presente entrará en vigencia con la instalación del Directorio."
+        )
+        ingested_session.flush()
+        verdict = verdict_for_event(ingested_session, event)
+        assert verdict.deferral is not None
+        assert "no permiten fechar" in verdict.rationale
+
+
+class TestDeferralToTheDayAfterPublication:
+    """Caso N (RCG N.º 431-2026-CG), el que motivó ADR-0009.
+
+    Su artículo 3 difiere la efectividad al día siguiente de la publicación:
+    fecha calculable, no laguna. Antes producía una tarea sin salida posible.
+    """
+
+    CODE = "2540891-1"
+
+    def _ingest(self, session, ingest_service):
+        ingest_service.ingest_fixture(self.CODE, FIXTURES.parent)
+        session.flush()
+        return (
+            session.execute(
+                select(m.PersonnelEvent)
+                .join(m.LegalDocument, m.LegalDocument.id == m.PersonnelEvent.legal_document_id)
+                .where(m.LegalDocument.number_normalized == "431-2026-CG")
+                .order_by(m.PersonnelEvent.id)
+            )
+            .scalars()
+            .all()
+        )
+
+    def test_every_event_takes_effect_the_day_after_publication(self, session, ingest_service):
+        events = self._ingest(session, ingest_service)
+        assert events, "el fixture debería producir eventos de personal"
+        for event in events:
+            assert event.legal_effect_from is not None, event.event_type
+            # Publicada el 2026-08-07: los efectos corren desde el 08, no el 07.
+            assert event.legal_effect_from.isoformat() == "2026-08-08", event.event_type
+
+    def test_the_clause_that_fixed_it_travels_with_the_date(self, session, ingest_service):
+        event = self._ingest(session, ingest_service)[0]
+        basis = event.legal_effect_basis_json
+        assert basis["deferral_kind"] == "DAY_AFTER_PUBLICATION"
+        assert "día siguiente" in basis["deferral_clause"]
+        # La sección de la que salió la cláusula queda anclada: la afirmación se
+        # audita sin volver a correr el clasificador.
+        section = session.get(m.DocumentSection, basis["deferral_clause_section_id"])
+        assert section is not None
+        assert "día siguiente" in section.text_raw
+        # La norma catalogada sigue siendo la que faculta al acto a disponerlo.
+        assert basis["basis"]["article"] in {"6", "233.3"}
+        assert basis["rule"] == RULE_VERSION
+
+    def test_the_stated_date_is_still_untouched(self, session, ingest_service):
+        for event in self._ingest(session, ingest_service):
+            assert event.effective_from is None
+            assert event.effective_from_status == e.DateStatus.NOT_STATED
+
+    def test_it_no_longer_opens_a_task_no_human_could_close(self, session, ingest_service):
+        events = self._ingest(session, ingest_service)
+        pending = (
+            session.execute(
+                select(m.ReviewTask).where(
+                    m.ReviewTask.task_type == e.ReviewTaskType.EFFECTIVE_DATE_UNSTATED,
+                    m.ReviewTask.target_id.in_([event.id for event in events]),
+                    m.ReviewTask.status == e.ReviewTaskStatus.PENDING,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert not pending, "; ".join(t.reason for t in pending)
+
+    def test_the_date_reaches_the_assignment(self, session, ingest_service):
+        events = self._ingest(session, ingest_service)
+        starts = [ev for ev in events if ev.assignment_effect == e.AssignmentEffect.START]
+        assert starts
+        assignments = (
+            session.execute(
+                select(m.RoleAssignment).where(
+                    m.RoleAssignment.start_event_id.in_([ev.id for ev in starts])
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert assignments
+        for ra in assignments:
+            assert ra.legal_effect_from.isoformat() == "2026-08-08"
+
+    def test_the_determination_is_re_derivable_from_the_frozen_data(self, session, ingest_service):
+        """La regla es determinista: re-ejecutarla sobre lo capturado tiene que
+        devolver la misma fecha que se guardó."""
+        for event in self._ingest(session, ingest_service):
+            verdict = verdict_for_event(session, event)
+            assert verdict.outcome == LegalEffectOutcome.DETERMINED
+            assert verdict.value == event.legal_effect_from
+
+
+class TestSettingTheDateByHand:
+    """La salida para lo que sigue siendo indeterminado (ADR-0009).
+
+    Sin ella la tarea quedaba abierta con tres acciones que o fallaban o
+    afirmaban algo que el documento contradice.
+    """
+
+    def _vetoed_event_with_task(self, session) -> tuple[m.PersonnelEvent, m.ReviewTask]:
+        event = _midagri_event(session)
+        event.legal_effect_from = None
+        event.legal_effect_basis_json = None
+        article = (
+            session.execute(
+                select(m.DocumentSection).where(
+                    m.DocumentSection.legal_document_id == event.legal_document_id,
+                    m.DocumentSection.section_type == e.SectionType.ARTICLE,
+                )
+            )
+            .scalars()
+            .first()
+        )
+        article.text_raw += (
+            " Artículo 2.- La presente entrará en vigencia con la instalación del Directorio."
+        )
+        task = m.ReviewTask(
+            task_type=e.ReviewTaskType.EFFECTIVE_DATE_UNSTATED,
+            target_type="personnel_event",
+            target_id=event.id,
+            reason="prueba: diferimiento indeterminado",
+            priority=4,
+        )
+        session.add(task)
+        session.flush()
+        return event, task
+
+    def test_a_reviewer_can_close_it_by_fixing_the_date(self, ingested_session):
+        event, task = self._vetoed_event_with_task(ingested_session)
+        ReviewService(ingested_session).decide(
+            task.id,
+            e.DecisionAction.SET_LEGAL_EFFECT_DATE,
+            reviewer="revisor@kipu",
+            payload={"legal_effect_from": "2026-09-01"},
+            notes="El acta de instalación del Directorio es del 2026-09-01.",
+        )
+        assert task.status == e.ReviewTaskStatus.RESOLVED
+        assert event.legal_effect_from.isoformat() == "2026-09-01"
+        basis = event.legal_effect_basis_json
+        assert basis["method"] == "decisión humana"
+        assert basis["reviewer"] == "revisor@kipu"
+        # Queda registrado por qué la regla no pudo: sin eso, seis meses después
+        # una fecha humana es indistinguible de un capricho.
+        assert "no permiten fechar" in basis["rule_declined_because"]
+        assert basis["review_decision_id"]
+
+    def test_what_the_document_says_is_still_not_overwritten(self, ingested_session):
+        event, task = self._vetoed_event_with_task(ingested_session)
+        ReviewService(ingested_session).decide(
+            task.id,
+            e.DecisionAction.SET_LEGAL_EFFECT_DATE,
+            payload={"legal_effect_from": "2026-09-01"},
+            notes="acta de instalación",
+        )
+        assert event.effective_from is None
+        assert event.effective_from_status == e.DateStatus.NOT_STATED
+
+    def test_a_date_without_a_reason_is_refused(self, ingested_session):
+        _, task = self._vetoed_event_with_task(ingested_session)
+        try:
+            ReviewService(ingested_session).decide(
+                task.id,
+                e.DecisionAction.SET_LEGAL_EFFECT_DATE,
+                payload={"legal_effect_from": "2026-09-01"},
+            )
+        except ReviewError as exc:
+            assert "auditable" in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError("una fecha a mano sin motivo no debía aceptarse")
+
+    def test_an_unreadable_date_is_refused(self, ingested_session):
+        _, task = self._vetoed_event_with_task(ingested_session)
+        try:
+            ReviewService(ingested_session).decide(
+                task.id,
+                e.DecisionAction.SET_LEGAL_EFFECT_DATE,
+                payload={"legal_effect_from": "01/09/2026"},
+                notes="acta",
+            )
+        except ReviewError as exc:
+            assert "AAAA-MM-DD" in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError("una fecha ilegible no debía aceptarse")
+
+    def test_it_refuses_to_replace_what_the_norm_already_determines(self, ingested_session):
+        """Si la regla sí decide, fijarla a mano perdería el fundamento citable
+        y dejaría una fecha que nadie puede volver a derivar."""
+        event = _midagri_event(ingested_session)
+        task = m.ReviewTask(
+            task_type=e.ReviewTaskType.EFFECTIVE_DATE_UNSTATED,
+            target_type="personnel_event",
+            target_id=event.id,
+            reason="prueba: la norma sí determina",
+            priority=4,
+        )
+        ingested_session.add(task)
+        ingested_session.flush()
+        try:
+            ReviewService(ingested_session).decide(
+                task.id,
+                e.DecisionAction.SET_LEGAL_EFFECT_DATE,
+                payload={"legal_effect_from": "2026-09-01"},
+                notes="me lo invento",
+            )
+        except ReviewError as exc:
+            assert "APPLY_LEGAL_EFFECT_DATE" in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError("no debía dejar pisar a mano lo que la norma determina")

@@ -119,6 +119,13 @@ Fecha efectiva: {{ event.effective_from or "no expresada" }} <code>{{ event.effe
 <p class="muted" style="margin:.5rem 0 0">La norma no determina esta fecha:
 {{ legal_effect_verdict.rationale }}</p>
 {% endif %}
+{% if legal_effect_verdict and legal_effect_verdict.deferral %}
+{# La cláusula que difiere la vigencia es lo único que el revisor necesita leer
+   para decidir: mostrarla evita que tenga que ir a buscarla a la captura. #}
+<p class="muted" style="margin:.5rem 0 0">Cláusula de vigencia del propio acto
+(<code>{{ legal_effect_verdict.deferral.kind.value }}</code>):</p>
+<div class="evidence">{{ legal_effect_verdict.deferral.text }}</div>
+{% endif %}
 {% if participants %}
 <h3>Personas involucradas</h3>
 {% for p in participants %}
@@ -188,6 +195,10 @@ Estado de resolución: <code>{{ org_mention.resolution_status.value }}</code></p
 <form class="decision card" method="post" action="/review/tasks/{{ task.id }}/decide">
   <h2>Decisión</h2>
 
+  {% if error %}
+  <p class="warn">No se registró la decisión: {{ error }}</p>
+  {% endif %}
+
   {# Solo las acciones que este tipo de objetivo admite: las demás fallarían o no
      harían nada, y ofrecerlas obliga al revisor a adivinar cuál es cuál. #}
   <fieldset class="choices">
@@ -228,6 +239,19 @@ Estado de resolución: <code>{{ org_mention.resolution_status.value }}</code></p
     </label>
     {% endfor %}
   </fieldset>
+  {% endif %}
+
+  {% if event %}
+  {# Solo aparece cuando la norma no determina la fecha: el propio menú ya no
+     ofrece esta acción en caso contrario. La nota es obligatoria porque una
+     fecha fijada a mano sin motivo no se puede auditar después. #}
+  <div class="field" data-when="SET_LEGAL_EFFECT_DATE">
+    <label for="legal_effect_from">Fecha de inicio de efectos</label>
+    <input type="date" id="legal_effect_from" name="legal_effect_from">
+    <p class="hint">Se escribe en <code>legal_effect_from</code> como decisión humana, citando
+    esta tarea. <code>effective_from</code> no se toca: sigue diciendo lo que el documento dice.
+    Explica en las notas de dónde sale la fecha.</p>
+  </div>
   {% endif %}
 
   {% if mention %}

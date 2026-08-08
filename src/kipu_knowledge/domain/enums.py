@@ -238,6 +238,12 @@ class DecisionAction(StrEnum):
     # domain/legal_effect.py). El revisor no escribe la fecha: confirma que la
     # regla aplica y el sistema la vuelve a derivar de los datos capturados.
     APPLY_LEGAL_EFFECT_DATE = "APPLY_LEGAL_EFFECT_DATE"
+    # Fijar a mano el inicio de efectos cuando la norma no lo determina y el
+    # documento lo difiere a un momento que estos datos no permiten fechar (ver
+    # ADR-0009). Es un juicio humano, no una derivación: se escribe en
+    # `legal_effect_from` con la decisión que lo respalda, nunca en
+    # `effective_from`, que sigue diciendo lo que el documento dice.
+    SET_LEGAL_EFFECT_DATE = "SET_LEGAL_EFFECT_DATE"
     RESOLVE_POSITION = "RESOLVE_POSITION"
     DISMISS = "DISMISS"
 

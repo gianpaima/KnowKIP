@@ -712,3 +712,136 @@ def test_every_discovered_device_leaves_a_record(session, store, daily_kit):
         assert row.status is not e.CrawlItemStatus.DISCOVERED, (
             f"{row.publication_code} quedó sin resolver y sin motivo registrado"
         )
+
+
+# Acciones que cualquier tarea admite para salir del paso: cierran, rechazan o
+# declaran una ausencia, pero no registran lo que la tarea vino a averiguar. Que
+# alguna de ellas funcione no prueba que la tarea tenga salida.
+_ESCAPE_HATCHES = {"DISMISS", "ACCEPT", "REJECT", "MARK_DATE_NOT_STATED"}
+
+# Objetivos para los que hoy no existe ninguna acción sustantiva, con el motivo.
+# La lista es explícita para que ampliarla sea una decisión y no un descuido:
+# fusionar organizaciones no está modelado (Organization no tiene el equivalente
+# de `merged_into_person_id`), así que ORG_VARIANT_CHECK solo puede descartarse.
+_WITHOUT_SUBSTANTIVE_ACTION = {"organization"}
+
+
+def test_every_pending_task_has_a_way_to_record_its_outcome(ingested_session):
+    """Ninguna tarea puede quedar sin salida que registre el resultado.
+
+    Es la formulación general del bug que motivó ADR-0009: una tarea sobre un
+    acto que difería su vigencia ofrecía cuatro acciones y ninguna servía —una
+    fallaba con 422, otra afirmaba lo que el documento contradice y las dos
+    restantes cerraban sin registrar nada—. Un panel que solo deja cerrar la
+    pestaña no es un panel de revisión.
+
+    Por eso no basta con que *alguna* acción no reviente: las de escape lo
+    consiguen siempre. Lo que se exige es una acción sustantiva que llegue hasta
+    el final. Se ejecuta cada una en un savepoint y se deshace: lo que se
+    comprueba es que alguna se pueda completar, no lo que escribe.
+    """
+    from kipu_knowledge.application.review import ReviewError, ReviewService
+    from kipu_knowledge.interfaces.review_ui.routes import _applicable_actions
+
+    # Payloads mínimos de las acciones que exigen datos del formulario. Sin
+    # ellos la acción fallaría por falta de argumentos, que es un problema
+    # distinto del que este invariante vigila.
+    payloads = {
+        "SET_LEGAL_EFFECT_DATE": ({"legal_effect_from": "2026-01-01"}, "prueba de invariante"),
+        "LINK_ENTITY": ({"entity_id": None}, None),
+        "RESOLVE_POSITION": ({"organization_id": None}, None),
+    }
+
+    # El corpus ya no produce EFFECTIVE_DATE_UNSTATED por sí solo, así que el
+    # estado que motivó el invariante se construye aquí: un acto que difiere su
+    # vigencia a un hecho futuro. Sin él la prueba pasaría sin mirar nunca el
+    # caso que rompía.
+    deferred = ingested_session.execute(
+        select(m.PersonnelEvent).where(
+            m.PersonnelEvent.effective_from_status == e.DateStatus.NOT_STATED
+        )
+    ).scalar()
+    assert deferred is not None
+    deferred.legal_effect_from = None
+    deferred.legal_effect_basis_json = None
+    article = (
+        ingested_session.execute(
+            select(m.DocumentSection).where(
+                m.DocumentSection.legal_document_id == deferred.legal_document_id,
+                m.DocumentSection.section_type == e.SectionType.ARTICLE,
+            )
+        )
+        .scalars()
+        .first()
+    )
+    article.text_raw += " Artículo 9.- Se posterga su vigencia hasta la instalación del Directorio."
+    ingested_session.add(
+        m.ReviewTask(
+            task_type=e.ReviewTaskType.EFFECTIVE_DATE_UNSTATED,
+            target_type="personnel_event",
+            target_id=deferred.id,
+            reason="invariante: acto con vigencia diferida a un hecho futuro",
+            priority=4,
+        )
+    )
+    ingested_session.flush()
+
+    tasks = (
+        ingested_session.execute(
+            select(m.ReviewTask).where(m.ReviewTask.status == e.ReviewTaskStatus.PENDING)
+        )
+        .scalars()
+        .all()
+    )
+    assert tasks, "el corpus debería dejar alguna tarea pendiente que revisar"
+
+    for task in tasks:
+        verdict = None
+        if task.target_type == "personnel_event":
+            from kipu_knowledge.application.legal_effect import verdict_for_event
+
+            event = ingested_session.get(m.PersonnelEvent, task.target_id)
+            verdict = verdict_for_event(ingested_session, event) if event else None
+        offered = _applicable_actions(task.target_type, verdict)
+        assert offered, f"la tarea {task.id} ({task.task_type}) no ofrece ninguna acción"
+
+        if task.target_type in _WITHOUT_SUBSTANTIVE_ACTION:
+            continue
+
+        survivors = []
+        for action, _label in offered:
+            if action in _ESCAPE_HATCHES:
+                continue
+            payload, notes = payloads.get(action, ({}, None))
+            if action == "LINK_ENTITY":
+                candidate = (
+                    ingested_session.execute(select(m.Person)).scalars().first()
+                    if task.target_type == "person_mention"
+                    else ingested_session.execute(select(m.Organization)).scalars().first()
+                )
+                if candidate is None:
+                    continue
+                payload = {"entity_id": candidate.id}
+            elif action == "RESOLVE_POSITION":
+                org = ingested_session.execute(select(m.Organization)).scalars().first()
+                if org is None:
+                    continue
+                payload = {"organization_id": org.id}
+
+            nested = ingested_session.begin_nested()
+            try:
+                ReviewService(ingested_session).decide(
+                    task.id, e.DecisionAction(action), payload=payload, notes=notes
+                )
+                survivors.append(action)
+            except ReviewError:
+                pass
+            finally:
+                nested.rollback()
+
+        assert survivors, (
+            f"la tarea {task.id} ({task.task_type} sobre {task.target_type}) no tiene "
+            f"ninguna salida que registre el resultado: de las acciones ofrecidas "
+            f"({', '.join(a for a, _ in offered)}) solo quedan las de escape, que "
+            f"cierran la tarea sin decir en qué quedó"
+        )

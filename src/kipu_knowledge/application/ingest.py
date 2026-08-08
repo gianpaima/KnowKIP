@@ -1262,13 +1262,28 @@ class _ResultPersister:
             and extracted.assignment_effect == e.AssignmentEffect.START
             and not legal_verdict.determined
         ):
+            # Un documento que difiere su vigencia sí dice cuándo empieza a
+            # producir efectos; lo que no hace es dar una fecha que estos datos
+            # permitan calcular. Decirle al revisor que "no expresa la fecha"
+            # cuando el artículo la expresa lo manda a buscar lo que ya tiene.
+            if legal_verdict.deferral is not None:
+                reason = (
+                    "El documento difiere el inicio de efectos a un momento que estos "
+                    f"datos no permiten fechar: {legal_verdict.rationale}. "
+                    "`effective_from` queda NOT_STATED (no se infiere de la fecha de "
+                    "publicación, regla 12)."
+                )
+            else:
+                reason = (
+                    "El documento no expresa fecha efectiva de inicio; queda NOT_STATED "
+                    "(no se infiere de la fecha de publicación, regla 12). "
+                    f"La fecha tampoco quedó determinada por norma: {legal_verdict.rationale}"
+                )
             self._task(
                 e.ReviewTaskType.EFFECTIVE_DATE_UNSTATED,
                 "personnel_event",
                 event.id,
-                "El documento no expresa fecha efectiva de inicio; queda NOT_STATED "
-                "(no se infiere de la fecha de publicación, regla 12). "
-                f"La fecha tampoco quedó determinada por norma: {legal_verdict.rationale}",
+                reason,
                 priority=4,
             )
 

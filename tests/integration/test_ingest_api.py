@@ -287,6 +287,83 @@ class TestReviewFormByTaskType:
         for forbidden in ("LINK_ENTITY", "CREATE_ENTITY", "RESOLVE_POSITION"):
             assert f'value="{forbidden}"' not in page
 
+    def _deferred_event_task_page(self, api_client, ingested_session) -> str:
+        """Tarea sobre un acto que difiere su vigencia a un hecho futuro."""
+        event = (
+            ingested_session.execute(
+                select(m.PersonnelEvent).where(
+                    m.PersonnelEvent.effective_from_status == e.DateStatus.NOT_STATED
+                )
+            )
+            .scalars()
+            .first()
+        )
+        event.legal_effect_from = None
+        event.legal_effect_basis_json = None
+        article = (
+            ingested_session.execute(
+                select(m.DocumentSection).where(
+                    m.DocumentSection.legal_document_id == event.legal_document_id,
+                    m.DocumentSection.section_type == e.SectionType.ARTICLE,
+                )
+            )
+            .scalars()
+            .first()
+        )
+        article.text_raw += (
+            " Artículo 9.- Se posterga su vigencia hasta la instalación del Directorio."
+        )
+        task = m.ReviewTask(
+            task_type=e.ReviewTaskType.EFFECTIVE_DATE_UNSTATED,
+            target_type="personnel_event",
+            target_id=event.id,
+            reason="prueba: diferimiento indeterminado",
+            priority=4,
+        )
+        ingested_session.add(task)
+        ingested_session.flush()
+        return api_client.get(f"/review/tasks/{task.id}").text
+
+    def test_a_dead_end_action_is_not_offered(self, api_client, ingested_session):
+        """ADR-0009: cuando la norma no determina la fecha, ofrecer "aplicar la
+        regla" garantizaba un 422 y la pérdida de lo escrito en el formulario."""
+        page = self._deferred_event_task_page(api_client, ingested_session)
+        assert 'value="APPLY_LEGAL_EFFECT_DATE"' not in page
+        assert 'value="SET_LEGAL_EFFECT_DATE"' in page
+        # Y la cláusula que lo motiva se lee sin salir de la página.
+        assert "instalación del Directorio" in page
+
+    def test_the_rule_action_is_the_one_offered_when_the_norm_decides(
+        self, api_client, ingested_session
+    ):
+        page = self._event_task_page(api_client, ingested_session)
+        assert 'value="APPLY_LEGAL_EFFECT_DATE"' in page
+        # A la inversa: fijarla a mano pisaría un fundamento citable.
+        assert 'value="SET_LEGAL_EFFECT_DATE"' not in page
+
+    def test_a_refused_submission_comes_back_to_the_form(self, api_client, ingested_session):
+        """El motivo se lee sobre el propio formulario: un 422 desnudo obligaba a
+        volver atrás y reescribirlo todo."""
+        event = ingested_session.execute(select(m.PersonnelEvent)).scalars().first()
+        task = m.ReviewTask(
+            task_type=e.ReviewTaskType.EFFECTIVE_DATE_UNSTATED,
+            target_type="personnel_event",
+            target_id=event.id,
+            reason="prueba: envío rechazado",
+            priority=4,
+        )
+        ingested_session.add(task)
+        ingested_session.flush()
+        response = api_client.post(
+            f"/review/tasks/{task.id}/decide",
+            data={"action": "SET_LEGAL_EFFECT_DATE", "legal_effect_from": "no-es-fecha"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 422
+        assert "No se registró la decisión" in response.text
+        assert "<form" in response.text
+        assert task.status == e.ReviewTaskStatus.PENDING
+
     def test_position_task_offers_only_its_applicable_actions(self, api_client):
         page = self._page(api_client, "POSITION_ORG_UNRESOLVED")
         assert 'value="RESOLVE_POSITION"' in page
@@ -330,7 +407,10 @@ class TestReviewFormByTaskType:
             follow_redirects=False,
         )
         assert response.status_code == 422
-        assert "no aplica a una tarea sobre person_mention" in response.json()["detail"]
+        # Se rechaza devolviendo la propia página con el motivo, no una pantalla
+        # de error: el revisor conserva lo que había escrito (ADR-0009).
+        assert "no aplica a una tarea sobre person_mention" in response.text
+        assert "<form" in response.text
 
     def test_manual_identifier_overrides_the_selected_ficha(self, api_client, ingested_session):
         """La lista cubre los casos normales; escribir un id sigue siendo posible."""

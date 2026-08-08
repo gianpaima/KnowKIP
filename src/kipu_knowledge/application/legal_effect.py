@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -36,7 +36,7 @@ from kipu_knowledge.domain.legal_effect import (
     LegalEffectOutcome,
     LegalEffectVerdict,
     determine_legal_effect,
-    find_postponement_clause,
+    find_deferral_clause,
 )
 
 PREDICATE = "legal_effect_from"
@@ -106,10 +106,14 @@ def authoritative_authority(session: Session, doc: m.LegalDocument) -> e.SourceA
     return None
 
 
-def dispositive_texts(session: Session, document_id: str) -> list[str]:
-    return [
-        section.text_raw
-        for section in session.execute(
+def dispositive_sections(session: Session, document_id: str) -> list[m.DocumentSection]:
+    """Parte resolutiva en el orden en que la publicó la fuente.
+
+    Se devuelven las secciones y no solo su texto porque la cláusula que difiere
+    la vigencia hay que poder citarla: sin la sección no se sabe dónde estaba.
+    """
+    return list(
+        session.execute(
             select(m.DocumentSection)
             .where(
                 m.DocumentSection.legal_document_id == document_id,
@@ -117,7 +121,21 @@ def dispositive_texts(session: Session, document_id: str) -> list[str]:
             )
             .order_by(m.DocumentSection.order_index)
         ).scalars()
-    ]
+    )
+
+
+def dispositive_texts(session: Session, document_id: str) -> list[str]:
+    return [section.text_raw for section in dispositive_sections(session, document_id)]
+
+
+def deferral_section(
+    sections: list[m.DocumentSection], verdict: LegalEffectVerdict
+) -> m.DocumentSection | None:
+    """Sección dispositiva de la que salió la cláusula del veredicto."""
+    if verdict.deferral is None:
+        return None
+    index = verdict.deferral.source_index
+    return sections[index] if 0 <= index < len(sections) else None
 
 
 def verdict_for_event(session: Session, event: m.PersonnelEvent) -> LegalEffectVerdict:
@@ -137,7 +155,7 @@ def verdict_for_event(session: Session, event: m.PersonnelEvent) -> LegalEffectV
         stated_status=event.effective_from_status,
         published_on=doc.published_on,
         source_authority=authoritative_authority(session, doc),
-        postponement_clause=find_postponement_clause(dispositive_texts(session, doc.id)),
+        deferral=find_deferral_clause(dispositive_texts(session, doc.id)),
     )
 
 
@@ -155,7 +173,25 @@ def apply_verdict(session: Session, event: m.PersonnelEvent, verdict: LegalEffec
     if not verdict.determined or verdict.value is None:
         return
     event.legal_effect_from = verdict.value
-    event.legal_effect_basis_json = verdict.as_dict()
+    basis = verdict.as_dict()
+    if verdict.deferral is not None:
+        # Cuando la fecha sale de una cláusula del propio acto, esa cláusula es
+        # parte del fundamento: se guarda de qué sección salió para que la
+        # afirmación se pueda auditar sin volver a correr el clasificador.
+        section = deferral_section(dispositive_sections(session, event.legal_document_id), verdict)
+        if section is not None:
+            basis["deferral_clause_section_id"] = section.id
+    event.legal_effect_basis_json = basis
+    project_to_assignments(session, event, verdict.value)
+
+
+def project_to_assignments(session: Session, event: m.PersonnelEvent, value: date) -> None:
+    """Lleva la fecha de efectos a la asignación afectada, solo donde la fuente calló.
+
+    La comparte la regla y la decisión humana de ADR-0009: si la proyección
+    divergiera entre ambas, una misma fecha alcanzaría o no a la asignación según
+    quién la hubiera fijado.
+    """
     is_end = event.assignment_effect == e.AssignmentEffect.END
     for ra in session.execute(
         select(m.RoleAssignment).where(
@@ -166,9 +202,9 @@ def apply_verdict(session: Session, event: m.PersonnelEvent, verdict: LegalEffec
     ).scalars():
         if is_end:
             if ra.valid_to_status == e.DateStatus.NOT_STATED:
-                ra.legal_effect_to = verdict.value
+                ra.legal_effect_to = value
         elif ra.valid_from_status == e.DateStatus.NOT_STATED:
-            ra.legal_effect_from = verdict.value
+            ra.legal_effect_from = value
 
 
 def publication_date_span(session: Session, doc: m.LegalDocument) -> m.EvidenceSpan | None:
@@ -395,4 +431,7 @@ def determined_payload(event: m.PersonnelEvent) -> dict[str, Any] | None:
         "rule_text": basis.get("rule_text"),
         "quote_kind": basis.get("quote_kind"),
         "source_url": basis.get("source_url"),
+        # Solo lo llevan las fechas que salieron de una cláusula del propio acto.
+        "deferral_kind": (event.legal_effect_basis_json or {}).get("deferral_kind"),
+        "deferral_clause": (event.legal_effect_basis_json or {}).get("deferral_clause"),
     }

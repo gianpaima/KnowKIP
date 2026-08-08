@@ -47,7 +47,7 @@
     </h3>
     <p class="muted" style="margin:0 0 .5rem">
       {{ hit.documents }} documento{{ "s" if hit.documents != 1 }} ·
-      {{ hit.appointments }} puesto{{ "s" if hit.appointments != 1 }} por acto registrado
+      {{ hit.appointments }} período{{ "s" if hit.appointments != 1 }} en cargos que un acto le atribuye
       {%- if hit.status != 'ACTIVE' %} · <span class="chip">{{ hit.status }}</span>{% endif %}
     </p>
     {% if hit.persons_sharing_spelling > 1 %}

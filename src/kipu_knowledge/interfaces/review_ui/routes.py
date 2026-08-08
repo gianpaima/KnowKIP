@@ -142,6 +142,48 @@ def task_list(db: Session = Depends(get_db), status: str = "PENDING") -> HTMLRes
     return _render("tasks.html", tasks=tasks, status=status)
 
 
+@router.get("/crawls", response_class=HTMLResponse)
+def crawl_runs(db: Session = Depends(get_db)) -> HTMLResponse:
+    """Bitácora operativa de las recolecciones diarias.
+
+    La página se apoya exclusivamente en ``crawl_run``/``crawl_item``: muestra
+    lo que la aplicación alcanzó a registrar y no pretende inferir el historial
+    del Programador de tareas de Windows.
+    """
+    runs = (
+        db.execute(select(m.CrawlRun).order_by(m.CrawlRun.started_at.desc()).limit(50))
+        .scalars()
+        .all()
+    )
+    rows: list[dict[str, Any]] = []
+    for run in runs:
+        items = (
+            db.execute(
+                select(m.CrawlItem)
+                .where(m.CrawlItem.crawl_run_id == run.id)
+                .order_by(m.CrawlItem.publication_code)
+            )
+            .scalars()
+            .all()
+        )
+        counts: dict[str, int] = {}
+        for item in items:
+            counts[item.status.value] = counts.get(item.status.value, 0) + 1
+        empty_relevant = sum(
+            item.relevance == e.Relevance.RELEVANT and item.events_extracted == 0 for item in items
+        )
+        rows.append(
+            {
+                "run": run,
+                "items": items,
+                "counts": counts,
+                "total": len(items),
+                "empty_relevant": empty_relevant,
+            }
+        )
+    return _render("crawls.html", rows=rows)
+
+
 @router.get("/tasks/{task_id}", response_class=HTMLResponse)
 def task_detail(task_id: str, db: Session = Depends(get_db)) -> HTMLResponse:
     return _render("task_detail.html", **_task_context(task_id, db))

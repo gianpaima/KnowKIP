@@ -377,6 +377,24 @@ def crawl_report(
                     fg=typer.colors.GREEN,
                 )
 
+        # El mismo vacío, visto desde las personas: fichas que algún documento
+        # nombra y de las que no se proyectó ni un puesto, ni una firma, ni una
+        # participación. Se cuenta sobre los datos vivos del corpus entero.
+        from kipu_knowledge.application.person_dossier import persons_without_projected_facts
+
+        silent_persons = persons_without_projected_facts(session)
+        if silent_persons:
+            typer.secho(
+                f"personas mencionadas sin ningún hecho proyectado ({len(silent_persons)}): "
+                + ", ".join(p["preferred_name"] for p in silent_persons),
+                fg=typer.colors.YELLOW,
+            )
+        else:
+            typer.secho(
+                "toda persona mencionada tiene al menos un hecho proyectado",
+                fg=typer.colors.GREEN,
+            )
+
 
 @app.command("resolve-affected")
 def resolve_affected(
@@ -433,6 +451,41 @@ def backfill_source_links(
         )
     updated = sum(1 for r in results if r.outcome == LinkOutcome.UPDATED)
     typer.echo(f"{updated} de {len(results)} {'a actualizar' if dry_run else 'actualizadas'}")
+
+
+@app.command("backfill-issuers")
+def backfill_issuers_cmd(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Solo evalúa; no modifica nada"),
+) -> None:
+    """Registra el organismo emisor que el índice diario declaró para cada documento.
+
+    El dispositivo no nombra a su emisor; el índice del diario oficial sí, y sus
+    bytes están archivados. Relee esas capturas del CAS (verificando su sha256),
+    cita el encabezado literal y registra la mención de organización. Sin red;
+    los documentos que ningún índice declaró quedan como están, dicho por qué."""
+    from kipu_knowledge.application.issuer import IssuerOutcome, backfill_issuers
+
+    store = build_store_from_settings()
+    with session_scope() as session:
+        results = backfill_issuers(session, store, dry_run=dry_run)
+    if not results:
+        typer.echo("Todos los documentos tienen ya emisor registrado.")
+        return
+    colors = {
+        IssuerOutcome.LINKED: typer.colors.GREEN,
+        IssuerOutcome.ALREADY_SET: typer.colors.WHITE,
+        IssuerOutcome.NOT_DECLARED: typer.colors.YELLOW,
+        IssuerOutcome.NO_CAPTURE: typer.colors.RED,
+        IssuerOutcome.NO_EVIDENCE: typer.colors.RED,
+    }
+    for row in results:
+        typer.secho(
+            f"[{row.outcome}] {row.publication_code or '?'} {row.document_number or ''} — "
+            f"{row.issuer_raw or 'sin emisor declarado'} ({row.detail})",
+            fg=colors[row.outcome],
+        )
+    linked = sum(1 for r in results if r.outcome == IssuerOutcome.LINKED)
+    typer.echo(f"{linked} de {len(results)} {'a registrar' if dry_run else 'registrados'}")
 
 
 @app.command("apply-legal-effect-dates")

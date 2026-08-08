@@ -4,10 +4,28 @@
 {% macro doc_link(doc) -%}
   {%- if doc -%}
     <span class="chip">{{ doc.publication_code }}</span>
-    {{ doc.number_raw }}{% if doc.published_on %} · publicado {{ doc.published_on }}{% endif %}
+    {% if doc.document_type_raw %}{{ doc.document_type_raw }} {% endif %}{{ doc.number_raw }}
+    {%- if doc.published_on %} · publicado {{ doc.published_on }}{% endif %}
     {%- if doc.canonical_url %} · <a href="{{ doc.canonical_url }}" rel="noreferrer">ver en la fuente</a>{% endif -%}
+    {%- if doc.title_raw %}<br><span class="muted">«{{ doc.title_raw }}»</span>{% endif -%}
   {%- else -%}
     <span class="muted">sin documento asociado</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro date_basis(value, basis, legal_basis, stated) -%}
+  {%- if value -%}
+    {{ value }}
+    {% if basis == 'legal_rule' %}
+      <span class="chip">determinada por norma</span>
+      {%- if legal_basis and legal_basis.norm %}
+      <span class="muted">({{ legal_basis.norm }}{% if legal_basis.article %}, {{ legal_basis.article }}{% endif %})</span>
+      {%- endif %}
+    {% else %}
+      <span class="chip">declarada en el documento</span>
+    {% endif %}
+  {%- else -%}
+    <span class="muted">no consta ({{ stated }})</span>
   {%- endif -%}
 {%- endmacro %}
 
@@ -111,40 +129,50 @@
         {% if a.organization %}{{ a.organization }} · {% endif %}
         <span class="chip">{{ a.assignment_kind }}</span>
         {% if a.event_type %}<span class="chip">{{ a.event_type }}</span>{% endif %}
+        {% if a.legal_verb_raw %}<span class="chip">«{{ a.legal_verb_raw }}»</span>{% endif %}
+        {% for slot in a.position_slots %}<span class="chip">{{ slot.scheme }} {{ slot.code }}</span>{% endfor %}
         {% if a in d.current_roles %}<span class="pill resolved">vigente al {{ today }}</span>{% endif %}
       </p>
+      {% if not a.organization and a.document and a.document.issuer %}
+      <p class="muted" style="margin:0 0 .5rem">
+        Entidad emisora del acto: {{ a.document.issuer.organization or a.document.issuer.text_raw }}
+        <span class="chip">{{ a.document.issuer.basis }}</span>
+      </p>
+      {% endif %}
 
       <p style="margin:0 0 .5rem">
         <strong>Desde:</strong>
-        {% if a.start %}
-          {{ a.start }}
-          {% if a.start_basis == 'legal_rule' %}
-            <span class="chip">determinada por norma</span>
-          {% else %}
-            <span class="chip">declarada en el documento</span>
-          {% endif %}
-        {% else %}
-          <span class="muted">no consta ({{ a.start_stated }})</span>
-        {% endif %}
+        {{ date_basis(a.start, a.start_basis, a.start_legal_basis, a.start_stated) }}
         &nbsp;·&nbsp;
         <strong>Hasta:</strong>
-        {% if a.end %}
-          {{ a.end }}
-          {% if a.end_basis == 'legal_rule' %}
-            <span class="chip">determinada por norma</span>
-          {% else %}
-            <span class="chip">declarada en el documento</span>
-          {% endif %}
-        {% else %}
-          <span class="muted">no consta ({{ a.end_stated }})</span>
-        {% endif %}
+        {{ date_basis(a.end, a.end_basis, a.end_legal_basis, a.end_stated) }}
       </p>
       {% if a.end_condition_text %}
       <p class="muted" style="margin:0 0 .5rem">Final condicional: {{ a.end_condition_text }}</p>
       {% endif %}
+      {% if a.mandate %}
+      <p class="muted" style="margin:0 0 .5rem">
+        Mandato: {{ a.mandate.label or a.mandate.mandate_type }}
+        {%- if a.mandate.end_condition_text %} — {{ a.mandate.end_condition_text }}{% endif %}
+      </p>
+      {% endif %}
 
+      {% if a.merged_from_two_acts %}
+      <p class="muted" style="margin:0 0 .4rem">
+        <strong>Acto de inicio:</strong> {{ doc_link(a.document) }}
+      </p>
+      {{ evidence(a.evidence) }}
+      <p class="muted" style="margin:.4rem 0 .4rem">
+        <strong>Acto de cese</strong>
+        {%- if a.end_event_type %} <span class="chip">{{ a.end_event_type }}</span>{% endif %}
+        {%- if a.end_legal_verb_raw %} <span class="chip">«{{ a.end_legal_verb_raw }}»</span>{% endif %}:
+        {{ doc_link(a.end_document) }}
+      </p>
+      {{ evidence(a.end_evidence) }}
+      {% else %}
       <p class="muted" style="margin:0 0 .4rem">{{ doc_link(a.document) }}</p>
       {{ evidence(a.evidence) }}
+      {% endif %}
     </article>
     {% endfor %}
   {% endif %}
@@ -162,6 +190,14 @@
   {% for c in d.signing_capacities %}
   <article class="stack" style="padding:.8rem 0; border-top:1px solid var(--line)">
     <h3 style="margin:0 0 .2rem">{{ c.capacity_raw }}</h3>
+    {% if c.issuers %}
+    <p class="muted" style="margin:0 0 .4rem">
+      Entidad emisora de los documentos que firma: {{ c.issuers | join(' · ') }}
+      <span class="chip">declarado por el índice del diario oficial</span>
+      <br>El bloque de firma dice solo «{{ c.capacity_raw }}»; la entidad es un
+      dato del documento, no de la firma.
+    </p>
+    {% endif %}
     <p class="muted" style="margin:0 0 .4rem">
       Firma como «{{ c.written_as | join('» / «') }}» en {{ c.documents | length }}
       documento{{ "s" if c.documents | length != 1 }}:
@@ -170,6 +206,54 @@
       {% for doc in c.documents %}<li>{{ doc_link(doc) }}</li>{% endfor %}
     </ul>
     {{ evidence(c.evidence) }}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- ------------------------------------------------------------------ -->
+{% if d.signed_acts %}
+<section class="card">
+  <h2 style="margin:0 0 .2rem">Actos que firmó</h2>
+  <p class="muted" style="margin:0 0 .8rem">
+    Lo que resolvieron los documentos que llevan su firma. Cada hecho es un
+    evento ya extraído del acto, con su cita; firmar no atribuye al firmante
+    ninguno de estos puestos.
+  </p>
+  {% for s in d.signed_acts %}
+  <article class="stack" style="padding:.8rem 0; border-top:1px solid var(--line)">
+    <p class="muted" style="margin:0 0 .4rem">
+      {% if s.capacity_raw %}Como «{{ s.capacity_raw }}» firmó: {% endif %}{{ doc_link(s.document) }}
+    </p>
+    <ul style="margin:0">
+      {% for act in s.acts %}
+      <li style="margin:0 0 .35rem">
+        <span class="chip">{{ act.event_type }}</span>
+        {% if act.legal_verb_raw %}<span class="chip">«{{ act.legal_verb_raw }}»</span>{% endif %}
+        {% if act.article_label %}<span class="chip">{{ act.article_label }}</span>{% endif %}
+        {% for subject in act.subjects %}
+          {% if subject.person_id %}
+            <a href="/review/persons/{{ subject.person_id }}">{{ subject.name }}</a>
+          {% else %}
+            {{ subject.name }}
+          {% endif %}
+          <span class="muted">({{ subject.role_in_event }})</span>
+          {{- ", " if not loop.last }}
+        {% endfor %}
+        {% for ra in act.assignments %}
+          <div class="muted" style="margin:.15rem 0 0 .2rem">
+            {{ ra.position_label }}
+            {%- if ra.start %} · desde {{ ra.start }}
+              {%- if ra.start_basis == 'legal_rule' %} (por norma){% endif %}
+            {%- endif %}
+            {%- if ra.end %} · hasta {{ ra.end }}
+              {%- if ra.end_basis == 'legal_rule' %} (por norma){% endif %}
+            {%- endif %}
+          </div>
+        {% endfor %}
+      </li>
+      {% endfor %}
+    </ul>
   </article>
   {% endfor %}
 </section>

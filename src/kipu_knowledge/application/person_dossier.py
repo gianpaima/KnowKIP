@@ -33,9 +33,14 @@ from sqlalchemy.orm import Session
 
 from kipu_knowledge.adapters.db import models as m
 from kipu_knowledge.adapters.resolution.resolver import SimpleEntityResolver
+from kipu_knowledge.application.legal_effect import determined_payload
 from kipu_knowledge.application.queries import effective_end, effective_start
 from kipu_knowledge.domain import enums as e
-from kipu_knowledge.domain.normalization import normalize_person_name, person_name_tokens
+from kipu_knowledge.domain.normalization import (
+    normalize_person_name,
+    normalize_position_label,
+    person_name_tokens,
+)
 
 # Regla con la que se responde "¿qué ocupa hoy?": no es una inferencia nueva,
 # es la lectura de las asignaciones vigentes con las fechas que ya están
@@ -67,6 +72,7 @@ class PersonDossier:
     others_with_same_spelling: list[dict[str, Any]]
     appointments: list[dict[str, Any]] = field(default_factory=list)
     signing_capacities: list[dict[str, Any]] = field(default_factory=list)
+    signed_acts: list[dict[str, Any]] = field(default_factory=list)
     other_participations: list[dict[str, Any]] = field(default_factory=list)
     unlinked_mentions: list[dict[str, Any]] = field(default_factory=list)
     open_reviews: list[dict[str, Any]] = field(default_factory=list)
@@ -129,7 +135,9 @@ def search_persons(session: Session, query: str, limit: int = 25) -> list[Person
             aliases=resolver.person_aliases(survivor.id),
             matched_aliases=sorted(spellings),
             documents=_documents_mentioning(session, survivor.id),
-            appointments=len(_live_assignments(session, survivor.id)),
+            # Períodos, no filas: una designación y su cese posterior son un
+            # solo paso por el cargo, y contarlos como dos inflaría la ficha.
+            appointments=len(_paired_assignments(_live_assignments(session, survivor.id))),
             persons_sharing_spelling=sharing,
         )
     return sorted(hits.values(), key=lambda hit: hit.preferred_name)[:limit]
@@ -172,11 +180,17 @@ def build_dossier(session: Session, person_id: str, on: date | None = None) -> P
 
     assignments = _live_assignments(session, person_id)
     assigned_mention_ids = {a.person_mention_id for a in assignments}
-    dossier.appointments = [_appointment(session, a) for a in assignments]
+    dossier.appointments = [
+        _appointment(session, lead, end) for lead, end in _paired_assignments(assignments)
+    ]
+    # Cronología legible: lo más reciente primero; lo sin fecha determinada, al
+    # final, que es donde no afirma nada sobre el orden.
+    dossier.appointments.sort(key=_chronology_key, reverse=True)
     dossier.current_roles = [
         row for row in dossier.appointments if _covers(row, on or date.today())
     ]
     dossier.signing_capacities = _signing_capacities(session, mentions, assigned_mention_ids)
+    dossier.signed_acts = _signed_acts(session, mentions)
     dossier.other_participations = _participations_without_assignment(
         session, mentions, assignments
     )
@@ -292,8 +306,34 @@ def _document_of(session: Session, document_id: str | None) -> dict[str, Any] | 
         "publication_code": item.publication_code if item else None,
         "canonical_url": item.canonical_url if item else None,
         "title_raw": doc.title_raw,
+        "document_type_raw": doc.document_type_raw,
         "number_raw": doc.number_raw,
         "published_on": doc.published_on,
+        "issuer": _issuer_of(session, doc),
+    }
+
+
+def _issuer_of(session: Session, doc: m.LegalDocument) -> dict[str, Any] | None:
+    """Organismo emisor del documento, si el índice del diario lo declaró.
+
+    Es un dato del documento, no del bloque de firma: viene del encabezado bajo
+    el que el índice oficial listó el dispositivo (`application/issuer.py`), y
+    se dice con esa procedencia para que nadie lo lea como declarado en el acto.
+    """
+    if not doc.issuer_mention_id:
+        return None
+    mention = session.get(m.OrganizationMention, doc.issuer_mention_id)
+    if mention is None:
+        return None
+    organization = (
+        session.get(m.Organization, mention.canonical_organization_id)
+        if mention.canonical_organization_id
+        else None
+    )
+    return {
+        "text_raw": mention.text_raw,
+        "organization": organization.preferred_name if organization else None,
+        "basis": "declarado por el índice del diario oficial",
     }
 
 
@@ -310,15 +350,106 @@ def _evidence_of(session: Session, span_id: str | None) -> dict[str, Any] | None
     }
 
 
-def _appointment(session: Session, assignment: m.RoleAssignment) -> dict[str, Any]:
-    """Un puesto que un acto atribuye, con de dónde sale cada fecha."""
-    event = None
-    if assignment.start_event_id:
-        event = session.get(m.PersonnelEvent, assignment.start_event_id)
-    elif assignment.end_event_id:
-        event = session.get(m.PersonnelEvent, assignment.end_event_id)
+def _paired_assignments(
+    assignments: list[m.RoleAssignment],
+) -> list[tuple[m.RoleAssignment, m.RoleAssignment | None]]:
+    """Une la designación y su cese del mismo cargo en un solo período.
+
+    El persister guarda el alta y la baja como filas separadas —cada acto es su
+    propia fila—, pero un lector ve UN paso por el cargo, no dos puestos. Se
+    emparejan solo cuando la evidencia lo respalda: misma persona (la consulta
+    ya filtró), mismo cargo normalizado, sin contradicción de entidad ni de
+    fechas, y candidato único. Dos candidatos posibles no eligen: se muestran
+    las filas tal cual, que es lo que consta.
+    """
+
+    def position_key(ra: m.RoleAssignment) -> str:
+        return normalize_position_label(ra.position_label_raw or "")
+
+    def compatible(start_ra: m.RoleAssignment, end_ra: m.RoleAssignment) -> bool:
+        if (
+            start_ra.position_id
+            and end_ra.position_id
+            and start_ra.position_id != end_ra.position_id
+        ):
+            return False
+        if (
+            start_ra.organization_id
+            and end_ra.organization_id
+            and start_ra.organization_id != end_ra.organization_id
+        ):
+            return False
+        started, _ = effective_start(start_ra)
+        ended, _ = effective_end(end_ra)
+        return started is None or ended is None or started <= ended
+
+    open_starts: list[m.RoleAssignment] = []
+    bare_ends: list[m.RoleAssignment] = []
+    standalone: list[m.RoleAssignment] = []
+    for ra in assignments:
+        if (
+            ra.start_event_id
+            and not ra.end_event_id
+            and ra.valid_to is None
+            and ra.legal_effect_to is None
+        ):
+            open_starts.append(ra)
+        elif ra.end_event_id and not ra.start_event_id:
+            bare_ends.append(ra)
+        else:
+            standalone.append(ra)
+
+    pairs: list[tuple[m.RoleAssignment, m.RoleAssignment | None]] = []
+    used: set[str] = set()
+    for end_ra in bare_ends:
+        candidates = [
+            s
+            for s in open_starts
+            if s.id not in used
+            and position_key(s) == position_key(end_ra)
+            and compatible(s, end_ra)
+        ]
+        if len(candidates) == 1:
+            used.add(candidates[0].id)
+            pairs.append((candidates[0], end_ra))
+        else:
+            pairs.append((end_ra, None))
+    pairs.extend((s, None) for s in open_starts if s.id not in used)
+    pairs.extend((ra, None) for ra in standalone)
+    return pairs
+
+
+def _event_of(session: Session, event_id: str | None) -> m.PersonnelEvent | None:
+    return session.get(m.PersonnelEvent, event_id) if event_id else None
+
+
+def _legal_basis_if_ruled(
+    basis: str | None, event: m.PersonnelEvent | None
+) -> dict[str, Any] | None:
+    """La norma que determinó la fecha, solo cuando la fecha salió de una norma."""
+    if basis != "legal_rule" or event is None:
+        return None
+    return determined_payload(event)
+
+
+def _appointment(
+    session: Session, assignment: m.RoleAssignment, end_assignment: m.RoleAssignment | None = None
+) -> dict[str, Any]:
+    """Un período en un puesto, con el acto (o los dos actos) que lo sostienen.
+
+    `end_assignment` llega cuando el cese vive en su propia fila y el pareo lo
+    unió a esta designación; entonces el final del período —fecha, documento y
+    cita— sale del acto de cese, dicho como tal.
+    """
+    start_event = _event_of(session, assignment.start_event_id)
+    lead_event = start_event or _event_of(session, assignment.end_event_id)
+    end_event = (
+        _event_of(session, end_assignment.end_event_id)
+        if end_assignment is not None
+        else (start_event and _event_of(session, assignment.end_event_id))
+    )
     start, start_basis = effective_start(assignment)
-    end, end_basis = effective_end(assignment)
+    end, end_basis = effective_end(end_assignment if end_assignment is not None else assignment)
     position = session.get(m.Position, assignment.position_id) if assignment.position_id else None
     organization = (
         session.get(m.Organization, position.organization_id)
@@ -326,24 +457,85 @@ def _appointment(session: Session, assignment: m.RoleAssignment) -> dict[str, An
         else None
     )
     mention = session.get(m.PersonMention, assignment.person_mention_id)
+    end_mention = (
+        session.get(m.PersonMention, end_assignment.person_mention_id)
+        if end_assignment is not None
+        else None
+    )
+    slots = (
+        session.execute(select(m.PositionSlot).where(m.PositionSlot.position_id == position.id))
+        .scalars()
+        .all()
+        if position is not None
+        else []
+    )
+    mandate = None
+    mandate_id = assignment.mandate_id or (end_assignment.mandate_id if end_assignment else None)
+    if mandate_id:
+        row = session.get(m.Mandate, mandate_id)
+        if row is not None:
+            mandate = {
+                "mandate_type": str(row.mandate_type),
+                "label": row.label,
+                "end_condition_text": row.end_condition_text,
+            }
+    end_row = end_assignment if end_assignment is not None else assignment
     return {
         "assignment_id": assignment.id,
         "position_label": assignment.position_label_raw,
         "organization": organization.preferred_name if organization else None,
         "organization_path_raw": assignment.organization_path_raw,
         "assignment_kind": str(assignment.assignment_kind),
-        "event_type": str(event.event_type) if event else None,
+        "event_type": str(lead_event.event_type) if lead_event else None,
+        "assignment_effect": (
+            str(lead_event.assignment_effect)
+            if lead_event and lead_event.assignment_effect
+            else None
+        ),
+        "legal_verb_raw": lead_event.legal_verb_raw if lead_event else None,
         "start": start,
         "start_basis": start_basis,
         "end": end,
         "end_basis": end_basis,
         "start_stated": str(assignment.valid_from_status),
-        "end_stated": str(assignment.valid_to_status),
-        "end_condition_text": assignment.end_condition_text,
-        "document": _document_of(session, event.legal_document_id if event else None),
+        "end_stated": str(end_row.valid_to_status),
+        "end_condition_text": assignment.end_condition_text or end_row.end_condition_text,
+        "start_legal_basis": _legal_basis_if_ruled(start_basis, start_event or lead_event),
+        "end_legal_basis": _legal_basis_if_ruled(end_basis, end_event or lead_event),
+        "position_slots": [
+            {"scheme": slot.external_scheme, "code": slot.external_code} for slot in slots
+        ],
+        "mandate": mandate,
+        "document": _document_of(session, lead_event.legal_document_id if lead_event else None),
         "evidence": _evidence_of(session, mention.evidence_span_id if mention else None),
         "written_as": mention.text_raw if mention else None,
+        # El acto de cese, cuando es otro documento: se muestra junto al
+        # período pero dicho como el acto separado que es.
+        "merged_from_two_acts": end_assignment is not None,
+        "end_event_type": (
+            str(end_event.event_type) if end_assignment is not None and end_event else None
+        ),
+        "end_legal_verb_raw": (
+            end_event.legal_verb_raw if end_assignment is not None and end_event else None
+        ),
+        "end_document": (
+            _document_of(session, end_event.legal_document_id)
+            if end_assignment is not None and end_event
+            else None
+        ),
+        "end_evidence": (
+            _evidence_of(session, end_mention.evidence_span_id if end_mention else None)
+            if end_assignment is not None
+            else None
+        ),
     }
+
+
+def _chronology_key(row: dict[str, Any]) -> date:
+    value = row["start"] or row["end"]
+    if value is None and row["document"]:
+        value = row["document"]["published_on"]
+    return value or date.min
 
 
 def _covers(appointment: dict[str, Any], on: date) -> bool:
@@ -391,6 +583,10 @@ def _signing_capacities(
                 "capacity_raw": mention.role_context_raw,
                 "written_as": set(),
                 "documents": [],
+                # El bloque de firma puede decir solo "Ministra", sin cartera.
+                # La entidad sale del emisor que el índice declaró para cada
+                # documento firmado: es un dato derivado y se rotula como tal.
+                "issuers": set(),
                 "evidence": _evidence_of(session, mention.evidence_span_id),
             },
         )
@@ -398,9 +594,108 @@ def _signing_capacities(
         document = _document_of(session, mention.legal_document_id)
         if document is not None:
             row["documents"].append(document)
+            if document["issuer"]:
+                row["issuers"].add(
+                    document["issuer"]["organization"] or document["issuer"]["text_raw"]
+                )
     for row in rows.values():
         row["written_as"] = sorted(row["written_as"])
+        row["issuers"] = sorted(row["issuers"])
     return list(rows.values())
+
+
+def _signed_acts(session: Session, mentions: list[m.PersonMention]) -> list[dict[str, Any]]:
+    """Lo que resolvieron los documentos que esta persona firmó.
+
+    Firmar no atribuye ningún puesto al firmante, pero sí lo sitúa: quien firma
+    una designación es quien la dictó. Sin esta vista, la ficha de una ministra
+    que solo firma queda reducida a "aparece en 4 documentos", cuando el sistema
+    sabe exactamente a quién designó cada uno, a qué cargo y desde cuándo. Cada
+    hecho mostrado es el evento ya extraído, con su evidencia; aquí no se
+    infiere nada nuevo. Solo aparecen documentos con algún hecho extraído: los
+    leídos sin sacar nada ya los declara la cobertura.
+    """
+    by_id = {mention.id: mention for mention in mentions}
+    if not by_id:
+        return []
+    rows: list[dict[str, Any]] = []
+    for signatory in (
+        session.execute(select(m.Signatory).where(m.Signatory.person_mention_id.in_(list(by_id))))
+        .scalars()
+        .all()
+    ):
+        events = (
+            session.execute(
+                select(m.PersonnelEvent)
+                .where(m.PersonnelEvent.legal_document_id == signatory.legal_document_id)
+                .order_by(m.PersonnelEvent.id)
+            )
+            .scalars()
+            .all()
+        )
+        if not events:
+            continue
+        acts: list[dict[str, Any]] = []
+        for event in events:
+            event_span = _evidence_of(session, event.evidence_span_id)
+            subjects: list[dict[str, Any]] = []
+            for participant in session.execute(
+                select(m.EventParticipant).where(
+                    m.EventParticipant.event_id == event.id,
+                    m.EventParticipant.person_mention_id.is_not(None),
+                )
+            ).scalars():
+                subject = session.get(m.PersonMention, participant.person_mention_id)
+                if subject is None:
+                    continue
+                subjects.append(
+                    {
+                        "name": subject.text_raw,
+                        "role_in_event": str(participant.role_in_event),
+                        "person_id": subject.canonical_person_id,
+                    }
+                )
+            assignments: list[dict[str, Any]] = []
+            for ra in session.execute(
+                select(m.RoleAssignment).where(
+                    (m.RoleAssignment.start_event_id == event.id)
+                    | (m.RoleAssignment.end_event_id == event.id),
+                    m.RoleAssignment.superseded_at.is_(None),
+                )
+            ).scalars():
+                start, start_basis = effective_start(ra)
+                end, end_basis = effective_end(ra)
+                assignments.append(
+                    {
+                        "position_label": ra.position_label_raw,
+                        "start": start,
+                        "start_basis": start_basis,
+                        "end": end,
+                        "end_basis": end_basis,
+                    }
+                )
+            acts.append(
+                {
+                    "event_type": str(event.event_type),
+                    "assignment_effect": (
+                        str(event.assignment_effect) if event.assignment_effect else None
+                    ),
+                    "legal_verb_raw": event.legal_verb_raw,
+                    "article_label": (event_span or {}).get("article_label"),
+                    "subjects": subjects,
+                    "assignments": assignments,
+                }
+            )
+        mention = by_id[str(signatory.person_mention_id)]
+        rows.append(
+            {
+                "capacity_raw": mention.role_context_raw or signatory.capacity_raw,
+                "document": _document_of(session, signatory.legal_document_id),
+                "acts": acts,
+            }
+        )
+    rows.sort(key=lambda row: (row["document"] or {}).get("published_on") or date.min, reverse=True)
+    return rows
 
 
 def _participations_without_assignment(
@@ -563,6 +858,58 @@ def _coverage(session: Session, mentions: list[m.PersonMention]) -> dict[str, An
     }
 
 
+def persons_without_projected_facts(session: Session) -> list[dict[str, Any]]:
+    """Fichas que algún documento nombra sin que se proyecte ningún hecho.
+
+    Es el mismo vacío que "dispositivo relevante sin eventos", visto desde la
+    persona: hay menciones vinculadas pero ni un puesto, ni una firma, ni una
+    participación en acto alguno. Una ficha así se lee como "no consta nada",
+    cuando lo cierto puede ser "no supimos leerlo" — y por eso se cuenta y se
+    avisa en la bitácora, en vez de esperarse a que alguien la busque.
+    """
+    rows: list[dict[str, Any]] = []
+    for person in session.execute(
+        select(m.Person).where(m.Person.merged_into_person_id.is_(None))
+    ).scalars():
+        mention_ids = list(
+            session.execute(
+                select(m.PersonMention.id).where(m.PersonMention.canonical_person_id == person.id)
+            ).scalars()
+        )
+        if not mention_ids:
+            continue
+        has_assignment = session.execute(
+            select(m.RoleAssignment.id)
+            .where(
+                m.RoleAssignment.person_id == person.id,
+                m.RoleAssignment.superseded_at.is_(None),
+            )
+            .limit(1)
+        ).first()
+        if has_assignment is not None:
+            continue
+        has_signature = session.execute(
+            select(m.Signatory.id).where(m.Signatory.person_mention_id.in_(mention_ids)).limit(1)
+        ).first()
+        if has_signature is not None:
+            continue
+        has_participation = session.execute(
+            select(m.EventParticipant.id)
+            .where(m.EventParticipant.person_mention_id.in_(mention_ids))
+            .limit(1)
+        ).first()
+        if has_participation is not None:
+            continue
+        rows.append(
+            {
+                "person_id": person.id,
+                "preferred_name": person.preferred_name,
+                "mentions": len(mention_ids),
+            }
+        )
+    return rows
+
+
 def person_alias_spellings(session: Session, person_id: str) -> list[str]:
     """Grafías de la ficha, para buscar coincidencias sin vincular por nombre."""
     return list(
@@ -582,5 +929,6 @@ __all__ = [
     "PersonHit",
     "build_dossier",
     "person_alias_spellings",
+    "persons_without_projected_facts",
     "search_persons",
 ]

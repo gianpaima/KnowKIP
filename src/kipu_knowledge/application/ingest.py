@@ -30,6 +30,7 @@ from kipu_knowledge.application.corroboration import (
     bare_document_number,
     corroborate_recital,
 )
+from kipu_knowledge.application.issuer import IssuerOutcome, ensure_document_issuer
 from kipu_knowledge.application.legal_effect import (
     apply_verdict,
     build_publication_date_span,
@@ -332,6 +333,16 @@ class IngestService:
         orphaned_precedents = self._repoint_precedents(doc)
         self._drop_persons_without_evidence()
 
+        # El emisor lo declara el índice diario, no el dispositivo; si la
+        # bitácora del recolector lo señala, se registra aquí mismo con su cita
+        # para que ni el reproceso ni el reintento lo dejen vacío.
+        issuer = ensure_document_issuer(session, self._store, doc)
+        issuer_warnings = (
+            [f"emisor declarado pero no registrado ({issuer.outcome}): {issuer.detail}"]
+            if issuer.outcome in (IssuerOutcome.NO_CAPTURE, IssuerOutcome.NO_EVIDENCE)
+            else []
+        )
+
         return IngestOutcome(
             publication_item_id=item.id,
             artifact_version_id=version.id,
@@ -341,7 +352,7 @@ class IngestService:
             event_ids=outcome_ids["events"],
             assignment_ids=outcome_ids["assignments"],
             review_task_ids=outcome_ids["tasks"] + orphaned_precedents,
-            warnings=result.warnings,
+            warnings=result.warnings + issuer_warnings,
         )
 
     # ------------------------------------------------------------------

@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block title %}{{ d.person.preferred_name }} — Kipu Knowledge{% endblock %}
+
+{% macro doc_link(doc) -%}
+  {%- if doc -%}
+    <span class="chip">{{ doc.publication_code }}</span>
+    {{ doc.number_raw }}{% if doc.published_on %} · publicado {{ doc.published_on }}{% endif %}
+    {%- if doc.canonical_url %} · <a href="{{ doc.canonical_url }}" rel="noreferrer">ver en la fuente</a>{% endif -%}
+  {%- else -%}
+    <span class="muted">sin documento asociado</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro evidence(ev) -%}
+  {%- if ev -%}
+  <blockquote class="evidence">
+    {%- if ev.article_label %}<span class="chip">{{ ev.article_label }}</span> {% endif -%}
+    «{{ ev.quoted_text }}»
+    <div style="margin-top:.5rem; font-family:var(--sans); font-size:.82rem">
+      <a href="/review/artifacts/{{ ev.artifact_version_id }}/raw" rel="noreferrer">ver la captura original</a>
+    </div>
+  </blockquote>
+  {%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+<div class="page-head">
+  <div class="meta">
+    <a href="/review/persons?q={{ d.person.preferred_name }}">← volver a la búsqueda</a>
+  </div>
+  <h1>{{ d.person.preferred_name }}</h1>
+  <p class="muted" style="margin:.35rem 0 0">
+    Ficha construida a partir de {{ d.coverage.documents }}
+    documento{{ "s" if d.coverage.documents != 1 }} capturado{{ "s" if d.coverage.documents != 1 }}.
+    Cada afirmación de abajo lleva la cita literal que la sostiene.
+  </p>
+</div>
+
+{% if d.person.merged_into_person_id %}
+<section class="card">
+  <p class="warn" style="margin:0">
+    Esta ficha fue fusionada con otra por decisión humana.
+    <a href="/review/persons/{{ d.person.merged_into_person_id }}">Ir a la ficha vigente →</a>
+  </p>
+</section>
+{% endif %}
+
+{% if d.spelling_is_ambiguous %}
+<section class="card">
+  <p class="warn" style="margin:0 0 .6rem">
+    <strong>Este nombre no distingue a una sola persona.</strong>
+    Otras fichas del sistema responden a la misma grafía. No se han fusionado ni
+    separado: hacerlo exige una señal independiente del nombre, y el nombre por
+    sí solo nunca vincula dos menciones.
+  </p>
+  <ul style="margin:0">
+    {% for other in d.others_with_same_spelling %}
+    <li><a href="/review/persons/{{ other.person_id }}">{{ other.preferred_name }}</a>
+        <span class="muted">— coincide en «{{ other.spelling }}»</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<!-- ------------------------------------------------------------------ -->
+<section class="card">
+  <h2 style="margin:0 0 .6rem">Cómo la nombran las fuentes</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Grafía normalizada</th><th>Tal como se escribe</th><th>Menciones</th><th>Respaldo</th></tr></thead>
+    <tbody>
+    {% for a in d.aliases %}
+      <tr>
+        <td class="chip">{{ a.spelling }}</td>
+        <td>{{ a.written_as | join(' · ') }}</td>
+        <td class="num">{{ a.mentions }}</td>
+        <td>
+          {% if a.confirmed_by_human %}
+            <span class="pill resolved">decisión humana</span>
+          {% else %}
+            <span class="muted">así la nombró un documento</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="muted" style="margin:.6rem 0 0; font-size:.88rem">
+    Un alias respaldado por decisión humana autoriza a vincular menciones futuras
+    sin preguntar. Los demás solo dicen que un documento escribió así el nombre.
+  </p>
+</section>
+
+<!-- ------------------------------------------------------------------ -->
+<section class="card">
+  <h2 style="margin:0 0 .2rem">Puestos que un acto le atribuye</h2>
+  <p class="muted" style="margin:0 0 .8rem">
+    Cada fila procede de una resolución publicada que nombra a esta persona.
+  </p>
+  {% if not d.appointments %}
+    <p class="muted" style="margin:0">
+      Ningún acto capturado le atribuye un puesto. Esto <em>no</em> dice que no
+      haya ocupado ninguno: dice que en los documentos ingeridos no consta.
+    </p>
+  {% else %}
+    {% for a in d.appointments %}
+    <article class="stack" style="padding:.9rem 0; border-top:1px solid var(--line)">
+      <h3 style="margin:0 0 .2rem">{{ a.position_label }}</h3>
+      <p class="muted" style="margin:0 0 .5rem">
+        {% if a.organization %}{{ a.organization }} · {% endif %}
+        <span class="chip">{{ a.assignment_kind }}</span>
+        {% if a.event_type %}<span class="chip">{{ a.event_type }}</span>{% endif %}
+        {% if a in d.current_roles %}<span class="pill resolved">vigente al {{ today }}</span>{% endif %}
+      </p>
+
+      <p style="margin:0 0 .5rem">
+        <strong>Desde:</strong>
+        {% if a.start %}
+          {{ a.start }}
+          {% if a.start_basis == 'legal_rule' %}
+            <span class="chip">determinada por norma</span>
+          {% else %}
+            <span class="chip">declarada en el documento</span>
+          {% endif %}
+        {% else %}
+          <span class="muted">no consta ({{ a.start_stated }})</span>
+        {% endif %}
+        &nbsp;·&nbsp;
+        <strong>Hasta:</strong>
+        {% if a.end %}
+          {{ a.end }}
+          {% if a.end_basis == 'legal_rule' %}
+            <span class="chip">determinada por norma</span>
+          {% else %}
+            <span class="chip">declarada en el documento</span>
+          {% endif %}
+        {% else %}
+          <span class="muted">no consta ({{ a.end_stated }})</span>
+        {% endif %}
+      </p>
+      {% if a.end_condition_text %}
+      <p class="muted" style="margin:0 0 .5rem">Final condicional: {{ a.end_condition_text }}</p>
+      {% endif %}
+
+      <p class="muted" style="margin:0 0 .4rem">{{ doc_link(a.document) }}</p>
+      {{ evidence(a.evidence) }}
+    </article>
+    {% endfor %}
+  {% endif %}
+</section>
+
+<!-- ------------------------------------------------------------------ -->
+{% if d.signing_capacities %}
+<section class="card">
+  <h2 style="margin:0 0 .2rem">Cargo con que firma</h2>
+  <p class="warn" style="margin:0 0 .8rem">
+    La fuente declara esta capacidad al pie del documento. <strong>No es un
+    nombramiento registrado aquí</strong>: ningún acto capturado se lo atribuye.
+    Son cosas distintas y el sistema no las mezcla.
+  </p>
+  {% for c in d.signing_capacities %}
+  <article class="stack" style="padding:.8rem 0; border-top:1px solid var(--line)">
+    <h3 style="margin:0 0 .2rem">{{ c.capacity_raw }}</h3>
+    <p class="muted" style="margin:0 0 .4rem">
+      Firma como «{{ c.written_as | join('» / «') }}» en {{ c.documents | length }}
+      documento{{ "s" if c.documents | length != 1 }}:
+    </p>
+    <ul class="muted" style="margin:0 0 .5rem">
+      {% for doc in c.documents %}<li>{{ doc_link(doc) }}</li>{% endfor %}
+    </ul>
+    {{ evidence(c.evidence) }}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- ------------------------------------------------------------------ -->
+{% if d.other_participations %}
+<section class="card">
+  <h2 style="margin:0 0 .2rem">Otros actos que la nombran</h2>
+  <p class="muted" style="margin:0 0 .8rem">
+    El documento habla de esta persona sin atribuirle a ella el puesto del que trata.
+  </p>
+  {% for p in d.other_participations %}
+  <article class="stack" style="padding:.8rem 0; border-top:1px solid var(--line)">
+    <p style="margin:0 0 .3rem">
+      <span class="chip">{{ p.role_in_event }}</span>
+      <span class="chip">{{ p.event_type }}</span>
+      {% if p.article_label %}<span class="chip">{{ p.article_label }}</span>{% endif %}
+    </p>
+    <p class="muted" style="margin:0 0 .4rem">{{ doc_link(p.document) }}</p>
+    {{ evidence(p.evidence) }}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- ------------------------------------------------------------------ -->
+{% if d.unlinked_mentions %}
+<section class="card">
+  <h2 style="margin:0 0 .2rem">Menciones con la misma grafía, sin atribuir</h2>
+  <p class="warn" style="margin:0 0 .8rem">
+    Estos documentos nombran a alguien que se escribe igual, pero el sistema
+    <strong>no ha decidido</strong> si es esta persona. No forman parte del
+    expediente; se listan para que su ausencia no se lea como inexistencia.
+  </p>
+  {% for u in d.unlinked_mentions %}
+  <article class="stack" style="padding:.8rem 0; border-top:1px solid var(--line)">
+    <p style="margin:0 0 .3rem">
+      «{{ u.written_as }}»
+      {% if u.role_context_raw %}<span class="muted">— {{ u.role_context_raw }}</span>{% endif %}
+      <span class="chip">{{ u.resolution_status }}</span>
+    </p>
+    <p class="muted" style="margin:0 0 .4rem">{{ doc_link(u.document) }}</p>
+    {{ evidence(u.evidence) }}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- ------------------------------------------------------------------ -->
+{% if d.possible_duplicates %}
+<section class="card">
+  <h2 style="margin:0 0 .2rem">Podría ser la misma persona que…</h2>
+  <p class="muted" style="margin:0 0 .8rem">
+    Grafías compatibles por omisión de un nombre de pila. Se señalan; fusionarlas
+    es decisión humana y nunca ocurre sola.
+  </p>
+  <ul style="margin:0">
+    {% for dup in d.possible_duplicates %}
+    <li>
+      <a href="/review/persons/{{ dup.person_id }}">{{ dup.preferred_name }}</a>
+      <span class="muted">— {{ dup.rationale }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<!-- ------------------------------------------------------------------ -->
+{% if d.open_reviews %}
+<section class="card">
+  <h2 style="margin:0 0 .2rem">Pendiente de decidir</h2>
+  <p class="muted" style="margin:0 0 .8rem">
+    Mientras estas tareas sigan abiertas, el expediente puede cambiar.
+  </p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Prio</th><th>Tipo</th><th>Motivo</th><th></th></tr></thead>
+    <tbody>
+      {% for r in d.open_reviews %}
+      <tr>
+        <td class="prio prio-{{ r.priority }} num">{{ r.priority }}</td>
+        <td><span class="chip">{{ r.task_type }}</span></td>
+        <td>{{ r.reason }}</td>
+        <td><a href="/review/tasks/{{ r.task_id }}">Revisar →</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+<!-- ------------------------------------------------------------------ -->
+<section class="card">
+  <h2 style="margin:0 0 .2rem">Hasta dónde llega esta ficha</h2>
+  <p class="muted" style="margin:0 0 .5rem">{{ d.coverage.corpus_note }}</p>
+  {% if d.coverage.documents_without_any_event %}
+  <p class="warn" style="margin:0">
+    <strong>Atención:</strong> {{ d.coverage.documents_without_any_event | length }} de los
+    documentos que la nombran no produjeron ningún hecho al extraerse. El texto
+    está capturado, pero el extractor no supo leerlo: lo que falta aquí puede
+    estar en la fuente.
+    <ul style="margin:.4rem 0 0">
+      {% for doc in d.coverage.documents_without_any_event %}
+      <li>{{ doc_link(doc) }}</li>
+      {% endfor %}
+    </ul>
+  </p>
+  {% else %}
+  <p class="muted" style="margin:0">
+    Todos los documentos que la nombran produjeron al menos un hecho extraído.
+  </p>
+  {% endif %}
+</section>
+{% endblock %}

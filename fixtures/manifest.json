@@ -21,5 +21,36 @@
     "2540702-1": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540702-1", "case": "F"},
     "2540905-2": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540905-2", "case": "G"},
     "2540896-1": {"series": "NL", "url": "https://busquedas.elperuano.pe/dispositivo/NL/2540896-1", "case": "H"}
+  },
+  "listings": {
+    "description": "Índice diario de dispositivos (búsqueda por rango de fechas). Capturado el 2026-08-07 con curl y User-Agent identificado, HTTP 200. Los bytes son los servidos por la fuente, sin modificar.",
+    "captured_at": "2026-08-07T22:15:00Z",
+    "items": {
+      "NL-20260807-start0": {
+        "series": "NL",
+        "date": "2026-08-07",
+        "start": 0,
+        "url": "https://busquedas.elperuano.pe/?fechaIni=20260807&fechaFin=20260807&tipoPublicacion=NL&ci=ONLY&start=0",
+        "sha256": "56848de189ec7f66eb6c1208722f25053d50b756740db151de64965abe02fa24",
+        "declares": "32 dispositivos encontrados; 20 tarjetas en esta página"
+      },
+      "NL-20260807-start20": {
+        "series": "NL",
+        "date": "2026-08-07",
+        "start": 20,
+        "url": "https://busquedas.elperuano.pe/?fechaIni=20260807&fechaFin=20260807&tipoPublicacion=NL&ci=ONLY&start=20",
+        "sha256": "d3467c021b17236059272fdbdc5d792ea5a1256a2cdea25773f93161d1156115",
+        "declares": "32 dispositivos encontrados; 12 tarjetas en esta página"
+      },
+      "NL-20260802-start0": {
+        "series": "NL",
+        "date": "2026-08-02",
+        "start": 0,
+        "url": "https://busquedas.elperuano.pe/?fechaIni=20260802&fechaFin=20260802&tipoPublicacion=NL&ci=ONLY&start=0",
+        "sha256": "c93c658b941585debc969f14a32099a73df383ad03ee0cbb7a21d0625bab9e0d",
+        "declares": "29 dispositivos encontrados",
+        "purpose": "Otra fecha: prueba que la guarda de rango rechaza un listado que no es el pedido."
+      }
+    }
   }
 }

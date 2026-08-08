@@ -121,3 +121,59 @@ def test_pdf_of_another_device_is_never_adopted(parser):
     assert declared_pdf_url(page, "2540905-4", f"{base}/2540905-4") is None
     assert declared_pdf_url(page, "2540861-1", None) is None
     assert declared_pdf_url("sin payload", "2540861-1", f"{base}/2540861-1") is None
+
+
+# ---------------------------------------------------------------------------
+# Partes resolutivas que no son un párrafo con todo dentro
+# ---------------------------------------------------------------------------
+
+
+def test_article_body_in_its_own_paragraph_belongs_to_the_article(parser):
+    """Regresión: "Artículo 1.- Designación" y debajo lo que designa.
+
+    Ese párrafo caía en OTHER, el extractor solo mira artículos y el
+    dispositivo entero no producía ni un evento pese a estar capturado íntegro.
+    Tres de los seis huecos de la edición del 2026-08-07 eran exactamente esto.
+    """
+    doc = parser.parse((FIXTURES / "2540828-1.html").read_bytes(), _ref("2540828-1"))
+    kinds = [(s.section_type, s.text_raw) for s in doc.sections]
+    titles = [t for k, t in kinds if k == SectionType.ARTICLE]
+    bodies = [t for k, t in kinds if k == SectionType.ARTICLE_BODY]
+    assert any(t.startswith("Artículo 1.- Designación") for t in titles)
+    assert any(b.startswith("Designar a la señora IVETTE MELVA INFANTES MONTALVO") for b in bodies)
+
+
+def test_a_paragraph_that_does_not_follow_an_article_is_not_a_body(parser):
+    """Solo continúa un artículo lo que viene inmediatamente detrás de él."""
+    doc = parser.parse((FIXTURES / "2540861-1.html").read_bytes(), _ref("2540861-1"))
+    for section in doc.sections:
+        if section.section_type == SectionType.ARTICLE_BODY:
+            previous = doc.sections[section.order_index - 1]
+            assert previous.section_type in (SectionType.ARTICLE, SectionType.ARTICLE_BODY)
+
+
+def test_collective_table_is_segmented_row_by_row(parser):
+    """La tabla de una designación colectiva conserva sus filas.
+
+    Aplanarla en celdas sueltas perdía qué nombre va con qué entidad y con qué
+    documento de identidad, que es justo lo que la tabla declara.
+    """
+    doc = parser.parse((FIXTURES / "2540891-1.html").read_bytes(), _ref("2540891-1"))
+    headers = doc.sections_of(SectionType.ARTICLE_TABLE_HEADER)
+    rows = doc.sections_of(SectionType.ARTICLE_TABLE_ROW)
+    assert headers, "la tabla declara sus columnas en la primera fila"
+    assert headers[0].cells() == ["Nº", "ENTIDAD", "APELLIDOS Y NOMBRES", "DNI"]
+    assert len(rows) == 4  # dos artículos colectivos con dos personas cada uno
+    first = rows[0].cells()
+    assert first[1] == "SERVICIO NACIONAL DE SANIDAD AGRARIA - SENASA"
+    assert first[2] == "YORGES AVALOS, DANTE AARON"
+    assert first[3] == "41345673"
+
+
+def test_table_cell_span_locates_the_cell_inside_its_row(parser):
+    """La cita de una celda tiene que ser literal dentro del texto de la fila."""
+    doc = parser.parse((FIXTURES / "2540891-1.html").read_bytes(), _ref("2540891-1"))
+    row = doc.sections_of(SectionType.ARTICLE_TABLE_ROW)[0]
+    for index, cell in enumerate(row.cells()):
+        start, end = row.cell_span(index)
+        assert row.text_raw[start:end] == cell

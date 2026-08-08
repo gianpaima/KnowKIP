@@ -1,0 +1,244 @@
+{
+  "document": {
+    "document_type_code": "RESOLUCION_MINISTERIAL",
+    "issue_place_raw": "San Isidro",
+    "issued_on": "2026-08-05",
+    "number_normalized": "D000194-2026-MIDIS",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/AN23xUTMKm69nD_hvesLqk/*/2540828-1.PDF",
+    "publication_code": "2540828-1",
+    "published_on": "2026-08-07",
+    "title_raw": "Designan Jefa de la Oficina General de Recursos Humanos del Ministerio"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 24,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Designación",
+          "section_index": 13
+        }
+      },
+      {
+        "article_class": "NOTIFICATION",
+        "article_label": "Artículo 2.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 25,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- Notificación",
+          "section_index": 15
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Ministerio de Desarrollo e Inclusión Social",
+              "path_raw": "Jefa de la Oficina General de Recursos Humanos del Ministerio de Desarrollo e Inclusión Social",
+              "unit_chain": [
+                "Oficina General de Recursos Humanos"
+              ]
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 51,
+                "char_start": 21,
+                "quoted_text": "IVETTE MELVA INFANTES MONTALVO",
+                "section_index": 14
+              },
+              "identifiers": [],
+              "text_raw": "IVETTE MELVA INFANTES MONTALVO"
+            },
+            "position_label_raw": "Jefa de la Oficina General de Recursos Humanos del Ministerio de Desarrollo e Inclusión Social",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 162,
+          "char_start": 0,
+          "quoted_text": "Designar a la señora IVETTE MELVA INFANTES MONTALVO en el cargo de Jefa de la Oficina General de Recursos Humanos del Ministerio de Desarrollo e Inclusión Social.",
+          "section_index": 14
+        },
+        "is_collective": false,
+        "legal_verb_raw": "Designar",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 51,
+                "char_start": 21,
+                "quoted_text": "IVETTE MELVA INFANTES MONTALVO",
+                "section_index": 14
+              },
+              "identifiers": [],
+              "text_raw": "IVETTE MELVA INFANTES MONTALVO"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 233,
+          "char_start": 0,
+          "quoted_text": "El Memorando N° D000099-2026-MIDIS-DM del Despacho Ministerial; el Memorando N° D001551-2026-MIDIS-OGRH de la Oficina General de Recursos Humanos; y el Informe N° D000436-2026-MIDIS-OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "D000099-2026-MIDIS-DM"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 233,
+          "char_start": 0,
+          "quoted_text": "El Memorando N° D000099-2026-MIDIS-DM del Despacho Ministerial; el Memorando N° D001551-2026-MIDIS-OGRH de la Oficina General de Recursos Humanos; y el Informe N° D000436-2026-MIDIS-OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "D001551-2026-MIDIS-OGRH"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 233,
+          "char_start": 0,
+          "quoted_text": "El Memorando N° D000099-2026-MIDIS-DM del Despacho Ministerial; el Memorando N° D001551-2026-MIDIS-OGRH de la Oficina General de Recursos Humanos; y el Informe N° D000436-2026-MIDIS-OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe",
+        "target_number_raw": "D000436-2026-MIDIS-OGAJ"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 970,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; la Ley N° 29792, Ley de Creación, Organización y Funciones del Ministerio de Desarrollo e Inclusión Social; la Ley N° 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; su Reglamento, aprobado por Decreto Supremo N° 053-2022-PCM, y sus modificatorias; la Resolución de Secretaría General N° D000037-2024-MIDIS-SG, que aprueba el Manual de Perfiles de Puestos del Ministerio de Desarrollo e Inclusión Social, su modificatoria y actualizaciones; y, la Resolución Ministerial N° D000024-2026-MIDIS, que aprueba el Texto Integrado actualizado del Reglamento de Organización y Funciones del Ministerio de Desarrollo e Inclusión Social;",
+          "section_index": 11
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "29158"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 970,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; la Ley N° 29792, Ley de Creación, Organización y Funciones del Ministerio de Desarrollo e Inclusión Social; la Ley N° 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; su Reglamento, aprobado por Decreto Supremo N° 053-2022-PCM, y sus modificatorias; la Resolución de Secretaría General N° D000037-2024-MIDIS-SG, que aprueba el Manual de Perfiles de Puestos del Ministerio de Desarrollo e Inclusión Social, su modificatoria y actualizaciones; y, la Resolución Ministerial N° D000024-2026-MIDIS, que aprueba el Texto Integrado actualizado del Reglamento de Organización y Funciones del Ministerio de Desarrollo e Inclusión Social;",
+          "section_index": 11
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "29792"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 970,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; la Ley N° 29792, Ley de Creación, Organización y Funciones del Ministerio de Desarrollo e Inclusión Social; la Ley N° 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; su Reglamento, aprobado por Decreto Supremo N° 053-2022-PCM, y sus modificatorias; la Resolución de Secretaría General N° D000037-2024-MIDIS-SG, que aprueba el Manual de Perfiles de Puestos del Ministerio de Desarrollo e Inclusión Social, su modificatoria y actualizaciones; y, la Resolución Ministerial N° D000024-2026-MIDIS, que aprueba el Texto Integrado actualizado del Reglamento de Organización y Funciones del Ministerio de Desarrollo e Inclusión Social;",
+          "section_index": 11
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "27594"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 970,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; la Ley N° 29792, Ley de Creación, Organización y Funciones del Ministerio de Desarrollo e Inclusión Social; la Ley N° 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; su Reglamento, aprobado por Decreto Supremo N° 053-2022-PCM, y sus modificatorias; la Resolución de Secretaría General N° D000037-2024-MIDIS-SG, que aprueba el Manual de Perfiles de Puestos del Ministerio de Desarrollo e Inclusión Social, su modificatoria y actualizaciones; y, la Resolución Ministerial N° D000024-2026-MIDIS, que aprueba el Texto Integrado actualizado del Reglamento de Organización y Funciones del Ministerio de Desarrollo e Inclusión Social;",
+          "section_index": 11
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "31419"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 970,
+          "char_start": 0,
+          "quoted_text": "De conformidad con lo dispuesto en la Ley N° 29158, Ley Orgánica del Poder Ejecutivo; la Ley N° 29792, Ley de Creación, Organización y Funciones del Ministerio de Desarrollo e Inclusión Social; la Ley N° 27594, Ley que regula la participación del Poder Ejecutivo en el nombramiento y designación de funcionarios públicos; la Ley N° 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción; su Reglamento, aprobado por Decreto Supremo N° 053-2022-PCM, y sus modificatorias; la Resolución de Secretaría General N° D000037-2024-MIDIS-SG, que aprueba el Manual de Perfiles de Puestos del Ministerio de Desarrollo e Inclusión Social, su modificatoria y actualizaciones; y, la Resolución Ministerial N° D000024-2026-MIDIS, que aprueba el Texto Integrado actualizado del Reglamento de Organización y Funciones del Ministerio de Desarrollo e Inclusión Social;",
+          "section_index": 11
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Supremo",
+        "target_number_raw": "053-2022-PCM"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Ministra de Desarrollo e Inclusión Social",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 31,
+            "char_start": 0,
+            "quoted_text": "MARITZA IVONNE CANALES MARTINEZ",
+            "section_index": 18
+          },
+          "identifiers": [],
+          "text_raw": "MARITZA IVONNE CANALES MARTINEZ"
+        },
+        "signature_order": 1
+      }
+    ],
+    "warnings": []
+  }
+}

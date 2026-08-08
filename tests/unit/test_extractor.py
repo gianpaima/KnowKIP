@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from kipu_knowledge.adapters.extraction.deterministic import DeterministicExtractor
-from kipu_knowledge.adapters.extraction.patterns import split_org_path
+from kipu_knowledge.adapters.extraction.patterns import split_encargo_appositive, split_org_path
 from kipu_knowledge.adapters.parsing.html_parser import ElPeruanoHtmlParser
 from kipu_knowledge.domain.contracts import SourceReference
 from kipu_knowledge.domain.enums import (
@@ -144,6 +144,66 @@ class TestVerbPatterns:
         assert ParticipantRole.RETURNING_HOLDER in roles
         assert event.assignments[0].assignment_kind == AssignmentKind.ADDITIONAL_RESPONSIBILITY
 
+    def test_encargar_con_aposicion_no_contamina_la_organizacion(self, extractor):
+        # Regresión: este artículo creó una organización cuyo nombre era el
+        # artículo entero desde "del Ministerio…" hasta el punto final, porque
+        # ninguna de las tres colas (aposición, fecha, condición) se recortaba y
+        # "Organismo" no era cabecera reconocida donde cerrar el segmento.
+        doc = _doc_with_articles(
+            "Artículo 1.- Encargar al señor Julio César Mendoza Alvarado, Viceministro de "
+            "Prestaciones Sociales del Ministerio de Desarrollo e Inclusión Social, las "
+            "funciones del puesto de Presidente Ejecutivo del Organismo de Focalización e "
+            "Información Social (OFIS), en adición a sus funciones, a partir del 7 de "
+            "agosto de 2026 y en tanto dure la ausencia de su titular."
+        )
+        event = extractor.extract(doc).events[0]
+        assignment = event.assignments[0]
+
+        assert assignment.org_path.organization_name == (
+            "Organismo de Focalización e Información Social (OFIS)"
+        )
+        # La etiqueta conserva la ruta cruda, pero ya sin fecha, condición ni aposición.
+        assert assignment.position_label_raw == (
+            "las funciones del puesto de Presidente Ejecutivo del Organismo de Focalización e "
+            "Información Social (OFIS)"
+        )
+        # El cargo que la persona ya ocupaba es un hecho aparte, no parte del encargo.
+        appointee = next(p for p in event.participants if p.role == ParticipantRole.APPOINTEE)
+        assert appointee.substantive_role_raw == (
+            "Viceministro de Prestaciones Sociales del Ministerio de Desarrollo e Inclusión Social"
+        )
+        assert event.effective_from.value == date(2026, 8, 7)
+        assert event.effective_from.status == DateStatus.EXPLICIT
+        assert event.end_condition_text == "en tanto dure la ausencia de su titular"
+        assert assignment.assignment_kind == AssignmentKind.ADDITIONAL_RESPONSIBILITY
+
+    def test_encargar_condicion_en_tanto_dure(self, extractor):
+        # "en tanto dure" es la fórmula que END_CONDITION_RE no cubría; sin ella la
+        # condición entera quedaba pegada a la etiqueta del puesto.
+        doc = _doc_with_articles(
+            "Artículo 1.- Encargar al señor Ricardo Elías Ponce, el puesto de Jefe de la "
+            "Oficina General de Administración del Ministerio de Cultura, en tanto dure la "
+            "ausencia de su titular."
+        )
+        event = extractor.extract(doc).events[0]
+        assert event.end_condition_text == "en tanto dure la ausencia de su titular"
+        assert event.assignments[0].org_path.organization_name == "Ministerio de Cultura"
+        assert event.assignments[0].assignment_kind == AssignmentKind.ACTING
+
+    def test_encargar_sin_aposicion_conserva_todo_el_encargo(self, extractor):
+        # La aposición solo existe si tras la coma arranca una fórmula de encargo.
+        # Un puesto con coma legítima no debe partirse.
+        doc = _doc_with_articles(
+            "Artículo 1.- Encargar a la señora Rosa María Linares Tello, el puesto de Jefa "
+            "de la Oficina General de Planeamiento, Presupuesto y Modernización del "
+            "Ministerio de la Producción."
+        )
+        event = extractor.extract(doc).events[0]
+        appointee = next(p for p in event.participants if p.role == ParticipantRole.APPOINTEE)
+        assert appointee.substantive_role_raw is None
+        assert event.assignments[0].org_path.organization_name == "Ministerio de la Producción"
+        assert "Presupuesto y Modernización" in event.assignments[0].org_path.unit_chain[0]
+
     def test_encargar_a_oficina_no_es_evento(self, extractor):
         # Regla 23: encargos de publicación a unidades no son eventos de personal.
         doc = _doc_with_articles(
@@ -202,6 +262,24 @@ class TestOrgPathSplit:
         assert split.organization is None
         assert split.unit_chain == []
 
+    def test_organismo_publico_es_organizacion_no_unidad(self):
+        split = split_org_path(
+            "las funciones del puesto de Presidente Ejecutivo del Organismo de Focalización "
+            "e Información Social (OFIS)"
+        )
+        assert split.organization == "Organismo de Focalización e Información Social (OFIS)"
+        assert split.role_label == "las funciones del puesto de Presidente Ejecutivo"
+
+    def test_organismo_cierra_el_segmento_anterior(self):
+        # Sin "Organismo" como cabecera el nombre del ministerio se extendía hasta
+        # el final del texto porque no había dónde cortar.
+        split = split_org_path(
+            "Jefe de la Oficina de Presupuesto del Organismo de Evaluación y Fiscalización "
+            "Ambiental"
+        )
+        assert split.organization == "Organismo de Evaluación y Fiscalización Ambiental"
+        assert split.unit_chain == ["Oficina de Presupuesto"]
+
     def test_comma_inside_unit_name(self):
         split = split_org_path(
             "Jefa de Presupuesto de la Oficina de Presupuesto de la Oficina General de "
@@ -209,6 +287,36 @@ class TestOrgPathSplit:
         )
         assert split.organization == "Ministerio de la Producción"
         assert "Oficina General de Planeamiento, Presupuesto y Modernización" in split.unit_chain
+
+
+class TestEncargoAppositive:
+    def test_splits_on_declared_encargo_head(self):
+        resp, appositive = split_encargo_appositive(
+            "Viceministro de Prestaciones Sociales del Ministerio de Desarrollo e Inclusión "
+            "Social, las funciones del puesto de Presidente Ejecutivo del OFIS"
+        )
+        assert appositive == (
+            "Viceministro de Prestaciones Sociales del Ministerio de Desarrollo e Inclusión Social"
+        )
+        assert resp == "las funciones del puesto de Presidente Ejecutivo del OFIS"
+
+    def test_no_appositive_when_encargo_starts_the_text(self):
+        text = "el puesto de Jefe de la Oficina General de Administración"
+        assert split_encargo_appositive(text) == (text, None)
+
+    def test_no_appositive_without_a_declared_head(self):
+        # Sin fórmula de encargo tras la coma no hay frontera: partir por la primera
+        # coma trocearía "Planeamiento, Presupuesto y Modernización".
+        text = "Jefa de la Oficina General de Planeamiento, Presupuesto y Modernización"
+        assert split_encargo_appositive(text) == (text, None)
+
+    def test_first_head_wins_over_later_ones(self):
+        resp, appositive = split_encargo_appositive(
+            "Director de Sistemas, el cargo de Jefe de la Unidad de Personal, "
+            "las funciones de custodia"
+        )
+        assert appositive == "Director de Sistemas"
+        assert resp == "el cargo de Jefe de la Unidad de Personal, las funciones de custodia"
 
 
 class TestSignatories:
@@ -225,3 +333,143 @@ class TestSignatories:
         assert result.signatories[0].capacity_raw == (
             "Intendente Nacional, Intendencia Nacional de Bomberos del Perú"
         )
+
+
+# ---------------------------------------------------------------------------
+# Los seis huecos de la edición del 2026-08-07
+# ---------------------------------------------------------------------------
+
+
+def test_resignation_may_be_formulada_or_presentada(extractor):
+    """Regresión: solo se reconocía "presentada por".
+
+    Con "formulada por" el nombre capturado empezaba en la palabra "formulada",
+    fallaba el guardado de nombre-plausible y el artículo no producía evento:
+    quien renunció desaparecía del sistema.
+    """
+    result = _extract_fixture("2540926-1")
+    assert len(result.events) == 1
+    event = result.events[0]
+    assert event.event_type == EventType.ACCEPT_RESIGNATION
+    assert event.assignment_effect == AssignmentEffect.END
+    # Sin coma final: la coma separa el nombre del cargo, no forma parte del nombre.
+    assert event.assignments[0].person.text_raw == "MARCO ANTONIO MALDONADO GUTARRA"
+
+
+def test_first_workday_is_an_expressed_date_not_an_inferred_one(extractor):
+    """ "…, siendo su primer día de labores el 07 de agosto de 2026".
+
+    La fuente SÍ expresa la fecha, solo que con otra fórmula. Sin reconocerla se
+    perdían dos cosas: la fecha quedaba NOT_STATED pese a constar —y entonces la
+    respondía la norma, que no es lo mismo que lo que el documento dice— y la
+    frase entera contaminaba la etiqueta del puesto.
+    """
+    result = _extract_fixture("2540909-1")
+    event = result.events[0]
+    assert event.effective_from.status == DateStatus.EXPLICIT
+    assert event.effective_from.value == date(2026, 8, 7)
+    assert "primer día de labores" not in event.assignments[0].position_label_raw
+    assert event.assignments[0].position_label_raw.startswith("Asesor de Alta Dirección")
+
+
+def test_collective_end_is_extracted_like_a_collective_start(extractor):
+    """ "Dejar sin efecto las designaciones … de los servidores que se indican"."""
+    result = _extract_fixture("2540315-1")
+    kinds = [(e.event_type, e.assignment_effect, e.is_collective) for e in result.events]
+    assert (EventType.END_DESIGNATION, AssignmentEffect.END, True) in kinds
+    assert (EventType.DESIGNATION, AssignmentEffect.START, True) in kinds
+    names = {a.person.text_raw for e in result.events for a in e.assignments}
+    assert names == {
+        "JORGE PEREZ VEGA",
+        "FREDY BELBER DAZA NAVAL",
+        "ETHAN SEBASTIAN ARENAS RODRIGUEZ",
+        "EVELYN ESTEFANY MORALES ORDINOLA",
+    }
+
+
+def test_tabular_collective_keeps_each_person_with_their_own_entity(extractor):
+    """Cada fila de la tabla lleva su entidad, y esa entidad es la que vale.
+
+    Colgar a todas las personas del puesto genérico del artículo ("Jefe/a del
+    Órgano de Control Institucional") las fundiría en un único cargo que no
+    existe: la misma etiqueta designa un puesto distinto en cada entidad.
+    """
+    result = _extract_fixture("2540891-1")
+    by_effect = {e.assignment_effect: e for e in result.events}
+    ended = {
+        a.person.text_raw: a.org_path.organization_name
+        for a in by_effect[AssignmentEffect.END].assignments
+    }
+    started = {
+        a.person.text_raw: a.org_path.organization_name
+        for a in by_effect[AssignmentEffect.START].assignments
+    }
+    assert ended["YORGES AVALOS, DANTE AARON"] == "SERVICIO NACIONAL DE SANIDAD AGRARIA - SENASA"
+    assert started["YORGES AVALOS, DANTE AARON"] == "MINISTERIO DE SALUD"
+    assert ended["PANTOJA URIZAR GARFIAS, ANA TERESA"] == "MINISTERIO DE SALUD"
+    assert started["PANTOJA URIZAR GARFIAS, ANA TERESA"] == "ACADEMIA DE LA MAGISTRATURA"
+
+
+def test_tabular_collective_reads_the_identifier_column(extractor):
+    """El DNI de una tabla va sin etiqueta al lado: la etiqueta es la cabecera.
+
+    Publicarlo en una columna rotulada es declararlo con la misma claridad que
+    "identificado con DNI N° …", y es la señal que permite reconocer que quien
+    cesa en un artículo es quien es designado en el otro.
+    """
+    result = _extract_fixture("2540891-1")
+    identifiers = {
+        a.person.text_raw: [
+            (i.scheme, i.value_raw, i.evidence.quoted_text) for i in a.person.identifiers
+        ]
+        for e in result.events
+        for a in e.assignments
+    }
+    assert identifiers["YORGES AVALOS, DANTE AARON"][0][1] == "41345673"
+    assert identifiers["PANTOJA URIZAR GARFIAS, ANA TERESA"][0][1] == "10274380"
+    # La cita es literal: el valor tal cual aparece en su celda.
+    assert identifiers["YORGES AVALOS, DANTE AARON"][0][2] == "41345673"
+
+
+def test_a_table_without_a_declared_name_column_extracts_nobody(extractor):
+    """Sin cabecera que diga qué columna es el nombre no se atribuye por posición.
+
+    Perder una fila es recuperable; atribuir un nombre o un documento de
+    identidad a quien no le corresponde, no. El fallo queda visible en warnings.
+    """
+    from kipu_knowledge.domain.parsed import TABLE_CELL_SEPARATOR
+
+    article = "Artículo 1.- Designar en el cargo de Jefe a los siguientes servidores:"
+    document = _doc_with_articles(article)
+    document.sections.append(
+        ParsedSection(
+            section_type=SectionType.ARTICLE_TABLE_HEADER,
+            order_index=1,
+            text_raw=TABLE_CELL_SEPARATOR.join(["1", "columna sin rótulo"]),
+            text_normalized="1 | columna sin rótulo",
+        )
+    )
+    document.sections.append(
+        ParsedSection(
+            section_type=SectionType.ARTICLE_TABLE_ROW,
+            order_index=2,
+            text_raw=TABLE_CELL_SEPARATOR.join(["1", "JORGE PEREZ VEGA"]),
+            text_normalized="1 | JORGE PEREZ VEGA",
+        )
+    )
+    result = extractor.extract(document)
+    assert result.events == []
+    assert any("sin columna de nombre" in w for w in result.warnings)
+
+
+def test_effective_date_clause_is_not_a_publication_notice(extractor):
+    """ "Tendrán efectividad a partir del día siguiente de la publicación".
+
+    Nombra la publicación, así que se clasificaba como aviso de publicación y
+    el artículo que sí lo era quedaba sin clasificar. La distinción importa:
+    esta cláusula es la que veta la regla de fecha legal (docs/adr/0007).
+    """
+    result = _extract_fixture("2540891-1")
+    classes = {c.article_label: c.article_class for c in result.article_classifications}
+    assert classes["Artículo 3.-"] == ArticleClass.EFFECTIVE_DATE_CLAUSE
+    assert classes["Artículo 6.-"] == ArticleClass.PUBLICATION_NOTICE

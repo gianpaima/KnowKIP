@@ -83,6 +83,62 @@ class CrawlRun(PKMixin, Base):
     error_summary: Mapped[str | None] = mapped_column(Text)
 
 
+class CrawlItem(PKMixin, Base):
+    """Un dispositivo visto en el índice de una fecha, y qué se hizo con él.
+
+    Existe para que el descubrimiento automático no tenga zonas mudas. Sin esta
+    tabla, "el sistema ingirió 19 de 32" es indistinguible de "ese día se
+    publicaron 19": lo que no se ingiere no deja rastro en ninguna otra parte
+    del modelo. Aquí queda cada código con lo que el catálogo declaraba, el
+    veredicto de relevancia con su regla, el estado final y —si falló— el error
+    literal, además del artefacto del listado cuyos bytes lo declararon.
+
+    No es evidencia de ningún hecho del documento: la sumilla la escribe el
+    buscador, no la norma. Es la bitácora del recolector.
+    """
+
+    __tablename__ = "crawl_item"
+    __table_args__ = (
+        UniqueConstraint("crawl_run_id", "source_series", "publication_code"),
+        Index("ix_crawl_item_status", "status"),
+    )
+
+    crawl_run_id: Mapped[str] = mapped_column(ForeignKey("crawl_run.id"), index=True)
+    source_series: Mapped[str] = mapped_column(String(20))
+    publication_code: Mapped[str] = mapped_column(String(50), index=True)
+    canonical_url: Mapped[str | None] = mapped_column(String(500))
+    # Bytes del listado que declararon este dispositivo: la captura del índice es
+    # la constancia de qué dijo la fuente que se publicó ese día.
+    listing_artifact_version_id: Mapped[str | None] = mapped_column(
+        ForeignKey("artifact_version.id")
+    )
+    issuer_raw: Mapped[str | None] = mapped_column(String(500))
+    document_type_raw: Mapped[str | None] = mapped_column(String(200))
+    number_raw: Mapped[str | None] = mapped_column(String(200))
+    summary_raw: Mapped[str | None] = mapped_column(Text)
+    listed_date_raw: Mapped[str | None] = mapped_column(String(100))
+    relevance: Mapped[e.Relevance] = mapped_column(
+        _enum(e.Relevance, "relevance"), default=e.Relevance.UNDECIDED
+    )
+    relevance_rule: Mapped[str | None] = mapped_column(String(100))
+    relevance_rationale: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[e.CrawlItemStatus] = mapped_column(
+        _enum(e.CrawlItemStatus, "crawl_item_status"), default=e.CrawlItemStatus.DISCOVERED
+    )
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    # Qué salió de procesarlo, en texto ("eventos=1 asignaciones=1 tareas=0; PDF …").
+    outcome_detail: Mapped[str | None] = mapped_column(Text)
+    # Eventos de personal extraídos. Cero en un dispositivo que el filtro llamó
+    # relevante señala un hueco del extractor, no un documento vacío: el
+    # documento está capturado y su texto íntegro, pero nada se afirmó de él.
+    # Sin esta cuenta ese hueco no se ve desde ninguna parte.
+    events_extracted: Mapped[int | None] = mapped_column(Integer)
+    publication_item_id: Mapped[str | None] = mapped_column(ForeignKey("publication_item.id"))
+    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class PublicationIssue(PKMixin, Base):
     __tablename__ = "publication_issue"
     __table_args__ = (UniqueConstraint("source_system_id", "issue_code"),)
@@ -409,7 +465,11 @@ class IdentityPrecedent(PKMixin, Base):
     # NULL = alias sin restricción de contexto (ver docstring).
     role_context: Mapped[str | None] = mapped_column(String(400))
     person_id: Mapped[str] = mapped_column(ForeignKey("person.id"), index=True)
-    source_person_mention_id: Mapped[str] = mapped_column(ForeignKey("person_mention.id"))
+    # Cuál fue la mención que motivó la decisión. Anulable porque re-extraer el
+    # documento retira sus menciones y crea otras: el reproceso reapunta este
+    # campo a la equivalente, y si ya no existe lo deja NULL y abre revisión.
+    # Lo que el precedente afirma no depende de este puntero (ver docstring).
+    source_person_mention_id: Mapped[str | None] = mapped_column(ForeignKey("person_mention.id"))
     review_decision_id: Mapped[str] = mapped_column(ForeignKey("review_decision.id"), index=True)
     reviewer: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

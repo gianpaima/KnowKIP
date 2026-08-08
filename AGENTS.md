@@ -21,12 +21,18 @@ uv run alembic upgrade head
 
 # Ingesta / validación / exportación
 uv run kipu ingest-fixture 2540861-1
+uv run kipu ingest-date --date 2026-08-07 [--dry-run]   # recolección diaria (red)
+uv run kipu crawl-report --date 2026-08-07              # bitácora de la corrida
 uv run kipu validate --publication-code 2540861-1
 uv run kipu export-rdf --publication-code 2540861-1
 uv run kipu rebuild-projections
 
 # API + UI de revisión (http://127.0.0.1:8000/docs y /review)
+# Incluye el expediente por persona en /review/persons
 uv run kipu serve
+
+# Re-extraer un documento ya capturado con el extractor corregido (supersede)
+uv run kipu reprocess --publication-code 2540891-1
 
 # Calidad (todo debe pasar antes de un cambio)
 uv run pytest
@@ -87,7 +93,12 @@ uv run mypy
 4. Captura antes que parsing; el parser falla explícitamente ante HTML contaminado
    o campos faltantes.
 5. `LIVE_SOURCE_ENABLED=false` por defecto; el scraping real exige revisar
-   docs/source-policy.md primero.
+   docs/source-policy.md primero. El descubrimiento por fecha
+   (`kipu ingest-date`) recorre solo el índice de la fecha pedida y **verifica
+   que la página responda a esa fecha y que lo recolectado cuadre con el total
+   que la fuente declara**: un día incompleto falla en vez de pasar por bueno.
+   Ningún fallo transitorio se reintenta dentro de la corrida; queda
+   `RETRY_PENDING` para `kipu retry-pending`.
 6. **Los identificadores personales no se publican.** El DNI sirve para resolver
    identidad; nunca se proyecta a RDF ni se expone por la API. `kipu:Person`
    solo lleva información funcional pública. Excepción deliberada: la UI interna
@@ -96,6 +107,32 @@ uv run mypy
    endpoint vive solo bajo `/review`, jamás en el API público `/v1`. Toda
    respuesta HTML de ese endpoint viaja con CSP `sandbox` (contenido de
    terceros: nunca ejecuta scripts ni carga recursos remotos en nuestro origin).
+7. **Nada descubierto se descarta en silencio.** Todo dispositivo que el índice
+   declara queda en `crawl_item` con su veredicto de relevancia, la regla que lo
+   decidió y su motivo, se ingiera o no. El filtro
+   (`domain/relevance.py`, `personnel-relevance/1.0`) solo excluye lo que
+   encabeza con un verbo del catálogo negativo; lo no catalogado se ingiere. La
+   sumilla del catálogo no es evidencia de nada: la escribe el buscador, no la
+   norma, y por eso no produce afirmaciones. Ver docs/adr/0008.
+8. **Una ficha vacía no significa que no haya nada.** El expediente por persona
+   (`/review/persons`, `application/person_dossier.py`) declara siempre de
+   cuántos documentos se construyó y cuáles de ellos se leyeron sin extraer
+   ningún hecho. Buscar por nombre devuelve fichas **candidatas** y avisa
+   cuando una grafía responde a más de una persona: encontrar no es
+   identificar, y agrupar por nombre reintroduciría por la interfaz la
+   inferencia que la regla 1 prohíbe. Lo que un acto atribuye va separado de la
+   capacidad con que alguien firma —"firma como Ministra" no es "fue designada
+   Ministra"— y las menciones con la misma grafía sin vincular se listan
+   aparte, nunca dentro. Nada derivado sin regla citada y evidencia; no hay
+   texto redactado por modelo sobre personas reales.
+9. **Re-extraer no borra decisiones humanas.** `kipu reprocess` supersede las
+   afirmaciones (nunca las borra), desancla los `EvidenceSpan` de las secciones
+   que reconstruye —la cita y su sha256 siguen siendo verificables contra el
+   artefacto—, reapunta los `IdentityPrecedent` a la mención equivalente del
+   documento nuevo, arrastra los `document_source` corroborantes que enlazó un
+   operador y retira las fichas de persona que la extracción anterior creó y
+   esta ya no sostiene. Si un precedente se queda sin mención equivalente, se
+   abre tarea de revisión en vez de resolverlo solo.
 
 ## Política de pruebas y revisión
 

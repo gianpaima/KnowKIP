@@ -8,6 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from kipu_knowledge.domain.enums import DocumentTypeCode, SectionType
 
+# Separador con que una fila de tabla se rinde en una sola cadena. Vive en el
+# dominio porque lo escribe el parser y lo lee el extractor: es la forma de la
+# sección, no un detalle de ninguno de los dos. Solo se interpone entre celdas,
+# de modo que el texto de cada una sigue siendo literal y citable.
+TABLE_CELL_SEPARATOR = " | "
+
 
 class ParsedSection(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -17,6 +23,23 @@ class ParsedSection(BaseModel):
     order_index: int
     text_raw: str
     text_normalized: str
+
+    def cells(self) -> list[str]:
+        """Celdas de una fila de tabla, en orden, con su texto tal cual."""
+        return [cell.strip() for cell in self.text_raw.split(TABLE_CELL_SEPARATOR)]
+
+    def cell_span(self, index: int) -> tuple[int, int]:
+        """Rango de la celda `index` dentro del texto de la fila.
+
+        Permite citar la celda concreta —el documento de identidad, el nombre—
+        en vez de la fila entera, sin perder que la evidencia es esta fila.
+        """
+        start = 0
+        for cell in self.text_raw.split(TABLE_CELL_SEPARATOR)[:index]:
+            start += len(cell) + len(TABLE_CELL_SEPARATOR)
+        raw = self.text_raw.split(TABLE_CELL_SEPARATOR)[index]
+        lead = len(raw) - len(raw.lstrip())
+        return start + lead, start + len(raw.rstrip())
 
 
 class ParsedDocument(BaseModel):

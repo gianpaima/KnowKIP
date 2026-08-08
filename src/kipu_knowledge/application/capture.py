@@ -25,7 +25,10 @@ from sqlalchemy.orm import Session
 from kipu_knowledge.adapters.db import models as m
 from kipu_knowledge.adapters.sources.elperuano import ElPeruanoSourceAdapter
 from kipu_knowledge.adapters.sources.http_capture import PoliteFetcher
-from kipu_knowledge.application.source_links import official_publication_item
+from kipu_knowledge.application.source_links import (
+    get_or_create_official_gazette,
+    official_publication_item,
+)
 from kipu_knowledge.domain import enums as e
 from kipu_knowledge.domain.contracts import ArtifactStore, CaptureRecord
 
@@ -288,21 +291,17 @@ def link_external_source(
     return item, outcomes
 
 
-def capture_issue(
-    session: Session, store: ArtifactStore, issue_code: str, publication_date: str | None = None
-) -> tuple[m.PublicationIssue, CaptureOutcome]:
-    """Captura el cuadernillo de una edición y lo registra como PublicationIssue.
+def ensure_issue(
+    session: Session, issue_code: str, publication_date: str | None = None
+) -> tuple[m.PublicationIssue, m.PublicationItem]:
+    """Edición del diario oficial y su publicación propia, sin tocar la red.
 
-    La fecha del cuadernillo no se deduce de la de publicación de sus normas: se
-    toma del propio código de edición, que es lo que la fuente declara.
+    La edición es una publicación en sí misma —tiene cuadernillo e índice—, así
+    que se le da un `PublicationItem` para no colgar sus artefactos de un ítem
+    que no le toca. La fecha no se deduce de la de sus normas: sale del propio
+    código de edición, que es lo que la fuente declara.
     """
-    adapter = ElPeruanoSourceAdapter()
-    url = adapter.issue_url_for(issue_code)
-    system = session.execute(
-        select(m.SourceSystem).where(m.SourceSystem.authority == e.SourceAuthority.OFFICIAL_GAZETTE)
-    ).scalar_one_or_none()
-    if system is None:
-        raise CaptureError("No hay un diario oficial registrado en source_system")
+    system = get_or_create_official_gazette(session)
 
     issue = session.execute(
         select(m.PublicationIssue).where(
@@ -320,8 +319,6 @@ def capture_issue(
         session.add(issue)
         session.flush()
 
-    # El cuadernillo es una publicación en sí misma, con su propia captura: se le
-    # da un PublicationItem para no colgar artefactos de un ítem que no le toca.
     item = session.execute(
         select(m.PublicationItem).where(
             m.PublicationItem.source_system_id == system.id,
@@ -334,10 +331,20 @@ def capture_issue(
             issue_id=issue.id,
             source_series=issue.family,
             publication_code=issue_code,
-            canonical_url=url,
+            canonical_url=ElPeruanoSourceAdapter().issue_url_for(issue_code),
         )
         session.add(item)
         session.flush()
+    return issue, item
+
+
+def capture_issue(
+    session: Session, store: ArtifactStore, issue_code: str, publication_date: str | None = None
+) -> tuple[m.PublicationIssue, CaptureOutcome]:
+    """Captura el cuadernillo de una edición y lo registra como PublicationIssue."""
+    adapter = ElPeruanoSourceAdapter()
+    url = adapter.issue_url_for(issue_code)
+    issue, item = ensure_issue(session, issue_code, publication_date)
 
     content, capture = adapter.fetch_url(url)
     outcome = store_capture(

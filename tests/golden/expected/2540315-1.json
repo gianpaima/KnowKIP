@@ -1,0 +1,333 @@
+{
+  "document": {
+    "document_type_code": "OTHER",
+    "issue_place_raw": "Lima",
+    "issued_on": "2026-08-04",
+    "number_normalized": "ADMINISTRACIÓNYFINANZAS",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/8IVA5LEJq-zBXzSQ6nuwFu/*/2540315-1.PDF",
+    "publication_code": "2540315-1",
+    "published_on": "2026-08-07",
+    "title_raw": "Dejan sin efecto designaciones y designan fedatarios institucionales de la Intendencia de Aduana de Chancay"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 168,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Dejar sin efecto las designaciones como Fedatarios Institucionales de la Intendencia de Aduana de Chancay, de los servidores que se indican a continuación:",
+          "section_index": 14
+        }
+      },
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 2.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 122,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- Designar como Fedatarios Institucionales de la Intendencia de Aduana de Chancay, a los siguientes servidores:",
+          "section_index": 17
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1.-",
+        "assignment_effect": "END",
+        "assignments": [
+          {
+            "assignment_kind": "UNKNOWN",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": null,
+              "path_raw": "Fedatarios Institucionales de la Intendencia de Aduana de Chancay",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 18,
+                "char_start": 2,
+                "quoted_text": "JORGE PEREZ VEGA",
+                "section_index": 15
+              },
+              "identifiers": [],
+              "text_raw": "JORGE PEREZ VEGA"
+            },
+            "position_label_raw": "Fedatarios Institucionales de la Intendencia de Aduana de Chancay",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          },
+          {
+            "assignment_kind": "UNKNOWN",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": null,
+              "path_raw": "Fedatarios Institucionales de la Intendencia de Aduana de Chancay",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 25,
+                "char_start": 2,
+                "quoted_text": "FREDY BELBER DAZA NAVAL",
+                "section_index": 16
+              },
+              "identifiers": [],
+              "text_raw": "FREDY BELBER DAZA NAVAL"
+            },
+            "position_label_raw": "Fedatarios Institucionales de la Intendencia de Aduana de Chancay",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "END_DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 168,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Dejar sin efecto las designaciones como Fedatarios Institucionales de la Intendencia de Aduana de Chancay, de los servidores que se indican a continuación:",
+          "section_index": 14
+        },
+        "is_collective": true,
+        "legal_verb_raw": "Dejar sin efecto las designaciones",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 18,
+                "char_start": 2,
+                "quoted_text": "JORGE PEREZ VEGA",
+                "section_index": 15
+              },
+              "identifiers": [],
+              "text_raw": "JORGE PEREZ VEGA"
+            },
+            "role": "AFFECTED_PERSON",
+            "substantive_role_raw": null
+          },
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 25,
+                "char_start": 2,
+                "quoted_text": "FREDY BELBER DAZA NAVAL",
+                "section_index": 16
+              },
+              "identifiers": [],
+              "text_raw": "FREDY BELBER DAZA NAVAL"
+            },
+            "role": "AFFECTED_PERSON",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      },
+      {
+        "article_label": "Artículo 2.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": null,
+              "path_raw": "Fedatarios Institucionales de la Intendencia de Aduana de Chancay",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 34,
+                "char_start": 2,
+                "quoted_text": "ETHAN SEBASTIAN ARENAS RODRIGUEZ",
+                "section_index": 18
+              },
+              "identifiers": [],
+              "text_raw": "ETHAN SEBASTIAN ARENAS RODRIGUEZ"
+            },
+            "position_label_raw": "Fedatarios Institucionales de la Intendencia de Aduana de Chancay",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          },
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": null,
+              "path_raw": "Fedatarios Institucionales de la Intendencia de Aduana de Chancay",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 34,
+                "char_start": 2,
+                "quoted_text": "EVELYN ESTEFANY MORALES ORDINOLA",
+                "section_index": 19
+              },
+              "identifiers": [],
+              "text_raw": "EVELYN ESTEFANY MORALES ORDINOLA"
+            },
+            "position_label_raw": "Fedatarios Institucionales de la Intendencia de Aduana de Chancay",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 122,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- Designar como Fedatarios Institucionales de la Intendencia de Aduana de Chancay, a los siguientes servidores:",
+          "section_index": 17
+        },
+        "is_collective": true,
+        "legal_verb_raw": "Designar",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 34,
+                "char_start": 2,
+                "quoted_text": "ETHAN SEBASTIAN ARENAS RODRIGUEZ",
+                "section_index": 18
+              },
+              "identifiers": [],
+              "text_raw": "ETHAN SEBASTIAN ARENAS RODRIGUEZ"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          },
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 34,
+                "char_start": 2,
+                "quoted_text": "EVELYN ESTEFANY MORALES ORDINOLA",
+                "section_index": 19
+              },
+              "identifiers": [],
+              "text_raw": "EVELYN ESTEFANY MORALES ORDINOLA"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [],
+    "signatories": [
+      {
+        "capacity_raw": "Superintendente Nacional Adjunta, de Administración y Finanzas, Superintendencia Nacional de Aduanas, y de Administración Tributaria",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 31,
+            "char_start": 0,
+            "quoted_text": "KARLA YVONNE FERNANDEZ GRANADOS",
+            "section_index": 21
+          },
+          "identifiers": [],
+          "text_raw": "KARLA YVONNE FERNANDEZ GRANADOS"
+        },
+        "signature_order": 1
+      }
+    ],
+    "warnings": []
+  }
+}

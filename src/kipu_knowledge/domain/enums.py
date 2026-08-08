@@ -14,6 +14,11 @@ class RepresentationType(StrEnum):
     PDF = "PDF"
     ISSUE_PDF = "ISSUE_PDF"
     IMAGE = "IMAGE"
+    # Índice del día: la página de resultados que enumera los dispositivos de una
+    # fecha. Cuelga del ítem de la edición, no de un dispositivo, y sus versiones
+    # son las páginas del recorrido (cada una con su requested_url), no
+    # correcciones sucesivas de un mismo documento.
+    LISTING = "LISTING"
 
 
 class SourceAuthority(StrEnum):
@@ -42,6 +47,36 @@ class DocumentSourceRole(StrEnum):
     CORROBORATING = "CORROBORATING"
 
 
+class Relevance(StrEnum):
+    """Si un dispositivo del índice diario entra o no en el alcance del sistema.
+
+    UNDECIDED no es un empate: es la respuesta honesta cuando la sumilla no
+    empieza por ningún verbo catalogado. Se ingiere igual, porque descartar por
+    desconocimiento perdería documentos sin dejar rastro de la decisión.
+    """
+
+    RELEVANT = "RELEVANT"
+    NOT_RELEVANT = "NOT_RELEVANT"
+    UNDECIDED = "UNDECIDED"
+
+
+class CrawlItemStatus(StrEnum):
+    """En qué quedó cada dispositivo descubierto en una corrida.
+
+    RETRY_PENDING existe porque en esta fuente se observó un 404 transitorio
+    (2026-08-07): el fallo se registra para reintentarlo con un comando
+    explícito, nunca dentro del mismo recorrido.
+    """
+
+    DISCOVERED = "DISCOVERED"  # visto en el índice; aún no se decidió nada
+    SKIPPED_NOT_RELEVANT = "SKIPPED_NOT_RELEVANT"
+    ALREADY_PRESENT = "ALREADY_PRESENT"  # ya estaba ingerido de antes
+    INGESTED = "INGESTED"
+    INGESTED_PDF_PENDING = "INGESTED_PDF_PENDING"  # texto ingerido, falta respaldar el PDF
+    RETRY_PENDING = "RETRY_PENDING"  # fallo transitorio: se reintenta aparte
+    FAILED = "FAILED"  # fallo que no se arregla reintentando (parseo, contaminación)
+
+
 class SectionType(StrEnum):
     SUMMARY = "SUMMARY"  # sumilla
     DOC_TYPE = "DOC_TYPE"
@@ -51,7 +86,17 @@ class SectionType(StrEnum):
     CONSIDERANDO = "CONSIDERANDO"
     RESOLVE_HEADER = "RESOLVE_HEADER"  # "SE RESUELVE:"
     ARTICLE = "ARTICLE"
+    # Cuerpo de un artículo cuyo encabezado es solo un título ("Artículo 1.-
+    # Designación") y cuya parte dispositiva viene en el párrafo siguiente. Es
+    # una sección propia y no parte del artículo para que la evidencia siga
+    # anclada al párrafo que realmente dice el hecho.
+    ARTICLE_BODY = "ARTICLE_BODY"
     ARTICLE_LIST_ITEM = "ARTICLE_LIST_ITEM"  # "- Nombre Apellido" dentro de un artículo colectivo
+    # Designaciones colectivas publicadas en tabla. Se conserva la fila entera
+    # con sus celdas en orden: separarlas en párrafos sueltos pierde qué nombre
+    # va con qué entidad y con qué documento de identidad.
+    ARTICLE_TABLE_HEADER = "ARTICLE_TABLE_HEADER"
+    ARTICLE_TABLE_ROW = "ARTICLE_TABLE_ROW"
     CLOSING = "CLOSING"  # "Regístrese, comuníquese..."
     SIGNATURE = "SIGNATURE"
     PUBLICATION_CODE = "PUBLICATION_CODE"
@@ -139,6 +184,11 @@ class ArticleClass(StrEnum):
     PERSONNEL_EVENT = "PERSONNEL_EVENT"
     DERIVED_OBLIGATION = "DERIVED_OBLIGATION"  # p.ej. declaraciones juradas
     PUBLICATION_NOTICE = "PUBLICATION_NOTICE"  # encargos de publicación web
+    # Cláusula que fija cuándo empieza a producir efectos el acto ("tendrán
+    # efectividad a partir del día siguiente de la publicación"). Se distingue
+    # del aviso de publicación porque es la que veta la regla de fecha legal
+    # (docs/adr/0007): confundirlas escondía la razón del veto.
+    EFFECTIVE_DATE_CLAUSE = "EFFECTIVE_DATE_CLAUSE"
     NOTIFICATION = "NOTIFICATION"
     COUNTERSIGNATURE = "COUNTERSIGNATURE"  # "es refrendada por..."
     OTHER = "OTHER"

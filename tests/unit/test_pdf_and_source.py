@@ -59,8 +59,21 @@ class TestSourcePolicy:
         with pytest.raises(ValueError):
             adapter.parse_source_reference("https://ejemplo.com/otra-cosa")
 
-    def test_discover_not_yet_implemented_returns_empty(self):
+    def test_discovery_also_respects_the_live_flag(self):
+        """El descubrimiento por fecha es red como cualquier otra: sin la bandera
+        no sale a la fuente (antes devolvía vacío, que se leía como 'ese día no
+        se publicó nada')."""
         from datetime import date
 
         adapter = ElPeruanoSourceAdapter(Settings(live_source_enabled=False))
-        assert list(adapter.discover(date(2026, 8, 6))) == []
+        with pytest.raises(LiveSourceDisabled):
+            adapter.discover_entries(date(2026, 8, 6))
+
+    def test_listing_url_is_the_one_the_site_builds(self):
+        from datetime import date
+
+        adapter = ElPeruanoSourceAdapter(Settings(live_source_enabled=False))
+        assert adapter.listing_url_for(date(2026, 8, 7), "NL", 20) == (
+            "https://busquedas.elperuano.pe/?fechaIni=20260807&fechaFin=20260807"
+            "&tipoPublicacion=NL&ci=ONLY&start=20"
+        )

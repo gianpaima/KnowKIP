@@ -37,6 +37,7 @@ from kipu_knowledge.domain.extraction_models import (
     ExtractedSignatory,
     ExtractionResult,
 )
+from kipu_knowledge.domain.legal_effect import find_postponement_clause
 from kipu_knowledge.domain.normalization import parse_spanish_date
 from kipu_knowledge.domain.parsed import ParsedDocument, ParsedSection
 
@@ -110,13 +111,49 @@ def _identifiers(section: ParsedSection, name: str) -> list[ExtractedIdentifier]
     ]
 
 
-def _org_path(role_text: str) -> ExtractedOrgPath:
+def _org_path(role_text: str, organization: str | None = None) -> ExtractedOrgPath:
+    """Ruta organizacional del puesto.
+
+    `organization` la aporta quien lee una tabla, donde la entidad va en su
+    propia columna y no dentro de la etiqueta del cargo. Manda sobre lo que se
+    deduzca del texto del rol: es un dato declarado, no una segmentación.
+    """
     split = p.split_org_path(role_text)
     return ExtractedOrgPath(
         path_raw=role_text,
-        organization_name=split.organization,
+        organization_name=organization or split.organization,
         unit_chain=split.unit_chain,
     )
+
+
+def _cell_identifiers(row: ParsedSection, columns: dict[str, int]) -> list[ExtractedIdentifier]:
+    """Documento de identidad declarado en la columna que la cabecera nombra.
+
+    En una tabla el valor viaja sin etiqueta a su lado —la etiqueta es la
+    cabecera— así que no lo encuentra el reconocedor de texto corrido. Que la
+    fuente lo publique en una columna rotulada es declararlo igual de explícito.
+    """
+    index = columns.get("identifier")
+    cells = row.cells()
+    if index is None or index >= len(cells):
+        return []
+    value = p.identifier_in_cell(cells[index])
+    if value is None:
+        return []
+    start, end = row.cell_span(index)
+    return [
+        ExtractedIdentifier(
+            scheme=IdentifierScheme.DNI,
+            value_raw=value,
+            evidence=EvidenceRef(
+                section_index=row.order_index,
+                article_label=row.label_raw,
+                char_start=start,
+                char_end=end,
+                quoted_text=row.text_raw[start:end],
+            ),
+        )
+    ]
 
 
 def _article_body(section: ParsedSection) -> str:
@@ -124,6 +161,24 @@ def _article_body(section: ParsedSection) -> str:
     if section.label_raw and text.startswith(section.label_raw):
         text = text[len(section.label_raw) :]
     return text.strip()
+
+
+def _as_resolutive_unit(article: ParsedSection, body: ParsedSection) -> ParsedSection:
+    """El párrafo dispositivo de un artículo, hablando en nombre de ese artículo.
+
+    Cuando la parte dispositiva vive en un párrafo aparte ("Artículo 1.-
+    Designación" y debajo "Designar a la señora …"), el hecho lo dice el
+    párrafo pero el acto es el artículo. La evidencia se ancla al párrafo —que
+    es donde está el texto citado— y la etiqueta sigue siendo la del artículo,
+    que es como la fuente numera lo resuelto.
+    """
+    return ParsedSection(
+        section_type=body.section_type,
+        label_raw=article.label_raw,
+        order_index=body.order_index,
+        text_raw=body.text_raw,
+        text_normalized=body.text_normalized,
+    )
 
 
 class DeterministicExtractor:
@@ -138,20 +193,46 @@ class DeterministicExtractor:
 
         articles = document.articles()
         list_items = self._list_items_by_article(document)
+        bodies = self._bodies_by_article(document)
+        tables = self._tables_by_article(document)
 
         for article in articles:
             body = _article_body(article)
+            attached = bodies.get(article.order_index, [])
             handled = self._try_extract_event(
                 article,
                 body,
                 document,
                 result,
                 list_items.get(article.order_index, []),
+                table=tables.get(article.order_index),
                 completes_predecessor=completes_predecessor,
                 constitutional_mandate=constitutional_mandate,
                 considerandos=considerandos,
             )
-            classification = self._classify_article(article, body, handled)
+            # El encabezado puede ser solo un título ("Artículo 1.- Designación").
+            # Entonces lo resuelto está en los párrafos siguientes y hay que
+            # leerlos, o el dispositivo entero no afirma nada pese a estar íntegro.
+            if not handled:
+                for attached_body in attached:
+                    unit = _as_resolutive_unit(article, attached_body)
+                    if self._try_extract_event(
+                        unit,
+                        _article_body(unit),
+                        document,
+                        result,
+                        list_items.get(article.order_index, []),
+                        table=tables.get(article.order_index),
+                        completes_predecessor=completes_predecessor,
+                        constitutional_mandate=constitutional_mandate,
+                        considerandos=considerandos,
+                    ):
+                        handled = True
+                        break
+            # La clasificación mira el artículo completo: "Artículo 2.-
+            # Notificación" solo se reconoce como tal por el texto de su cuerpo.
+            classified_text = " ".join([body, *(s.text_raw for s in attached)]).strip()
+            classification = self._classify_article(article, classified_text, handled)
             result.article_classifications.append(classification)
             if classification.article_class == ArticleClass.OTHER and not handled:
                 label = article.label_raw or article.order_index
@@ -179,6 +260,36 @@ class DeterministicExtractor:
                 mapping.setdefault(current_article, []).append(section)
         return mapping
 
+    def _tables_by_article(
+        self, document: ParsedDocument
+    ) -> dict[int, tuple[ParsedSection | None, list[ParsedSection]]]:
+        """Asocia cabecera y filas de tabla al artículo que las encabeza."""
+        mapping: dict[int, tuple[ParsedSection | None, list[ParsedSection]]] = {}
+        current_article: int | None = None
+        for section in document.sections:
+            if section.section_type == SectionType.ARTICLE:
+                current_article = section.order_index
+            elif current_article is None:
+                continue
+            elif section.section_type == SectionType.ARTICLE_TABLE_HEADER:
+                mapping[current_article] = (section, [])
+            elif section.section_type == SectionType.ARTICLE_TABLE_ROW:
+                header, rows = mapping.get(current_article, (None, []))
+                rows.append(section)
+                mapping[current_article] = (header, rows)
+        return mapping
+
+    def _bodies_by_article(self, document: ParsedDocument) -> dict[int, list[ParsedSection]]:
+        """Asocia los párrafos dispositivos al artículo que los encabeza."""
+        mapping: dict[int, list[ParsedSection]] = {}
+        current_article: int | None = None
+        for section in document.sections:
+            if section.section_type == SectionType.ARTICLE:
+                current_article = section.order_index
+            elif section.section_type == SectionType.ARTICLE_BODY and current_article is not None:
+                mapping.setdefault(current_article, []).append(section)
+        return mapping
+
     def _try_extract_event(
         self,
         article: ParsedSection,
@@ -187,6 +298,7 @@ class DeterministicExtractor:
         result: ExtractionResult,
         list_items: list[ParsedSection],
         *,
+        table: tuple[ParsedSection | None, list[ParsedSection]] | None = None,
         completes_predecessor: bool,
         constitutional_mandate: bool,
         considerandos: list[ParsedSection],
@@ -195,9 +307,22 @@ class DeterministicExtractor:
         if p.ENCARGAR_ORG_GUARD_RE.match(body):
             return False
 
+        # Un artículo colectivo publica su lista como items de guion o como
+        # tabla. El acto es el mismo; solo cambia de dónde salen las personas.
+        header, rows = table if table else (None, [])
+
         m = p.COLLECTIVE_START_RE.match(body)
         if m and list_items:
             self._collective_start(article, m, list_items, result, constitutional_mandate)
+            return True
+        if m and rows and self._tabular_collective(article, m, header, rows, result, starts=True):
+            return True
+
+        m = p.COLLECTIVE_END_RE.match(body)
+        if m and list_items:
+            self._collective_end(article, m, list_items, result)
+            return True
+        if m and rows and self._tabular_collective(article, m, header, rows, result, starts=False):
             return True
 
         m = p.ACCEPT_RESIGNATION_RE.match(body)
@@ -244,6 +369,14 @@ class DeterministicExtractor:
         role_text, slot = p.extract_position_slot(role_text)
         date_phrase = m.group("date")
         effective = _explicit_date(f"a partir del {date_phrase}" if date_phrase else None)
+        # "…, siendo su primer día de labores el 07 de agosto de 2026": la fuente
+        # declara el inicio con otra fórmula. Se separa del puesto —o quedaría
+        # pegada a su etiqueta— y vale como fecha expresada, no inferida.
+        first_day = p.FIRST_WORKDAY_RE.search(role_text)
+        if first_day:
+            role_text = role_text[: first_day.start()].strip().rstrip(".;,")
+            if effective.status != DateStatus.EXPLICIT:
+                effective = _explicit_date(first_day.group(0).strip(" ,"))
         mention = _mention(article, m.group("name"))
         assignment = ExtractedAssignment(
             person=mention,
@@ -324,6 +457,144 @@ class DeterministicExtractor:
                 confidence=0.95,
             )
         )
+
+    def _collective_end(
+        self,
+        article: ParsedSection,
+        m,  # noqa: ANN001
+        list_items: list[ParsedSection],
+        result: ExtractionResult,
+    ) -> None:
+        """Un artículo que termina la designación de varias personas a la vez.
+
+        Espejo de `_collective_start`: mismo puesto declarado en el artículo y
+        una persona por item de la lista. Sin fecha: si el documento no la
+        expresa queda NOT_STATED, y lo que determine la norma se decide después
+        (`domain/legal_effect.py`), nunca aquí.
+        """
+        role_text = p.strip_thanks(m.group("role"))
+        participants: list[ExtractedParticipant] = []
+        assignments: list[ExtractedAssignment] = []
+        for item in list_items:
+            name = item.text_raw.lstrip("- ").strip()
+            if not p.looks_like_person_name(name):
+                continue
+            mention = _mention(item, name)
+            participants.append(
+                ExtractedParticipant(role=ParticipantRole.AFFECTED_PERSON, person=mention)
+            )
+            assignments.append(
+                ExtractedAssignment(
+                    person=mention,
+                    position_label_raw=role_text,
+                    org_path=_org_path(role_text),
+                )
+            )
+        result.events.append(
+            ExtractedEvent(
+                event_type=EventType.END_DESIGNATION,
+                assignment_effect=AssignmentEffect.END,
+                legal_verb_raw=m.group("verb"),
+                article_label=article.label_raw,
+                participants=participants,
+                assignments=assignments,
+                is_collective=True,
+                evidence=_full_span(article),
+                confidence=0.95,
+            )
+        )
+
+    def _tabular_collective(
+        self,
+        article: ParsedSection,
+        m,  # noqa: ANN001
+        header: ParsedSection | None,
+        rows: list[ParsedSection],
+        result: ExtractionResult,
+        *,
+        starts: bool,
+    ) -> bool:
+        """Designaciones o ceses colectivos publicados en tabla.
+
+        La cabecera declara qué es cada columna; sin ella no se extrae nada,
+        porque atribuir un nombre o un documento de identidad por posición
+        fabricaría datos. La entidad sale de la fila, no del artículo: en una
+        misma tabla cada persona va a un organismo distinto, y colgarlas todas
+        del puesto genérico las fundiría en un único cargo inexistente.
+
+        Devuelve si el artículo quedó extraído; un False deja que se clasifique
+        como no-evento y quede el warning, que es visible.
+        """
+        columns = p.table_columns(header.cells()) if header is not None else {}
+        if "name" not in columns:
+            where = article.label_raw or article.order_index
+            result.warnings.append(
+                f"Tabla sin columna de nombre declarada en {where}: no se extrajo ninguna persona"
+            )
+            return False
+
+        role_text = p.strip_thanks(m.group("role"))
+        participants: list[ExtractedParticipant] = []
+        assignments: list[ExtractedAssignment] = []
+        for row in rows:
+            cells = row.cells()
+            if columns["name"] >= len(cells):
+                continue
+            name = cells[columns["name"]].strip()
+            if not p.looks_like_person_name(name.replace(",", " ")):
+                continue
+            mention = ExtractedPersonMention(
+                text_raw=name,
+                evidence=_name_span(row, name),
+                identifiers=_cell_identifiers(row, columns),
+            )
+            organization = (
+                cells[columns["organization"]].strip()
+                if "organization" in columns and columns["organization"] < len(cells)
+                else None
+            )
+            participants.append(
+                ExtractedParticipant(
+                    role=ParticipantRole.APPOINTEE if starts else ParticipantRole.AFFECTED_PERSON,
+                    person=mention,
+                )
+            )
+            assignments.append(
+                ExtractedAssignment(
+                    person=mention,
+                    position_label_raw=role_text,
+                    org_path=_org_path(role_text, organization),
+                    # Igual que en el colectivo de guiones: una designación es
+                    # titular salvo que el puesto sea de órgano colegiado. El
+                    # cese no afirma naturaleza, y por eso ahí no se toca.
+                    assignment_kind=(
+                        (
+                            AssignmentKind.BOARD_MEMBERSHIP
+                            if "miembro" in role_text.lower() or "directorio" in role_text.lower()
+                            else AssignmentKind.TITULAR
+                        )
+                        if starts
+                        else AssignmentKind.UNKNOWN
+                    ),
+                )
+            )
+        if not participants:
+            return False
+
+        result.events.append(
+            ExtractedEvent(
+                event_type=EventType.DESIGNATION if starts else EventType.END_DESIGNATION,
+                assignment_effect=AssignmentEffect.START if starts else AssignmentEffect.END,
+                legal_verb_raw=m.group("verb"),
+                article_label=article.label_raw,
+                participants=participants,
+                assignments=assignments,
+                is_collective=True,
+                evidence=_full_span(article),
+                confidence=0.95,
+            )
+        )
+        return True
 
     def _accept_resignation(
         self,
@@ -460,25 +731,54 @@ class DeterministicExtractor:
             rm = p.RETURNING_HOLDER_RE.search(end_condition)
             if rm and p.looks_like_person_name(rm.group("name").strip()):
                 returning = _mention(article, rm.group("name"))
+        # La fecha de eficacia puede venir al final del encargo en vez de junto al
+        # nombre. Se recorta siempre —o viajaría dentro de la etiqueta del puesto y
+        # de ahí al nombre de la organización— y vale como fecha solo si el patrón
+        # principal no la capturó ya en su posición temprana.
+        date_phrase = m.group("date")
+        tm = p.TRAILING_EFFECTIVE_FROM_RE.search(resp)
+        if tm:
+            resp = (resp[: tm.start()] + resp[tm.end() :]).strip().rstrip(".;,")
+            date_phrase = date_phrase or tm.group("date")
+        # "en adición a sus funciones" no describe el puesto: declara que se acumula
+        # al que la persona ya ejerce. Se recorta de la etiqueta y se conserva como
+        # la afirmación explícita de la fuente sobre la naturaleza del encargo.
+        am = p.ADDITION_CLAUSE_RE.search(resp)
+        is_addition = am is not None
+        if am:
+            resp = (resp[: am.start()] + resp[am.end() :]).strip().rstrip(".;,")
         # Recorta cláusulas normativas accesorias ("cuyas funciones u obligaciones...")
         resp = resp.split(", cuyas ")[0].strip().rstrip(".;,")
+        # El artículo suele identificar a la persona por el cargo que YA ocupa antes
+        # de decir qué se le encarga. Ese cargo es un hecho distinto del encargo: se
+        # registra aparte en vez de quedar pegado a la etiqueta del puesto encargado.
+        resp, substantive_role = p.split_encargo_appositive(resp)
 
-        date_phrase = m.group("date")
         effective = _explicit_date(
             f"con eficacia anticipada a partir del {date_phrase}" if date_phrase else None
         )
         mention = _mention(article, m.group("name"))
         kind = (
-            AssignmentKind.ACTING
-            if resp.lower().startswith(("el puesto de", "las funciones de", "el cargo de"))
-            else AssignmentKind.ADDITIONAL_RESPONSIBILITY
+            AssignmentKind.ADDITIONAL_RESPONSIBILITY
+            if is_addition
+            else (
+                AssignmentKind.ACTING
+                if resp.lower().startswith(("el puesto de", "las funciones de", "el cargo de"))
+                else AssignmentKind.ADDITIONAL_RESPONSIBILITY
+            )
         )
         event_type = (
             EventType.ACTING_ASSIGNMENT
             if kind == AssignmentKind.ACTING
             else EventType.ADDITIONAL_RESPONSIBILITY
         )
-        participants = [ExtractedParticipant(role=ParticipantRole.APPOINTEE, person=mention)]
+        participants = [
+            ExtractedParticipant(
+                role=ParticipantRole.APPOINTEE,
+                person=mention,
+                substantive_role_raw=substantive_role,
+            )
+        ]
         if returning is not None:
             participants.append(
                 ExtractedParticipant(
@@ -523,6 +823,13 @@ class DeterministicExtractor:
             cls = ArticleClass.COUNTERSIGNATURE
         elif p.SWORN_DECLARATION_RE.search(body):
             cls = ArticleClass.DERIVED_OBLIGATION
+        # Antes que el aviso de publicación: la cláusula de vigencia nombra la
+        # publicación ("efectividad a partir del día siguiente de la
+        # publicación") y se la llevaba por delante. Se pregunta con la misma
+        # función que decide el veto de la fecha legal, de modo que la
+        # clasificación y el veto no puedan discrepar.
+        elif find_postponement_clause([body]) is not None:
+            cls = ArticleClass.EFFECTIVE_DATE_CLAUSE
         elif p.PUBLICATION_NOTICE_RE.search(body) or (
             p.ENCARGAR_ORG_GUARD_RE.match(body) and "publicaci" in body.lower()
         ):

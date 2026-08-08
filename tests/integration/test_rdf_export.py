@@ -59,3 +59,24 @@ def test_jsonld_uses_context(ingested_session):
     text = export_document_jsonld(ingested_session, "2540779-1")
     assert "CAP_PROVISIONAL" in text
     assert "007" in text
+
+
+def test_rebuild_projections_skips_publications_without_a_document(
+    ingested_session, store, tmp_path
+):
+    """La edición del día y las publicaciones corroborantes no se proyectan.
+
+    Existen para colgar de ellas el cuadernillo, el índice o el respaldo de otra
+    fuente, pero no producen documento propio. Recorrer `publication_item` sin
+    filtrar rompía `kipu rebuild-projections` con un LookupError.
+    """
+    from kipu_knowledge.application.capture import ensure_issue
+    from kipu_knowledge.application.export import rebuild_projections
+
+    ensure_issue(ingested_session, "NL20260806")
+    ingested_session.flush()
+
+    written = rebuild_projections(ingested_session, tmp_path)
+    names = {path.stem for path in written}
+    assert "NL20260806" not in names
+    assert "2540861-1" in names

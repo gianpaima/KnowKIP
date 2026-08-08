@@ -154,6 +154,32 @@ def official_publication_item(
     )
 
 
+def get_or_create_official_gazette(session: Session) -> m.SourceSystem:
+    """El diario oficial, creándolo si aún no está registrado.
+
+    Vive aquí y no en el servicio de ingesta porque el recolector diario también
+    lo necesita —la edición del día es suya— y una base recién migrada no tiene
+    ninguna fila de `source_system` hasta la primera captura.
+    """
+    from kipu_knowledge.adapters.sources.elperuano import BASE_URL, SOURCE_FAMILY
+
+    row = _official_gazette(session)
+    if row is not None:
+        return row
+    row = m.SourceSystem(
+        # La publicación aquí es la que produce efectos jurídicos, no una copia
+        # más del mismo texto.
+        authority=e.SourceAuthority.OFFICIAL_GAZETTE,
+        name="El Peruano - Normas Legales",
+        base_url=BASE_URL,
+        source_family=SOURCE_FAMILY,
+        policy_status="DOCUMENTED",
+    )
+    session.add(row)
+    session.flush()
+    return row
+
+
 def _official_gazette(session: Session) -> m.SourceSystem | None:
     return (
         session.execute(

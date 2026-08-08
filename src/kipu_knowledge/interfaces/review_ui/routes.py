@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Sequence
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,7 @@ from sqlalchemy.orm import Session
 from kipu_knowledge.adapters.db import models as m
 from kipu_knowledge.adapters.resolution.resolver import SimpleEntityResolver
 from kipu_knowledge.application.legal_effect import determined_payload, verdict_for_event
+from kipu_knowledge.application.person_dossier import build_dossier, search_persons
 from kipu_knowledge.application.review import ReviewError, ReviewService
 from kipu_knowledge.domain import enums as e
 from kipu_knowledge.domain.contracts import ArtifactStore
@@ -702,3 +704,31 @@ def decision_history(db: Session = Depends(get_db)) -> HTMLResponse:
         .order_by(m.ReviewDecision.decided_at.desc())
     ).all()
     return _render("history.html", rows=rows)
+
+
+# ---------------------------------------------------------------------------
+# Expediente de una persona
+# ---------------------------------------------------------------------------
+#
+# Vive bajo /review y no en el API público por la regla 6: aquí se cita
+# evidencia literal y se enlaza la captura original, que puede contener
+# documentos de identidad. Lo que esta superficie muestra no sale de /review.
+
+
+@router.get("/persons", response_class=HTMLResponse)
+def person_search(db: Session = Depends(get_db), q: str = "") -> HTMLResponse:
+    """Busca por nombre y devuelve fichas candidatas, en plural.
+
+    Que un resultado aparezca no afirma que sea la persona buscada; que
+    aparezcan dos no afirma que sean distintas. Buscar es recuperar.
+    """
+    hits = search_persons(db, q) if q.strip() else []
+    return _render("persons.html", query=q, hits=hits)
+
+
+@router.get("/persons/{person_id}", response_class=HTMLResponse)
+def person_dossier(person_id: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    dossier = build_dossier(db, person_id)
+    if dossier is None:
+        raise HTTPException(404, "Persona no encontrada")
+    return _render("person_detail.html", d=dossier, today=date.today())

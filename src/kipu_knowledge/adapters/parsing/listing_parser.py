@@ -29,6 +29,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
 from lxml import html as lxml_html
 
@@ -39,9 +40,20 @@ _HREF_RE = re.compile(r"^/dispositivo/(?P<series>[A-Z]{1,5})/(?P<code>\d{5,9}-\d
 _RANGE_RE = re.compile(r"Dispositivos del\s+(\d{2}/\d{2}/\d{4})\s+al\s+(\d{2}/\d{2}/\d{4})")
 # El total viaja partido por comentarios HTML ("32<!-- --> <!-- -->dispositivos
 # encontrados"), igual que la fecha de publicación en la página del dispositivo;
-# por eso se busca sobre el texto ya extraído por lxml, no sobre los bytes.
+# por eso se busca sobre el texto ya extraído por lxml, no sobre los bytes. Y se
+# busca en el elemento más pequeño que lo contiene: en el texto de la página
+# entera, el párrafo anterior termina en "…al 07/08/2026" y pegado al total da
+# "20263 2", que se leería como un total absurdo sin avisar de nada.
 _TOTAL_RE = re.compile(r"(\d+)\s*dispositivos?\s+encontrados?")
 _START_RE = re.compile(r"[?&]start=(\d+)")
+
+
+def _smallest_containing(tree, needle: str):  # noqa: ANN001, ANN202
+    """Elemento más específico cuyo texto contiene `needle` (None si ninguno)."""
+    candidates = tree.xpath(f"//*[contains(., {needle!r})]")
+    if not candidates:
+        return None
+    return min(candidates, key=lambda el: len(el.text_content()))
 
 
 class ListingParseError(ValueError):
@@ -73,7 +85,7 @@ def _parse_ddmmyyyy(raw: str) -> date:
 
 def _entry_from_card(card, series_expected: str, base_url: str, source_family: str):  # noqa: ANN001, ANN202
     """Convierte una tarjeta del listado en una entrada, o None si no lo es."""
-    linked: list[tuple[re.Match[str], object]] = []
+    linked: list[tuple[re.Match[str], Any]] = []
     for anchor in card.xpath(".//a[@href]"):
         match = _HREF_RE.match(anchor.get("href", ""))
         if match:
@@ -153,9 +165,9 @@ def parse_listing(
     """Lee una página del índice y comprueba que responde a lo que se pidió."""
     text = content.decode("utf-8", errors="replace")
     tree = lxml_html.fromstring(text)
-    page_text = collapse_whitespace(tree.text_content())
 
-    range_match = _RANGE_RE.search(page_text)
+    range_element = _smallest_containing(tree, "Dispositivos del")
+    range_match = _RANGE_RE.search(_text(range_element)) if range_element is not None else None
     if range_match is None:
         raise ListingParseError(
             "El listado no declara el rango de fechas consultado; la página no es "
@@ -170,7 +182,8 @@ def parse_listing(
             f"ignoró el filtro (no se ingiere una fecha por otra)"
         )
 
-    total_match = _TOTAL_RE.search(page_text)
+    total_element = _smallest_containing(tree, "dispositivos encontrados")
+    total_match = _TOTAL_RE.search(_text(total_element)) if total_element is not None else None
     if total_match is None:
         raise ListingParseError(
             "El listado no declara cuántos dispositivos encontró; sin ese total no "
@@ -195,7 +208,15 @@ def parse_listing(
             f"ninguno: la estructura de las tarjetas cambió"
         )
 
-    starts = sorted({int(value) for value in _START_RE.findall(text)})
+    # Sobre los href ya decodificados por lxml: en el HTML crudo la paginación
+    # viaja como `&amp;start=20` y un regex sobre los bytes no la vería.
+    starts = sorted(
+        {
+            int(match.group(1))
+            for href in tree.xpath("//a/@href")
+            if (match := _START_RE.search(href))
+        }
+    )
     return ListingPage(
         entries=tuple(entries),
         total_declared=total_declared,

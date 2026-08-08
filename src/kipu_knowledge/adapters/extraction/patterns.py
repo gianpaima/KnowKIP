@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from kipu_knowledge.domain.normalization import collapse_whitespace, strip_accents
+
 DATE_ES = r"\d{1,2}\s+de\s+[a-záéíóúñ]+\s+del?\s+\d{4}"
 
 # --- Cabeceras organizacionales para segmentar rutas "rol de la Unidad del Órgano" ---
@@ -24,6 +26,11 @@ ORG_HEAD_WORDS = (
     "Presidencia del Consejo de Ministros",
     "Archivo General",
     "Instituto Nacional",
+    # Los organismos públicos adscritos ("Organismo de Focalización e Información
+    # Social") son entidades por derecho propio, no unidades de su ministerio. Sin
+    # esta cabecera el segmentador no encontraba dónde terminar el nombre anterior
+    # y lo extendía hasta el final del artículo.
+    "Organismo",
 )
 
 UNIT_HEAD_WORDS = (
@@ -121,20 +128,60 @@ START_EVENT_RE = re.compile(
     r"(?P<role>.+?)\s*\.?$"
 )
 
+# Fórmulas con que un artículo colectivo anuncia la lista que lo sigue. La
+# fuente alterna entre "a los siguientes señores/servidores" y "a los/as
+# profesionales que se detallan a continuación" (y su variante "se indican"),
+# y entre listas de guiones y tablas. El sustantivo no cambia el acto.
+_COLLECTIVE_PEOPLE = (
+    r"(?:se[ñn]or(?:es|as)?|servidor(?:es|as)?|profesionales|funcionari[oa]s|"
+    r"ciudadan[oa]s|personas)"
+)
+_COLLECTIVE_TAIL = (
+    # La preposición cambia con el verbo: se designa "a los siguientes
+    # servidores" pero se deja sin efecto "de los servidores que se indican".
+    r"(?:a|de)\s+l[oa]s(?:/as)?\s+(?:siguientes\s+)?" + _COLLECTIVE_PEOPLE + r"(?:\s+que se "
+    r"(?:detallan|indican|se[ñn]alan|relacionan)(?:\s+a continuaci[oó]n)?)?\s*:?$"
+)
+# "Designar como X, a los siguientes señores:" y
+# "Designar en el cargo de X a los/as profesionales que se detallan a continuación:"
 COLLECTIVE_START_RE = re.compile(
-    r"^(?P<verb>Designar|Nombrar|DESIGNAR|NOMBRAR)\s+como\s+"
-    r"(?P<role>.+?),\s*"
-    r"(?:en representaci[oó]n del?\s+(?P<representing>.+?),\s*)?"
-    r"a l[oa]s siguientes se[ñn]or(?:es|as)?\s*:?$"
+    r"^(?P<verb>Designar|Nombrar|DESIGNAR|NOMBRAR)\s+"
+    r"(?:como|en el cargo de|en los cargos de|en el puesto de)\s+"
+    r"(?P<role>.+?),?\s*"
+    r"(?:en representaci[oó]n del?\s+(?P<representing>.+?),\s*)?" + _COLLECTIVE_TAIL
+)
+
+# "Dar por terminada la designación en el cargo de X de los/as profesionales que
+# se detallan a continuación:" / "Dejar sin efecto las designaciones como X, de
+# los servidores que se indican a continuación:". El acto termina asignaciones
+# de varias personas a la vez y su lista viene igual que la de inicio.
+COLLECTIVE_END_RE = re.compile(
+    r"^(?P<verb>Dar por terminada la designaci[oó]n|Dar por concluida la designaci[oó]n|"
+    r"Dejar sin efecto la designaci[oó]n|Dejar sin efecto las designaciones)\s+"
+    r"(?:como|en el cargo de|en los cargos de|en el puesto de)\s+"
+    r"(?P<role>.+?),?\s*" + _COLLECTIVE_TAIL
+)
+
+# "…, siendo su primer día de labores el 07 de agosto de 2026." La fuente SÍ
+# expresa la fecha de inicio, solo que no con la fórmula "a partir del". Sin
+# reconocerla se perdían dos cosas a la vez: la fecha quedaba NOT_STATED pese a
+# constar, y la frase entera contaminaba la etiqueta del puesto.
+FIRST_WORKDAY_RE = re.compile(
+    r",?\s*siendo su primer d[íi]a de labores\s+el\s+(?P<date>" + DATE_ES + r")\s*\.?$",
+    re.IGNORECASE,
 )
 
 ACCEPT_RESIGNATION_RE = re.compile(
     r"^(?P<verb>Aceptar la renuncia|Se acepta la renuncia)"
     r"(?:\s*,\s*(?:con eficacia(?: anticipada)?\s+(?:al|a partir del)|a partir del)\s+"
     r"(?P<date>" + DATE_ES + r")\s*,)?"
-    r"\s*(?:presentada por\s+)?"
+    # La fuente alterna "presentada por" y "formulada por"; sin la segunda, el
+    # nombre capturado arrancaba en "formulada" y el artículo no producía evento.
+    r"\s*(?:(?:presentada|formulada)\s+por\s+)?"
     r"(?:del|de la|el|la|por el|por la)?\s*(?:se[ñn]ora?|se[ñn]orita)?\s*"
-    r"(?P<name>.+?)"
+    # La coma que separa el nombre del cargo no forma parte del nombre; sin
+    # excluirla la mención se registraba como "NOMBRE APELLIDO,".
+    r"(?P<name>.+?),?"
     r"\s+(?:al cargo de|al puesto de|en el cargo de|como)\s+"
     r"(?P<role>.+?)\s*\.?$"
 )
@@ -161,6 +208,41 @@ ENCARGAR_PERSON_RE = re.compile(
     r"(?P<resp>.+?)\s*\.?$"
 )
 
+# Fórmulas con que un encargo nombra lo encargado. Sirven de frontera derecha de
+# la aposición: lo que va antes es el cargo que la persona YA ocupa.
+_ENCARGO_OBJECT_HEADS = (
+    r"las funciones del puesto de",
+    r"las funciones del cargo de",
+    r"las funciones de",
+    r"el puesto de",
+    r"el cargo de",
+    r"la obligaci[oó]n de",
+    r"la responsabilidad de",
+)
+_APPOSITIVE_RE = re.compile(
+    r"^(?P<appositive>.+?),\s*(?=(?:" + "|".join(_ENCARGO_OBJECT_HEADS) + r")\b)",
+    re.IGNORECASE,
+)
+
+
+def split_encargo_appositive(resp: str) -> tuple[str, str | None]:
+    """Separa "Viceministro de X del Ministerio Y, las funciones del puesto Z".
+
+    Devuelve (lo encargado, cargo sustantivo o None). La aposición solo se
+    reconoce cuando lo que sigue arranca con una fórmula inequívoca de encargo:
+    sin esa frontera declarada no hay forma de distinguir el cargo previo del
+    encargado, y partir por la primera coma trocearía puestos con coma legítima.
+    """
+    text = resp.strip()
+    m = _APPOSITIVE_RE.match(text)
+    if m is None:
+        return text, None
+    appositive = m.group("appositive").strip().rstrip(".;,")
+    if not appositive:
+        return text, None
+    return text[m.end() :].strip(), appositive
+
+
 # Guardas: ENCARGAR a una unidad organizacional no es un evento de personal (regla 23)
 ENCARGAR_ORG_GUARD_RE = re.compile(
     r"^(?:ENCARGAR|Encargar)\s*,?\s+a\s+la\s+"
@@ -170,8 +252,31 @@ ENCARGAR_ORG_GUARD_RE = re.compile(
 
 # --- Condiciones de término y mandatos ---
 
+# El conector que precede a la condición ("…, y en tanto dure la ausencia…") se
+# consume fuera del grupo: pertenece a la frase anterior, no a la condición, y
+# dejarlo colgando ensuciaba la etiqueta del puesto con una "y" final.
 END_CONDITION_RE = re.compile(
-    r"(?P<cond>(?:hasta el retorno|hasta que|mientras dure|hasta concluir)\s+.+)$",
+    r"[,;]?\s*(?:y\s+|e\s+)?"
+    r"(?P<cond>(?:hasta el retorno|hasta que|mientras dure|en tanto dure|en tanto se|"
+    r"hasta concluir)\s+.+)$",
+    re.IGNORECASE,
+)
+
+# "…, a partir del 7 de agosto de 2026" declarado al final del encargo en lugar
+# de junto al nombre. Es la misma fecha de eficacia que ENCARGAR_PERSON_RE captura
+# en la posición temprana; aquí se recorta para que no viaje dentro del puesto.
+TRAILING_EFFECTIVE_FROM_RE = re.compile(
+    r"[,;]?\s*(?:y\s+|e\s+)?(?:con eficacia(?:\s+anticipada)?\s+)?"
+    r"a partir del\s+(?P<date>" + DATE_ES + r")",
+    re.IGNORECASE,
+)
+
+# Cláusula que declara el encargo como acumulativo. No forma parte del puesto
+# —pegada al nombre lo corrompía— pero sí es la afirmación de la fuente de que la
+# responsabilidad se suma a las funciones propias, así que se conserva su rastro.
+ADDITION_CLAUSE_RE = re.compile(
+    r"[,;]?\s*(?:y\s+|e\s+)?(?P<clause>en adici[oó]n a (?:sus|las) funciones"
+    r"(?:\s+(?:propias|de su cargo|que viene desempe[ñn]ando))?)",
     re.IGNORECASE,
 )
 
@@ -234,8 +339,14 @@ PRIOR_APPOINTMENT_CONTEXT_RE = re.compile(r"se design[óa]|se encarga|se encarg[
 
 COUNTERSIGNATURE_RE = re.compile(r"es refrendada por", re.IGNORECASE)
 SWORN_DECLARATION_RE = re.compile(r"Declaraci[oó]n Jurada", re.IGNORECASE)
-PUBLICATION_NOTICE_RE = re.compile(r"publicaci[oó]n de la presente Resoluci[oó]n", re.IGNORECASE)
-NOTIFICATION_RE = re.compile(r"se le notifique|notif[íi]quese", re.IGNORECASE)
+PUBLICATION_NOTICE_RE = re.compile(
+    # "Disponer la publicación de la presente Resolución…" y su forma directa
+    # "Publicar la presente resolución en el diario oficial…", que quedaba sin
+    # clasificar pese a ser el aviso de publicación por excelencia.
+    r"publicaci[oó]n de la presente [Rr]esoluci[oó]n|Publicar la presente [Rr]esoluci[oó]n",
+    re.IGNORECASE,
+)
+NOTIFICATION_RE = re.compile(r"se le notifique|notif[íi]quese|notificar la presente", re.IGNORECASE)
 
 UPPERCASE_NAME_RE = re.compile(r"^[A-ZÁÉÍÓÚÑÜ][A-ZÁÉÍÓÚÑÜ\s.'-]+$")
 
@@ -243,6 +354,45 @@ UPPERCASE_NAME_RE = re.compile(r"^[A-ZÁÉÍÓÚÑÜ][A-ZÁÉÍÓÚÑÜ\s.'-]+$"
 def looks_like_person_name(text: str) -> bool:
     words = text.split()
     return 2 <= len(words) <= 8 and text[0].isupper() and not any(ch.isdigit() for ch in text)
+
+
+# --- Columnas de las tablas de designación colectiva ---
+
+# Qué declara cada columna, según su celda de cabecera. Es la fuente la que
+# nombra sus columnas; sin leerlas no se sabe qué celda es un nombre y cuál un
+# documento de identidad, y adivinarlo por posición fabricaría atribuciones.
+_COLUMN_KINDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("name", ("APELLIDOS", "NOMBRES", "NOMBRE COMPLETO")),
+    ("identifier", ("DNI", "DOCUMENTO NACIONAL DE IDENTIDAD", "DOC. IDENTIDAD")),
+    ("organization", ("ENTIDAD", "INSTITUCION", "ORGANISMO", "PLIEGO")),
+)
+
+
+def table_columns(header_cells: list[str]) -> dict[str, int]:
+    """Índice de columna por tipo, leído de la cabecera declarada.
+
+    Solo se reconocen las columnas que la cabecera nombra. Una tabla sin columna
+    de nombre no produce nada: es preferible no afirmar a atribuir por posición.
+    """
+    columns: dict[str, int] = {}
+    for index, cell in enumerate(header_cells):
+        label = collapse_whitespace(strip_accents(cell)).upper()
+        for kind, markers in _COLUMN_KINDS:
+            if kind not in columns and any(marker in label for marker in markers):
+                columns[kind] = index
+                break
+    return columns
+
+
+# El DNI peruano tiene exactamente 8 dígitos. En una celda el valor viaja sin
+# etiqueta —la etiqueta está en la cabecera— así que la forma es lo único que
+# distingue un documento de identidad de un correlativo de fila.
+_DNI_CELL_RE = re.compile(r"^\d{8}$")
+
+
+def identifier_in_cell(cell: str) -> str | None:
+    value = cell.strip()
+    return value if _DNI_CELL_RE.match(value) else None
 
 
 # --- Identificadores de persona declarados por la fuente ---

@@ -68,6 +68,68 @@ datos existieran. No toca la red.
 `kipu apply-legal-effect-dates [--dry-run]` determina la fecha de inicio de
 efectos que fija la norma para las filas anteriores a esa regla (ver más abajo).
 
+### 4a. Recolección automática de una fecha
+
+En vez de pegar URLs una a una, el recolector descubre el índice del día y trae
+lo que le toca. Requiere `LIVE_SOURCE_ENABLED=true` (leer antes
+`docs/source-policy.md`).
+
+```powershell
+uv run kipu discover     --date 2026-08-07              # qué hay ese día y qué haría el filtro
+uv run kipu ingest-date  --date 2026-08-07 --dry-run    # igual, sin escribir nada
+uv run kipu ingest-date  --date 2026-08-07              # descubre, ingiere y respalda PDFs
+uv run kipu crawl-report --date 2026-08-07              # qué se vio y qué se hizo con cada uno
+uv run kipu retry-pending                                # reintenta lo que falló transitoriamente
+```
+
+Dos reparaciones deterministas y sin red para las filas anteriores a estos
+comandos: `kipu backfill-issue-links [--dry-run]` ata cada publicación a la
+edición de la fecha que su captura declara (nunca crea ediciones), y
+`kipu backfill-crawl-outcomes [--dry-run]` cuenta en la bitácora los eventos ya
+extraídos de cada dispositivo.
+
+Qué hace una corrida (detalle en `docs/adr/0008-*.md`):
+
+- Recorre el índice `?fechaIni=&fechaFin=&tipoPublicacion=NL&ci=ONLY&start=N`,
+  **verifica** que la página responda a la fecha pedida y que lo recolectado
+  cuadre con el total que la fuente declara, y **archiva sus bytes** en el CAS
+  como representación `LISTING` de la edición.
+- Clasifica cada sumilla con `personnel-relevance/1.0`. Ingiere lo que es un
+  acto de personal y **también lo no catalogado**; solo descarta lo que encabeza
+  con un verbo del catálogo negativo (`Aprueban`, `Autorizan`, `Rectifican`…).
+- Anota **todo lo que vio** en `crawl_item`, se ingiera o no, con su motivo.
+  Nada se descarta en silencio; `--include-not-relevant` ingiere la edición
+  completa y `--limit N` corta sin perder de vista el resto.
+- Es idempotente: lo ya ingerido queda `ALREADY_PRESENT` y no se vuelve a pedir.
+- Los fallos transitorios (404 pasajero, timeout, 5xx) quedan `RETRY_PENDING`
+  para `retry-pending`; **nunca** se reintentan dentro de la misma corrida. Si
+  el fallo es del propio índice, la corrida entera falla y sale con código 1:
+  antes que ingerir medio día, ninguno.
+- Al terminar dice cuántos dispositivos relevantes **no produjeron ningún
+  evento**. No es un fallo de captura —el texto está íntegro— sino un hueco del
+  extractor, y se cuenta para que se vea.
+
+#### Programarla
+
+No hay demonio: es un comando idempotente que se programa fuera. En Windows,
+todos los días a las 07:00 (la edición del día ya está publicada):
+
+```powershell
+$cmd = 'cd C:\div\KnowKIP; uv run kipu ingest-date --date (Get-Date -Format yyyy-MM-dd)'
+schtasks /Create /TN "KipuKnowledge-Diario" /SC DAILY /ST 07:00 `
+  /TR "powershell -NoProfile -Command `"$cmd`"" 
+```
+
+En Linux/macOS (cron), con reintento de lo pendiente una hora después:
+
+```cron
+0 7 * * *  cd /srv/kipu && uv run kipu ingest-date --date "$(date +\%F)" >> var/log/ingest.log 2>&1
+0 8 * * *  cd /srv/kipu && uv run kipu retry-pending >> var/log/ingest.log 2>&1
+```
+
+Recuperar días pasados es correr `ingest-date` por cada fecha: no hay estado
+compartido entre corridas más allá de lo ya ingerido.
+
 ### 4b. Respaldo y varias fuentes del mismo acto
 
 Un acto se publica en el diario oficial y también en el portal de la entidad que
@@ -178,7 +240,7 @@ src/kipu_knowledge/
   interfaces/     api (FastAPI v1), cli (Typer), review_ui (Jinja2)
 alembic/          migraciones
 ontology/         módulos Turtle, context.jsonld, shapes SHACL, VERSION, CHANGELOG
-fixtures/         9 dispositivos reales capturados (casos A–H) + manifest
+fixtures/         9 dispositivos reales (casos A–H) + 3 índices diarios + manifest
 docs/             domain-analysis, architecture, source-policy, ontology-governance, adr/
 tests/            unit, golden (A–H congelados), integration, invariants
 ```
@@ -241,8 +303,14 @@ responde "no se puede saber con esta evidencia", y eso es correcto.
 
 ## Limitaciones conocidas del MVP
 
-- Descubrimiento por fecha: interfaz preparada (`discover`), sin implementación
-  live (exige validar la política de scraping de listados).
+- Descubrimiento por fecha: implementado sobre el índice del buscador
+  (`kipu discover` / `ingest-date`). Recorre el índice completo en cada corrida,
+  sin revalidación condicional por ETag, y no vigila re-ediciones: si la fuente
+  corrige un dispositivo días después, hay que pasar `kipu recapture`.
+- Filtro de relevancia (`personnel-relevance/1.0`): catálogos de verbos escritos
+  a mano sobre las sumillas observadas. Lo no catalogado se ingiere, así que un
+  hueco cuesta trabajo de más, nunca un documento perdido; lo descartado queda
+  en `crawl_item` y se recupera ingiriendo su código.
 - Cuadernillo PDF: soporte de captura y capa de texto implementado, pero
   NL20260806.pdf no estaba disponible; la prueba correspondiente se omite.
 - OCR: no incluido (extra futuro; nunca primera opción).

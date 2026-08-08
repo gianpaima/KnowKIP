@@ -38,6 +38,7 @@ from kipu_knowledge.application.legal_effect import (
     verdict_for_event,
 )
 from kipu_knowledge.application.source_links import (
+    get_or_create_official_gazette,
     latest_html_version,
     official_publication_item,
 )
@@ -46,6 +47,7 @@ from kipu_knowledge.domain.contracts import (
     ArtifactStore,
     CaptureRecord,
     DocumentParser,
+    SourceAdapter,
     SourceReference,
     StructuredExtractor,
 )
@@ -89,12 +91,15 @@ class IngestService:
         store: ArtifactStore,
         parser: DocumentParser | None = None,
         extractor: StructuredExtractor | None = None,
+        adapter: SourceAdapter | None = None,
     ) -> None:
         self._session = session
         self._store = store
         self._parser = parser or ElPeruanoHtmlParser()
         self._extractor = extractor or DeterministicExtractor()
-        self._adapter = ElPeruanoSourceAdapter()
+        # Inyectable para que las pruebas del recolector diario puedan servir
+        # fixtures en lugar de red; en producción es siempre el adaptador real.
+        self._adapter = adapter or ElPeruanoSourceAdapter()
 
     # ------------------------------------------------------------------
     # Puntos de entrada
@@ -231,6 +236,9 @@ class IngestService:
         reprocess: bool,
     ) -> IngestOutcome:
         session = self._session
+        self._carried_sources: list[tuple[str, e.DocumentSourceRole, str]] = []
+        self._precedents_to_repoint: list[tuple[str, str, str | None]] = []
+        self._persons_touched: set[str] = set()
         if reprocess:
             self._supersede_previous(item)
 
@@ -267,6 +275,18 @@ class IngestService:
                 matched_by="publicación de la que se parseó el documento",
             )
         )
+        # Las publicaciones corroborantes que un operador enlazó siguen siendo
+        # del mismo acto después de re-extraerlo: el acto no cambió, cambió cómo
+        # lo leemos. Volverlas a exigir a mano sería perder trabajo humano.
+        for publication_item_id, role, matched_by in self._carried_sources:
+            session.add(
+                m.DocumentSource(
+                    legal_document_id=doc.id,
+                    publication_item_id=publication_item_id,
+                    role=role,
+                    matched_by=matched_by,
+                )
+            )
         session.flush()
 
         section_rows: dict[int, m.DocumentSection] = {}
@@ -306,6 +326,12 @@ class IngestService:
         run.completed_at = datetime.now(UTC)
         session.flush()
 
+        # Las menciones nuevas ya existen: los precedentes humanos que citaban a
+        # las retiradas vuelven a tener origen, y las fichas que la extracción
+        # anterior había creado y esta ya no sostiene se retiran.
+        orphaned_precedents = self._repoint_precedents(doc)
+        self._drop_persons_without_evidence()
+
         return IngestOutcome(
             publication_item_id=item.id,
             artifact_version_id=version.id,
@@ -314,7 +340,7 @@ class IngestService:
             created=True,
             event_ids=outcome_ids["events"],
             assignment_ids=outcome_ids["assignments"],
-            review_task_ids=outcome_ids["tasks"],
+            review_task_ids=outcome_ids["tasks"] + orphaned_precedents,
             warnings=result.warnings,
         )
 
@@ -323,22 +349,7 @@ class IngestService:
     # ------------------------------------------------------------------
 
     def _get_or_create_source_system(self) -> m.SourceSystem:
-        row = self._session.execute(
-            select(m.SourceSystem).where(m.SourceSystem.source_family == "EL_PERUANO_NL")
-        ).scalar_one_or_none()
-        if row is None:
-            row = m.SourceSystem(
-                # El diario oficial: la publicación aquí es la que produce
-                # efectos jurídicos, no una copia más del mismo texto.
-                authority=e.SourceAuthority.OFFICIAL_GAZETTE,
-                name="El Peruano - Normas Legales",
-                base_url=BASE_URL,
-                source_family="EL_PERUANO_NL",
-                policy_status="DOCUMENTED",
-            )
-            self._session.add(row)
-            self._session.flush()
-        return row
+        return get_or_create_official_gazette(self._session)
 
     def _get_or_create_publication_item(self, reference: SourceReference) -> m.PublicationItem:
         source = self._get_or_create_source_system()
@@ -438,33 +449,232 @@ class IngestService:
                     assertion.superseded_at = now
 
         # Filas derivadas (proyección determinista del documento): se reconstruyen.
-        for events in session.execute(
-            select(m.PersonnelEvent).where(m.PersonnelEvent.legal_document_id == doc.id)
-        ).scalars():
+        # El borrado va por fases con flush entre ellas. Los modelos no declaran
+        # `relationship()`, así que la unit of work no deduce que role_assignment y
+        # event_participant dependen de personnel_event —las FKs del metadata no
+        # ordenan por sí solas— y emitía el DELETE del evento primero, violando la
+        # FK. Las fases imponen ese orden explícitamente.
+        event_ids = list(
+            session.execute(
+                select(m.PersonnelEvent.id).where(m.PersonnelEvent.legal_document_id == doc.id)
+            ).scalars()
+        )
+        if event_ids:
             for row in session.execute(
-                select(m.EventParticipant).where(m.EventParticipant.event_id == events.id)
+                select(m.EventParticipant).where(m.EventParticipant.event_id.in_(event_ids))
             ).scalars():
                 session.delete(row)
             for ra in session.execute(
                 select(m.RoleAssignment).where(
-                    (m.RoleAssignment.start_event_id == events.id)
-                    | (m.RoleAssignment.end_event_id == events.id)
+                    m.RoleAssignment.start_event_id.in_(event_ids)
+                    | m.RoleAssignment.end_event_id.in_(event_ids)
                 )
             ).scalars():
                 session.delete(ra)
-            session.delete(events)
+            session.flush()
+            for event in session.execute(
+                select(m.PersonnelEvent).where(m.PersonnelEvent.id.in_(event_ids))
+            ).scalars():
+                session.delete(event)
+            session.flush()
+        self._detach_evidence_from_superseded_sections(doc)
+        self._release_precedents_from_superseded_mentions(doc)
+        # Personas a las que apuntaban las menciones que van a retirarse: si tras
+        # re-extraer se quedan sin nada que las sostenga, son residuo de la
+        # extracción anterior y no una ficha (ver `_drop_persons_without_evidence`).
+        self._persons_touched = {
+            person_id
+            for person_id in session.execute(
+                select(m.PersonMention.canonical_person_id).where(
+                    m.PersonMention.legal_document_id == doc.id
+                )
+            ).scalars()
+            if person_id
+        }
+
         table: type[m.Signatory] | type[m.PersonMention] | type[m.DocumentSection]
         for table in (m.Signatory, m.PersonMention, m.DocumentSection):
             for derived in session.execute(
                 select(table).where(table.legal_document_id == doc.id)
             ).scalars():
                 session.delete(derived)
+        # Las menciones de organización se rehacen como las de persona. El emisor
+        # apunta a una de ellas desde el propio documento, así que ese puntero se
+        # suelta antes: la fila que lo satisface está a punto de irse.
+        doc.issuer_mention_id = None
+        session.flush()
+        for org_mention in session.execute(
+            select(m.OrganizationMention).where(m.OrganizationMention.legal_document_id == doc.id)
+        ).scalars():
+            session.delete(org_mention)
+        session.flush()
         for reference in session.execute(
             select(m.DocumentReference).where(m.DocumentReference.source_document_id == doc.id)
         ).scalars():
             session.delete(reference)
+
+        # Dónde más está publicado el acto lo estableció un operador con su
+        # motivo (`kipu link-source --matched-by`); no lo deduce nadie. Se
+        # arrastra al documento nuevo en vez de perderse con el viejo. La fila
+        # AUTHORITATIVE no viaja: la vuelve a escribir el propio reproceso.
+        carried: list[tuple[str, e.DocumentSourceRole, str]] = []
+        for source in session.execute(
+            select(m.DocumentSource).where(m.DocumentSource.legal_document_id == doc.id)
+        ).scalars():
+            if source.role != e.DocumentSourceRole.AUTHORITATIVE:
+                carried.append((source.publication_item_id, source.role, source.matched_by))
+            session.delete(source)
+        self._carried_sources = carried
+
         session.delete(doc)
         session.flush()
+
+    def _detach_evidence_from_superseded_sections(self, doc: m.LegalDocument) -> None:
+        """Desancla de sus secciones los spans de evidencia antes de retirarlas.
+
+        Una afirmación supersedida conserva su evidencia: eso es lo que la hace
+        auditable (regla 3). Pero la sección es solo el puntero cómodo a dónde
+        estaba el texto según la versión del parser que la produjo, y esa
+        versión es precisamente lo que el reproceso reemplaza. Lo verificable
+        —la cita literal, su sha256, el artefacto y la etiqueta del artículo—
+        vive en el propio span y no se toca; lo que se retira es el puntero.
+
+        Sin esto, el DELETE de `document_section` violaba la FK de
+        `evidence_span` y `kipu reprocess` fallaba entero contra PostgreSQL. En
+        SQLite las FKs no se comprueban por defecto y las pruebas no lo veían.
+        """
+        session = self._session
+        sections = {
+            row.id: row
+            for row in session.execute(
+                select(m.DocumentSection).where(m.DocumentSection.legal_document_id == doc.id)
+            ).scalars()
+        }
+        if not sections:
+            return
+        for span in session.execute(
+            select(m.EvidenceSpan).where(m.EvidenceSpan.document_section_id.in_(list(sections)))
+        ).scalars():
+            section = sections[str(span.document_section_id)]
+            # Dónde estuvo la sección se conserva como dato: quien lea una
+            # afirmación supersedida tiene que poder situar la cita, aunque la
+            # fila que la contenía ya no exista.
+            locator = dict(span.locator_json or {})
+            locator["superseded_section"] = {
+                "order_index": section.order_index,
+                "section_type": str(section.section_type),
+                "label_raw": section.label_raw,
+                "parser_version": PARSER_VERSION,
+            }
+            span.locator_json = locator
+            span.document_section_id = None
+        session.flush()
+
+    def _release_precedents_from_superseded_mentions(self, doc: m.LegalDocument) -> None:
+        """Suelta los precedentes que citan menciones a punto de retirarse.
+
+        Un precedente de identidad cita la mención que motivó la decisión
+        humana. Esa mención desaparece al re-extraer, pero la decisión sigue en
+        pie: lo que el revisor afirmó —"esta grafía, con este cargo, es esta
+        persona"— vive en las columnas del precedente y en su ReviewDecision,
+        no en el puntero. Aquí se anota qué buscar para volver a apuntarlo
+        (`_precedents_to_repoint`) y se suelta el puntero, que es lo único que
+        impedía el DELETE. Si tras la extracción no reaparece una mención
+        equivalente, el precedente queda sin origen y eso lo decide un humano.
+        """
+        session = self._session
+        rows = session.execute(
+            select(m.IdentityPrecedent, m.PersonMention)
+            .join(
+                m.PersonMention, m.PersonMention.id == m.IdentityPrecedent.source_person_mention_id
+            )
+            .where(m.PersonMention.legal_document_id == doc.id)
+        ).all()
+        for precedent, mention in rows:
+            self._precedents_to_repoint.append(
+                (precedent.id, mention.text_normalized, mention.role_context_normalized)
+            )
+            precedent.source_person_mention_id = None
+        session.flush()
+
+    def _drop_persons_without_evidence(self) -> None:
+        """Retira las fichas que la extracción reemplazada había creado y esta no.
+
+        Una `Person` nace de una mención. Si al re-extraer el documento esa
+        mención ya no aparece —cambió el parser, cambió el patrón— la ficha se
+        queda sin nada que afirmar y, peor, la mención equivalente crea una
+        ficha nueva: quedan dos donde hay una persona, una de ellas vacía. La
+        ficha vacía no es un registro, es residuo.
+
+        Solo se retira lo que no sostiene nada: sin menciones, sin asignaciones,
+        sin precedentes que la citen, sin fusión de la que sea origen o destino.
+        Cualquiera de esas cosas es una afirmación o una decisión humana, y
+        entonces la ficha se queda aunque hoy esté callada.
+        """
+        session = self._session
+        for person_id in self._persons_touched:
+            person = session.get(m.Person, person_id)
+            if person is None or person.merged_into_person_id is not None:
+                continue
+            holds = (
+                select(m.PersonMention.id).where(m.PersonMention.canonical_person_id == person_id),
+                select(m.RoleAssignment.id).where(m.RoleAssignment.person_id == person_id),
+                select(m.IdentityPrecedent.id).where(m.IdentityPrecedent.person_id == person_id),
+                select(m.Person.id).where(m.Person.merged_into_person_id == person_id),
+            )
+            if any(session.execute(stmt.limit(1)).first() for stmt in holds):
+                continue
+            session.delete(person)
+        self._persons_touched.clear()
+        session.flush()
+
+    def _repoint_precedents(self, doc: m.LegalDocument) -> list[str]:
+        """Vuelve a apuntar cada precedente a su mención en el documento nuevo.
+
+        La equivalencia es exacta —mismo documento, misma grafía normalizada,
+        mismo cargo declarado— porque cualquier cosa más laxa sería decidir una
+        identidad, que es justo lo que un precedente no puede hacerse a sí
+        mismo. Devuelve las tareas abiertas para los que se quedaron sin origen.
+        """
+        session = self._session
+        task_ids: list[str] = []
+        for precedent_id, name_normalized, role_context in self._precedents_to_repoint:
+            precedent = session.get(m.IdentityPrecedent, precedent_id)
+            if precedent is None:
+                continue
+            replacement = (
+                session.execute(
+                    select(m.PersonMention).where(
+                        m.PersonMention.legal_document_id == doc.id,
+                        m.PersonMention.text_normalized == name_normalized,
+                        m.PersonMention.role_context_normalized.is_(None)
+                        if role_context is None
+                        else m.PersonMention.role_context_normalized == role_context,
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if replacement is not None:
+                precedent.source_person_mention_id = replacement.id
+                continue
+            task = m.ReviewTask(
+                task_type=e.ReviewTaskType.ENTITY_RESOLUTION,
+                target_type="identity_precedent",
+                target_id=precedent.id,
+                reason=(
+                    f"El precedente sobre '{name_normalized}' quedó sin la mención que lo "
+                    f"originó: al re-extraer el documento esa mención ya no aparece. La "
+                    f"decisión sigue vigente y se seguirá aplicando; confirmarla o revocarla "
+                    f"es decisión humana."
+                ),
+                priority=2,
+            )
+            session.add(task)
+            session.flush()
+            task_ids.append(task.id)
+        self._precedents_to_repoint.clear()
+        return task_ids
 
 
 class _ResultPersister:

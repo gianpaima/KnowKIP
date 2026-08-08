@@ -15,6 +15,53 @@ Inspección del 2026-08-06:
 Re-inspeccionar robots.txt y condiciones del sitio antes de habilitar cualquier
 captura masiva; registrar los hallazgos aquí con fecha.
 
+### Re-inspección del 2026-08-07 (previa a habilitar el descubrimiento diario)
+
+Hecha porque la inspección anterior cubría la captura de dispositivos sueltos y
+el descubrimiento por fecha recorre listados. Hallazgos:
+
+- `robots.txt` responde 200 y sigue siendo `User-agent: * / Allow: /`, sin
+  rutas prohibidas. Declara `sitemap.xml`, que a su vez apunta a
+  `sitemap/sitemap-normas_legales.xml`.
+- **El sitemap no sirve como índice diario**: trae 36 URLs con `lastmod` de hoy
+  para todas, es decir una ventana móvil de "lo último", no la edición de una
+  fecha. Usarlo daría un día incompleto sin avisar.
+- **El cuadernillo tampoco es el índice.** `/cuadernillo/NL/YYYYMMDD` es la
+  página del PDF de la edición completa; sus bytes (ya capturados para
+  NL20260806) no contienen ni un solo enlace `/dispositivo/`.
+- El índice real es la búsqueda por rango de fechas, que es lo que enlaza la
+  propia portada del sitio en "Dispositivos" de cada edición:
+  `/?fechaIni=YYYYMMDD&fechaFin=YYYYMMDD&tipoPublicacion=NL&ci=ONLY&start=N`.
+  Se sirve renderizada en el servidor (200, `text/html; charset=utf-8`), pagina
+  de 20 en 20 y declara en el propio HTML el rango consultado y el total
+  ("32 dispositivos encontrados"). Ambas declaraciones se verifican al parsear.
+- La portada sin parámetros (`/`) redirige (302) a `?ci=full&fecha=<hoy>`. Por
+  eso el parser exige que el rango declarado sea el pedido: sin esa guarda, una
+  redirección ingeriría la fecha equivocada en silencio.
+- Volumen observado: 32 dispositivos NL el 2026-08-07 y 29 el 2026-08-02. Con
+  el rate limit de 2 s, una edición completa son ~2 peticiones de índice y una
+  o dos por dispositivo ingerido: del orden de un minuto de tráfico al día.
+  No hay concurrencia.
+
+Conclusión: se habilita el descubrimiento por fecha con el mismo
+`PoliteFetcher` de siempre. No se recorre el sitio entero ni se sigue enlace
+alguno fuera del índice de la fecha pedida.
+
+### Observado durante la primera recolección real (2026-08-07)
+
+- **El índice nunca se repite byte a byte.** Cada respuesta trae un script
+  anti-bot con token distinto (`/bnith__…`) y una cookie con marca de tiempo al
+  milisegundo (`x-bni-rncf`). Dos capturas del mismo listado, de 136 925
+  caracteres cada una, difieren solo en eso. La deduplicación por sha256 del CAS
+  por tanto no aplica al índice: el recolector compara **lo que el listado
+  declara** (total y dispositivos) contra la última versión archivada y solo
+  abre versión nueva si cambió. Sin eso, cada corrida de una fecha ya
+  recolectada archivaría dos páginas más para siempre.
+- **El 404 transitorio también ocurre en el índice**, no solo en la ruta del
+  PDF: una corrida recibió 404 en la página 2 (`start=20`) y la misma URL
+  respondió 200 poco después. La corrida falla entera y no ingiere un día a
+  medias; se vuelve a lanzar y ya está. Sigue sin reintentarse en caliente.
+
 ### Rutas del PDF (comprobado el 2026-08-07)
 
 Hay dos URLs y **no son intercambiables**:
@@ -66,8 +113,15 @@ El emparejamiento entre fuentes **no es automático**: `link-source` exige
 - Se registran ETag y Last-Modified para revalidación condicional futura.
 - Prohibido: evadir CAPTCHA o bloqueos, rotación de identidad para burlar
   límites, ocultamiento del agente.
-- El descubrimiento por fecha (`discover`) expone la interfaz pero devuelve
-  vacío: habilitarlo exige validar la política de scraping de listados.
+- El descubrimiento por fecha (`kipu discover`, `kipu ingest-date`) recorre solo
+  las páginas del índice de la fecha pedida, siguiendo los `start` que la propia
+  paginación enlaza, con tope en `CRAWLER_MAX_LISTING_PAGES` (25). No sigue
+  enlaces fuera de ese índice ni rastrea el sitio.
+- **No hay reintentos en caliente dentro de una corrida.** Un fallo transitorio
+  (404 pasajero, timeout, 5xx) deja el dispositivo en `RETRY_PENDING` y lo
+  reintenta después `kipu retry-pending`, cuando alguien lo decide. Insistir en
+  el acto contra un servidor que acaba de fallar es justo lo que esta política
+  evita.
 
 ## Artefactos y publicación
 
@@ -94,6 +148,11 @@ El emparejamiento entre fuentes **no es automático**: `link-source` exige
 robots.txt permisivo, User-Agent identificado; ver fixtures/manifest.json).
 El cuadernillo NL20260806.pdf **no estaba disponible** en el workspace: la
 prueba correspondiente se marca como omitida y no se inventa su contenido.
+
+`fixtures/elperuano/listing/*.html` son tres páginas del índice capturadas el
+2026-08-07 (dos del 07/08 y una del 02/08, esta última para probar que la guarda
+de rango rechaza un listado que no es el pedido). Sus sha256 están en el
+manifiesto.
 
 ## Secretos
 

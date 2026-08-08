@@ -57,10 +57,31 @@ def strip_accents(text: str) -> str:
 def normalize_person_name(raw: str) -> str:
     """Nombre normalizado para comparación: mayúsculas, sin tildes, espacios colapsados.
 
+    Un nombre escrito "APELLIDOS, NOMBRES" —la forma registral con que las
+    tablas de designaciones colectivas encabezan su columna— se reordena a
+    "NOMBRES APELLIDOS", que es como lo escribe el resto del corpus. Reordenar
+    no es inferir: la coma es la convención que la propia fuente usa para
+    separar ambas partes, y el resto del sistema asume ese orden
+    (`person_name_is_variant`). Sin esto, la misma persona nombrada en una
+    tabla y en un párrafo produce dos grafías que nunca se encuentran.
+
     No implica identidad: dos menciones con igual forma normalizada siguen siendo
-    menciones distintas hasta que un humano las vincule (regla 13).
+    menciones distintas hasta que una señal independiente del nombre las vincule
+    (regla 13). Normalizar solo decide qué se compara, nunca qué se fusiona.
     """
-    return collapse_whitespace(strip_accents(raw)).upper()
+    text = collapse_whitespace(strip_accents(raw)).upper()
+    surnames, comma, given = text.partition(",")
+    if not comma:
+        return text
+    surnames, given = surnames.strip(), given.strip()
+    # Conservador: solo se reordena lo que parece un nombre partido en dos. Ante
+    # cualquier otra cosa (coma suelta, más de dos partes) se deja tal cual, que
+    # a lo sumo no encuentra nada; reordenar mal fabricaría una grafía inexistente.
+    if not surnames or not given or "," in given:
+        return text
+    if not 2 <= len(person_name_tokens(f"{given} {surnames}")) <= 8:
+        return text
+    return f"{given} {surnames}"
 
 
 def person_name_tokens(normalized: str) -> tuple[str, ...]:

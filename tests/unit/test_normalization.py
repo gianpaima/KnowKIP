@@ -1,6 +1,9 @@
 from datetime import date
 
+import pytest
+
 from kipu_knowledge.domain.normalization import (
+    collapse_whitespace,
     normalize_document_number,
     normalize_org_name,
     normalize_person_name,
@@ -9,6 +12,7 @@ from kipu_knowledge.domain.normalization import (
     parse_issue_line,
     parse_spanish_date,
     person_name_is_variant,
+    strip_accents,
 )
 
 
@@ -98,3 +102,47 @@ class TestPersonNameVariants:
     def test_two_token_names_are_never_variants(self):
         # Sin los dos apellidos no hay señal suficiente para siquiera preguntar.
         assert not person_name_is_variant("ELMER CUBA", "ELMER RAFAEL CUBA")
+
+
+# ---------------------------------------------------------------------------
+# Orden registral "APELLIDOS, NOMBRES"
+# ---------------------------------------------------------------------------
+
+
+def test_registral_order_is_reordered_to_the_corpus_order():
+    """Las tablas de designación colectiva escriben "APELLIDOS, NOMBRES".
+
+    El resto del corpus escribe "NOMBRES APELLIDOS", y el detector de variantes
+    asume ese orden. Sin reordenar, la misma persona nombrada en una tabla y en
+    un párrafo produce dos grafías que no se encuentran nunca.
+    """
+    assert normalize_person_name("YORGES AVALOS, DANTE AARON") == "DANTE AARON YORGES AVALOS"
+    assert (
+        normalize_person_name("PANTOJA URIZAR GARFIAS, ANA TERESA")
+        == "ANA TERESA PANTOJA URIZAR GARFIAS"
+    )
+
+
+def test_reordering_does_not_claim_identity():
+    """Reordenar decide qué se compara, nunca qué se fusiona.
+
+    Dos grafías que coinciden tras normalizar siguen siendo menciones distintas
+    hasta que una señal independiente del nombre las vincule (regla 13).
+    """
+    assert normalize_person_name("YORGES AVALOS, DANTE AARON") == normalize_person_name(
+        "Dante Aarón Yorges Ávalos"
+    )
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "JUAN PEREZ,",  # coma suelta al final
+        ", ANA TERESA",  # sin apellidos
+        "PEREZ, VEGA, JORGE",  # más de dos partes
+        "UNA CADENA MUY LARGA, QUE NO ES UN NOMBRE DE PERSONA SINO OTRA COSA ENTERA",
+    ],
+)
+def test_what_does_not_look_like_a_split_name_is_left_alone(raw: str):
+    """Ante la duda no se reordena: una grafía inventada no la encuentra nadie."""
+    assert normalize_person_name(raw) == collapse_whitespace(strip_accents(raw)).upper()

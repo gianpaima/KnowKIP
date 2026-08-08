@@ -146,3 +146,32 @@ class TestPostponementDetection:
             )
             is None
         )
+
+
+class TestDispositiveSectionsCoverTheWholeResolutivePart:
+    """Regresión: la cláusula que veta la regla puede vivir en un cuerpo aparte.
+
+    Desde que un artículo puede tener el encabezado en una sección
+    ("Artículo 3.- Vigencia") y lo que dispone en la siguiente, mirar solo
+    ARTICLE dejaba fuera justo el texto que posterga la vigencia. Un veto que
+    no se ve no es conservador: fija una fecha que la fuente contradice.
+    """
+
+    def test_article_bodies_and_table_rows_are_dispositive(self):
+        from kipu_knowledge.application.legal_effect import _DISPOSITIVE
+        from kipu_knowledge.domain.enums import SectionType
+
+        assert SectionType.ARTICLE in _DISPOSITIVE
+        assert SectionType.ARTICLE_BODY in _DISPOSITIVE
+        assert SectionType.ARTICLE_LIST_ITEM in _DISPOSITIVE
+        assert SectionType.ARTICLE_TABLE_ROW in _DISPOSITIVE
+
+    def test_the_clause_is_found_wherever_the_resolutive_part_puts_it(self):
+        clause = (
+            "Las acciones de personal dispuestas en los artículos 1 y 2 precedentes, "
+            "tendrán efectividad a partir del día siguiente de la publicación de la "
+            "presente resolución en el diario oficial El Peruano."
+        )
+        # Da igual que llegue como encabezado de artículo o como su cuerpo: lo
+        # que se examina es el texto de la parte resolutiva.
+        assert find_postponement_clause(["Artículo 3.- Vigencia", clause]) is not None

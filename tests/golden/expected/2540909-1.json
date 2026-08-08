@@ -1,0 +1,206 @@
+{
+  "document": {
+    "document_type_code": "OTHER",
+    "issue_place_raw": "Lima",
+    "issued_on": "2026-08-05",
+    "number_normalized": "000079-2026-OTASS-PE",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/2ZYllx1sqOv80ogGxbCh8S/*/2540909-1.PDF",
+    "publication_code": "2540909-1",
+    "published_on": "2026-08-07",
+    "title_raw": "Designan Asesor de Alta Dirección para la Gerencia General del OTASS"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 24,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Designación",
+          "section_index": 18
+        }
+      },
+      {
+        "article_class": "NOTIFICATION",
+        "article_label": "Artículo 2.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 25,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- Notificación",
+          "section_index": 20
+        }
+      },
+      {
+        "article_class": "PUBLICATION_NOTICE",
+        "article_label": "Artículo 3.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 3.-",
+          "char_end": 23,
+          "char_start": 0,
+          "quoted_text": "Artículo 3.- Publicidad",
+          "section_index": 22
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Organismo Técnico de la Administración de los Servicios de Saneamiento",
+              "path_raw": "Asesor de Alta Dirección para la Gerencia General del Organismo Técnico de la Administración de los Servicios de Saneamiento",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 43,
+                "char_start": 18,
+                "quoted_text": "FRANCO AXEL DÁVILA GÁLVEZ",
+                "section_index": 19
+              },
+              "identifiers": [],
+              "text_raw": "FRANCO AXEL DÁVILA GÁLVEZ"
+            },
+            "position_label_raw": "Asesor de Alta Dirección para la Gerencia General del Organismo Técnico de la Administración de los Servicios de Saneamiento",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": "siendo su primer día de labores el 07 de agosto de 2026",
+              "status": "EXPLICIT",
+              "value": "2026-08-07"
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": "siendo su primer día de labores el 07 de agosto de 2026",
+          "status": "EXPLICIT",
+          "value": "2026-08-07"
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 241,
+          "char_start": 0,
+          "quoted_text": "Designar al señor FRANCO AXEL DÁVILA GÁLVEZ en el cargo de Asesor de Alta Dirección para la Gerencia General del Organismo Técnico de la Administración de los Servicios de Saneamiento, siendo su primer día de labores el 07 de agosto de 2026.",
+          "section_index": 19
+        },
+        "is_collective": false,
+        "legal_verb_raw": "Designar",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 43,
+                "char_start": 18,
+                "quoted_text": "FRANCO AXEL DÁVILA GÁLVEZ",
+                "section_index": 19
+              },
+              "identifiers": [],
+              "text_raw": "FRANCO AXEL DÁVILA GÁLVEZ"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 280,
+          "char_start": 0,
+          "quoted_text": "El Informe Nº 000733-2026-OTASS-OA-URH de la Unidad de Recursos Humanos; el Memorando Nº 000409-2026-OTASS-OA de la Oficina de Administración; el Informe Legal Nº 000317-2026-OTASS-OAJ de la Oficina de Asesoría Jurídica; el Informe Nº 00256-2026-OTASS-GG de la Gerencia General y;",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe",
+        "target_number_raw": "000733-2026-OTASS-OA-URH"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 280,
+          "char_start": 0,
+          "quoted_text": "El Informe Nº 000733-2026-OTASS-OA-URH de la Unidad de Recursos Humanos; el Memorando Nº 000409-2026-OTASS-OA de la Oficina de Administración; el Informe Legal Nº 000317-2026-OTASS-OAJ de la Oficina de Asesoría Jurídica; el Informe Nº 00256-2026-OTASS-GG de la Gerencia General y;",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "000409-2026-OTASS-OA"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 280,
+          "char_start": 0,
+          "quoted_text": "El Informe Nº 000733-2026-OTASS-OA-URH de la Unidad de Recursos Humanos; el Memorando Nº 000409-2026-OTASS-OA de la Oficina de Administración; el Informe Legal Nº 000317-2026-OTASS-OAJ de la Oficina de Asesoría Jurídica; el Informe Nº 00256-2026-OTASS-GG de la Gerencia General y;",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe Legal",
+        "target_number_raw": "000317-2026-OTASS-OAJ"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 280,
+          "char_start": 0,
+          "quoted_text": "El Informe Nº 000733-2026-OTASS-OA-URH de la Unidad de Recursos Humanos; el Memorando Nº 000409-2026-OTASS-OA de la Oficina de Administración; el Informe Legal Nº 000317-2026-OTASS-OAJ de la Oficina de Asesoría Jurídica; el Informe Nº 00256-2026-OTASS-GG de la Gerencia General y;",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe",
+        "target_number_raw": "00256-2026-OTASS-GG"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Presidente Ejecutivo",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 24,
+            "char_start": 0,
+            "quoted_text": "CARLOS MANUEL YAÑEZ LAZO",
+            "section_index": 25
+          },
+          "identifiers": [],
+          "text_raw": "CARLOS MANUEL YAÑEZ LAZO"
+        },
+        "signature_order": 1
+      }
+    ],
+    "warnings": []
+  }
+}

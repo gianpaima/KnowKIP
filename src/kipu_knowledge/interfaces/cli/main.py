@@ -38,6 +38,45 @@ def _print_outcome(outcome) -> None:  # noqa: ANN001
         typer.secho(f"aviso: {warning}", fg=typer.colors.YELLOW)
 
 
+def _print_item(item) -> None:  # noqa: ANN001
+    from kipu_knowledge.domain.enums import CrawlItemStatus
+
+    color = {
+        CrawlItemStatus.INGESTED: typer.colors.GREEN,
+        CrawlItemStatus.ALREADY_PRESENT: typer.colors.BLUE,
+        CrawlItemStatus.SKIPPED_NOT_RELEVANT: typer.colors.WHITE,
+        CrawlItemStatus.DISCOVERED: typer.colors.CYAN,
+        CrawlItemStatus.INGESTED_PDF_PENDING: typer.colors.YELLOW,
+        CrawlItemStatus.RETRY_PENDING: typer.colors.YELLOW,
+        CrawlItemStatus.FAILED: typer.colors.RED,
+    }.get(item.status, typer.colors.WHITE)
+    typer.secho(f"[{item.status}] {item.publication_code} — {item.detail}", fg=color)
+
+
+def _print_daily(result) -> None:  # noqa: ANN001
+    typer.echo(
+        f"corrida={result.crawl_run_id or '(dry-run)'} fecha={result.publication_date} "
+        f"edición={result.issue_code} páginas_índice={result.listing_pages} "
+        f"declarados={result.total_declared}"
+    )
+    for item in result.items:
+        _print_item(item)
+    tally = " ".join(f"{k}={v}" for k, v in sorted(result.counts().items()))
+    typer.echo(f"estado={result.status} {tally}")
+    empty = result.relevant_but_empty
+    if empty:
+        # Ni error ni éxito: el documento está capturado y su texto íntegro, pero
+        # el extractor no reconoció el acto. Es un hueco de cobertura y se dice.
+        typer.secho(
+            f"{len(empty)} dispositivo(s) que el filtro llamó de personal no produjeron "
+            f"ningún evento (hueco del extractor, no fallo de captura): "
+            + ", ".join(item.publication_code for item in empty),
+            fg=typer.colors.YELLOW,
+        )
+    if result.error_summary:
+        typer.secho(f"corrida fallida: {result.error_summary}", fg=typer.colors.RED)
+
+
 @app.command("ingest-device")
 def ingest_device(url: str) -> None:
     """Ingiere un dispositivo desde su URL (requiere LIVE_SOURCE_ENABLED=true)."""
@@ -127,18 +166,216 @@ def rebuild_projections(
 
 
 @app.command("discover")
-def discover(for_date: str = typer.Option(..., "--date", help="YYYY-MM-DD")) -> None:
-    """Descubrimiento por fecha (interfaz preparada; sin implementación live en el MVP)."""
+def discover(
+    for_date: str = typer.Option(..., "--date", help="YYYY-MM-DD"),
+    series: str = typer.Option("NL", "--series", help="Serie del diario (NL = Normas Legales)"),
+) -> None:
+    """Lista los dispositivos que la fuente publicó en una fecha (no ingiere nada)."""
     from kipu_knowledge.adapters.sources.elperuano import ElPeruanoSourceAdapter
+    from kipu_knowledge.domain.enums import Relevance
+    from kipu_knowledge.domain.relevance import classify_summary
 
-    refs = list(ElPeruanoSourceAdapter().discover(date.fromisoformat(for_date)))
-    if not refs:
-        typer.echo(
-            "El descubrimiento por fecha aún no está habilitado (ver docs/source-policy.md); "
-            "usa ingest-device o ingest-fixture."
+    entries = ElPeruanoSourceAdapter().discover_entries(date.fromisoformat(for_date), series)
+    for entry in entries:
+        verdict = classify_summary(entry.summary_raw)
+        color = {
+            Relevance.RELEVANT: typer.colors.GREEN,
+            Relevance.UNDECIDED: typer.colors.YELLOW,
+            Relevance.NOT_RELEVANT: typer.colors.WHITE,
+        }[verdict.relevance]
+        typer.secho(
+            f"[{verdict.relevance}] {entry.reference.publication_code} "
+            f"{entry.issuer_raw or '?'} — {entry.summary_raw or '(sin sumilla)'}",
+            fg=color,
         )
-    for ref in refs:
-        typer.echo(f"{ref.publication_code} {ref.canonical_url}")
+    typer.echo(f"total: {len(entries)} dispositivos en {for_date} ({series})")
+
+
+@app.command("ingest-date")
+def ingest_date(
+    for_date: str = typer.Option(..., "--date", help="YYYY-MM-DD"),
+    series: str = typer.Option("NL", "--series"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Descubre y clasifica sin escribir nada"),
+    limit: int = typer.Option(None, "--limit", help="Tope de dispositivos a ingerir en la corrida"),
+    include_not_relevant: bool = typer.Option(
+        False, "--include-not-relevant", help="Ingiere también lo que el filtro descarta"
+    ),
+    no_pdf: bool = typer.Option(False, "--no-pdf", help="No respalda el PDF de cada dispositivo"),
+) -> None:
+    """Descubre el índice de una fecha e ingiere los actos de personal que trae."""
+    from kipu_knowledge.application.daily_ingest import DailyIngestService
+
+    with session_scope() as session:
+        service = DailyIngestService(session, build_store_from_settings())
+        result = service.run(
+            date.fromisoformat(for_date),
+            series,
+            dry_run=dry_run,
+            limit=limit,
+            include_not_relevant=include_not_relevant,
+            capture_pdf=not no_pdf,
+        )
+    _print_daily(result)
+    if result.error_summary:
+        raise typer.Exit(code=1)
+
+
+@app.command("retry-pending")
+def retry_pending(
+    limit: int = typer.Option(None, "--limit"),
+    no_pdf: bool = typer.Option(False, "--no-pdf"),
+) -> None:
+    """Reintenta los dispositivos que quedaron con un fallo transitorio.
+
+    Va aparte de la corrida diaria a propósito: un 404 pasajero se reintenta
+    cuando alguien lo decide, no en el acto contra el mismo servidor.
+    """
+    from kipu_knowledge.application.daily_ingest import DailyIngestService
+
+    with session_scope() as session:
+        service = DailyIngestService(session, build_store_from_settings())
+        results = service.retry_pending(limit=limit, capture_pdf=not no_pdf)
+    if not results:
+        typer.echo("No hay dispositivos pendientes de reintento.")
+        return
+    for item in results:
+        _print_item(item)
+
+
+@app.command("backfill-crawl-outcomes")
+def backfill_crawl_outcomes(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Solo evalúa; no modifica nada"),
+) -> None:
+    """Cuenta los eventos extraídos en las filas de bitácora anteriores a esa columna.
+
+    Determinista y sin red: la cuenta sale de los `personnel_event` ya
+    persistidos. Sirve para poder consultar qué dispositivos relevantes no
+    produjeron ningún evento.
+    """
+    from kipu_knowledge.application.daily_ingest import backfill_event_counts
+
+    with session_scope() as session:
+        results = backfill_event_counts(session, dry_run=dry_run)
+    if not results:
+        typer.echo("No hay filas de bitácora sin cuenta de eventos.")
+        return
+    for row in results:
+        color = typer.colors.YELLOW if row.events_extracted == 0 else typer.colors.GREEN
+        typer.secho(f"{row.publication_code}: eventos={row.events_extracted}", fg=color)
+    typer.echo(f"actualizadas: {len(results)}" + (" (dry-run)" if dry_run else ""))
+
+
+@app.command("backfill-issue-links")
+def backfill_issue_links_cmd(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Solo evalúa; no modifica nada"),
+) -> None:
+    """Ata a su edición las publicaciones ingeridas antes del recolector diario.
+
+    Usa la fecha de publicación que declara cada captura; no crea ediciones ni
+    toca la red.
+    """
+    from kipu_knowledge.application.daily_ingest import backfill_issue_links
+
+    with session_scope() as session:
+        results = backfill_issue_links(session, dry_run=dry_run)
+    if not results:
+        typer.echo("Todas las publicaciones del diario oficial ya tienen edición.")
+        return
+    for row in results:
+        color = typer.colors.GREEN if row.issue_code else typer.colors.YELLOW
+        typer.secho(
+            f"{row.publication_code} -> {row.issue_code or 'sin edición'} — {row.detail}", fg=color
+        )
+
+
+@app.command("crawl-report")
+def crawl_report(
+    for_date: str = typer.Option(None, "--date", help="YYYY-MM-DD; por defecto, la última corrida"),
+) -> None:
+    """Qué se vio y qué se hizo en una corrida de descubrimiento."""
+    from sqlalchemy import select
+
+    from kipu_knowledge.adapters.db import models as m
+
+    with session_scope() as session:
+        query = select(m.CrawlRun).order_by(m.CrawlRun.started_at.desc())
+        runs = session.execute(query).scalars().all()
+        if for_date:
+            runs = [r for r in runs if (r.parameters or {}).get("publication_date") == for_date]
+        if not runs:
+            typer.echo("No hay corridas registradas para ese criterio.")
+            return
+        run = runs[0]
+        params = run.parameters or {}
+        typer.echo(
+            f"corrida {run.id} fecha={params.get('publication_date')} "
+            f"serie={params.get('series')} estado={run.status}"
+        )
+        rows = (
+            session.execute(
+                select(m.CrawlItem)
+                .where(m.CrawlItem.crawl_run_id == run.id)
+                .order_by(m.CrawlItem.publication_code)
+            )
+            .scalars()
+            .all()
+        )
+        from kipu_knowledge.domain.enums import Relevance
+
+        tally: dict[str, int] = {}
+        empty: list[str] = []
+        for row in rows:
+            tally[str(row.status)] = tally.get(str(row.status), 0) + 1
+            typer.echo(
+                f"  [{row.status}] [{row.relevance}] {row.publication_code} — "
+                f"{(row.summary_raw or '')[:80]}"
+            )
+            if row.outcome_detail:
+                typer.echo(f"      {row.outcome_detail}")
+            if row.last_error:
+                typer.secho(f"      error: {row.last_error}", fg=typer.colors.RED)
+            if row.relevance is Relevance.RELEVANT and row.events_extracted == 0:
+                empty.append(row.publication_code)
+        typer.echo(f"total={len(rows)} " + " ".join(f"{k}={v}" for k, v in sorted(tally.items())))
+        if empty:
+            # `events_extracted` es lo que sacó AQUELLA corrida y se queda como
+            # está: la bitácora es un registro histórico, no un estado. Lo que
+            # importa hoy es si el documento sigue sin eventos, y eso se cuenta
+            # de los datos vivos. Repetir la cifra vieja como si fuera actual
+            # haría parecer sin arreglar lo que ya se arregló re-extrayendo.
+            still_empty = sorted(
+                set(empty)
+                & set(
+                    session.execute(
+                        select(m.PublicationItem.publication_code)
+                        .join(
+                            m.LegalDocument,
+                            m.LegalDocument.publication_item_id == m.PublicationItem.id,
+                        )
+                        .where(
+                            m.PublicationItem.publication_code.in_(empty),
+                            ~select(m.PersonnelEvent.id)
+                            .where(m.PersonnelEvent.legal_document_id == m.LegalDocument.id)
+                            .exists(),
+                        )
+                    ).scalars()
+                )
+            )
+            typer.secho(
+                f"la corrida no extrajo eventos de {len(empty)} relevantes: " + ", ".join(empty),
+                fg=typer.colors.YELLOW,
+            )
+            if still_empty:
+                typer.secho(
+                    f"y hoy siguen sin ningún evento ({len(still_empty)}): "
+                    + ", ".join(still_empty),
+                    fg=typer.colors.RED,
+                )
+            else:
+                typer.secho(
+                    "todos tienen eventos hoy (re-extraídos con un extractor posterior)",
+                    fg=typer.colors.GREEN,
+                )
 
 
 @app.command("resolve-affected")

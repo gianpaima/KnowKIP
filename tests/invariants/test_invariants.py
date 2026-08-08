@@ -688,3 +688,27 @@ def test_version_chains_never_cross_representations(ingested_session):
         assert previous is not None and previous.artifact_id == version.artifact_id, (
             f"la versión {version.id} encadena con otra de un artefacto distinto"
         )
+
+
+def test_every_discovered_device_leaves_a_record(session, store, daily_kit):
+    """El descubrimiento automático no puede tener zonas mudas.
+
+    Todo dispositivo que el índice declara queda en `crawl_item`, se ingiera o
+    no, con su veredicto y su regla. Si el filtro pudiera descartar sin escribir,
+    "se ingirieron N normas" sería indistinguible de "ese día se publicaron N".
+    """
+    from kipu_knowledge.application.daily_ingest import DailyIngestService
+
+    catalogue = daily_kit.catalogue
+    adapter = daily_kit.adapter([daily_kit.listing(catalogue, total=len(catalogue))])
+    result = DailyIngestService(session, store, adapter=adapter).run(
+        daily_kit.run_date, capture_pdf=False
+    )
+    rows = session.execute(select(m.CrawlItem)).scalars().all()
+    assert len(rows) == result.total_declared == len(catalogue)
+    for row in rows:
+        assert row.relevance_rule, f"{row.publication_code} no dice con qué regla se decidió"
+        assert row.relevance_rationale
+        assert row.status is not e.CrawlItemStatus.DISCOVERED, (
+            f"{row.publication_code} quedó sin resolver y sin motivo registrado"
+        )

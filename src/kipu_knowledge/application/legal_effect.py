@@ -45,7 +45,15 @@ PREDICATE = "legal_effect_from"
 SPAN_KIND = "publication_date"
 
 # Secciones que pueden postergar la vigencia del acto: solo la parte resolutiva.
-_DISPOSITIVE = (e.SectionType.ARTICLE, e.SectionType.ARTICLE_LIST_ITEM)
+# ARTICLE_BODY entra porque un artículo cuyo encabezado es solo un título
+# ("Artículo 3.- Vigencia") dice lo que dispone en el párrafo siguiente:
+# dejarlo fuera haría invisible justo la cláusula que veta la regla.
+_DISPOSITIVE = (
+    e.SectionType.ARTICLE,
+    e.SectionType.ARTICLE_BODY,
+    e.SectionType.ARTICLE_LIST_ITEM,
+    e.SectionType.ARTICLE_TABLE_ROW,
+)
 
 
 class BackfillOutcome(StrEnum):

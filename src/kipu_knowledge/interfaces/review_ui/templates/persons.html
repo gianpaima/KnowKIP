@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Personas — Kipu Knowledge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Buscar una persona</h1>
+  <p class="muted" style="margin:.35rem 0 0">
+    Se busca sobre todas las grafías con que las fuentes nombran a cada ficha.
+    Escribe una parte del nombre; no hace falta la forma registral completa.
+  </p>
+</div>
+
+<section class="card">
+  <form method="get" action="/review/persons" style="display:flex; gap:.6rem; flex-wrap:wrap">
+    <input type="search" name="q" value="{{ query }}" placeholder="p. ej. cuba bustinza"
+           autofocus style="flex:1 1 22rem; padding:.55rem .7rem; font-size:1rem">
+    <button type="submit">Buscar</button>
+  </form>
+</section>
+
+{% if query %}
+  {% if not hits %}
+  <section class="card">
+    <p style="margin:0"><strong>Ninguna ficha responde a «{{ query }}».</strong></p>
+    <p class="muted" style="margin:.4rem 0 0">
+      Eso significa que ningún documento <em>ya ingerido</em> nombra así a nadie.
+      No significa que la persona no exista ni que no haya actos sobre ella:
+      este sistema solo conoce lo que ha capturado.
+    </p>
+  </section>
+  {% else %}
+  <div class="page-head" style="margin-top:1.4rem">
+    <div class="meta">
+      <span class="muted">{{ hits | length }} ficha{{ "s" if hits | length != 1 }}</span>
+    </div>
+    <h2 style="margin:.2rem 0 0">Resultados</h2>
+    <p class="muted" style="margin:.35rem 0 0">
+      Cada resultado es una ficha distinta. Que dos aparezcan juntas no afirma
+      que sean la misma persona; el sistema nunca vincula dos menciones por el
+      solo hecho de que el nombre coincida.
+    </p>
+  </div>
+
+  {% for hit in hits %}
+  <section class="card">
+    <h3 style="margin:0 0 .3rem">
+      <a href="/review/persons/{{ hit.person_id }}">{{ hit.preferred_name }}</a>
+    </h3>
+    <p class="muted" style="margin:0 0 .5rem">
+      {{ hit.documents }} documento{{ "s" if hit.documents != 1 }} ·
+      {{ hit.appointments }} puesto{{ "s" if hit.appointments != 1 }} por acto registrado
+      {%- if hit.status != 'ACTIVE' %} · <span class="chip">{{ hit.status }}</span>{% endif %}
+    </p>
+    {% if hit.persons_sharing_spelling > 1 %}
+    <p class="warn" style="margin:0 0 .5rem">
+      La grafía «{{ hit.matched_aliases | join('», «') }}» responde a
+      {{ hit.persons_sharing_spelling }} fichas distintas. El sistema no ha
+      decidido si son la misma persona: decidirlo exige una señal independiente
+      del nombre.
+    </p>
+    {% endif %}
+    <p class="muted" style="margin:0; font-size:.88rem">
+      Grafías: {{ hit.aliases | join(' · ') }}
+    </p>
+  </section>
+  {% endfor %}
+  {% endif %}
+{% endif %}
+{% endblock %}

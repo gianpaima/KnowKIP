@@ -121,8 +121,27 @@ class RdfProjection:
     # -- proyección -----------------------------------------------------
 
     def _all_codes(self) -> list[str]:
-        rows = self._session.execute(select(m.PublicationItem.publication_code)).scalars().all()
-        return list(rows)
+        """Códigos de las publicaciones de las que se extrajo un documento.
+
+        No toda fila de `publication_item` es proyectable, y tomarlas todas
+        rompía `rebuild-projections` con un LookupError: la edición del día
+        —que existe para colgar de ella el cuadernillo y el índice— y las
+        publicaciones corroborantes del portal de la entidad no producen
+        documento propio, así que no hay nada que proyectar de ellas.
+        """
+        rows = (
+            self._session.execute(
+                select(m.PublicationItem.publication_code)
+                .join(
+                    m.LegalDocument,
+                    m.LegalDocument.publication_item_id == m.PublicationItem.id,
+                )
+                .order_by(m.PublicationItem.publication_code)
+            )
+            .scalars()
+            .all()
+        )
+        return list(dict.fromkeys(rows))
 
     def _project_publication(self, dataset: Dataset, publication_code: str) -> None:
         session = self._session

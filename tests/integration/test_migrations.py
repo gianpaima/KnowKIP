@@ -18,6 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXPECTED_TABLES = {
     "source_system",
     "crawl_run",
+    "crawl_item",
     "publication_issue",
     "publication_item",
     "artifact",

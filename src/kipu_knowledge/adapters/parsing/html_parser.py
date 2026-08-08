@@ -26,7 +26,7 @@ from kipu_knowledge.domain.normalization import (
     parse_issue_line,
     strip_accents,
 )
-from kipu_knowledge.domain.parsed import ParsedDocument, ParsedSection
+from kipu_knowledge.domain.parsed import TABLE_CELL_SEPARATOR, ParsedDocument, ParsedSection
 
 _DOC_TYPE_MAP = {
     "RESOLUCION MINISTERIAL": DocumentTypeCode.RESOLUCION_MINISTERIAL,
@@ -41,6 +41,16 @@ _ARTICLE_LABEL_RE = re.compile(
     re.IGNORECASE,
 )
 _CLOSING_RE = re.compile(r"^Reg[íi]strese[,.]?\s", re.IGNORECASE)
+# Marcador que encabeza una sección: "VISTOS:", "VISTOS,", "CONSIDERANDO:",
+# "SE RESUELVE:". El párrafo puede seguir en la misma línea —"VISTOS, el
+# Proveído Nº …; y,"— y entonces el label es solo el marcador, no el párrafo
+# entero: el texto ya está íntegro en `text_raw`, que es la evidencia. Guardar
+# el párrafo como etiqueta además de ser falso desbordaba la columna (200) en
+# PostgreSQL, cosa que SQLite no comprueba y las pruebas no veían.
+_SECTION_MARKER_RE = re.compile(
+    r"^\s*(?:VISTOS?|Y\s+CONSIDERANDO|CONSIDERANDO|SE\s+RESUELVE)\s*[:,.\-]*",
+    re.IGNORECASE,
+)
 _LIST_ITEM_RE = re.compile(r"^-\s+\S")
 _PUBLICATION_DATE_RE = re.compile(
     r"Fecha de publicaci[oó]n:\s*(?:<!--\s*-->)?\s*(\d{2}/\d{2}/\d{4})"
@@ -93,6 +103,14 @@ def publication_date_phrase(page_text: str) -> tuple[str, int, int] | None:
     if match is None:
         return None
     return match.group(0), match.start(), match.end()
+
+
+def _section_marker(text: str) -> str | None:
+    """Marcador con el que abre una sección, sin arrastrar el párrafo entero."""
+    match = _SECTION_MARKER_RE.match(text)
+    if match is None:
+        return None
+    return collapse_whitespace(match.group(0))
 
 
 def _classify_doc_type(raw: str) -> DocumentTypeCode:
@@ -159,7 +177,40 @@ class ElPeruanoHtmlParser:
             )
             order += 1
 
+        def add_table(table) -> None:  # noqa: ANN001 - elemento lxml
+            """Segmenta una tabla de la parte resolutiva fila por fila.
+
+            La primera fila se toma como cabecera: es lo que significa el orden
+            de los `<tr>` en una tabla publicada. Si la suposición fuese falsa,
+            el extractor no encontrará las columnas que busca y no afirmará
+            nada, que es el modo correcto de fallar.
+            """
+            for row_index, tr in enumerate(table.xpath(".//tr")):
+                cells = [collapse_whitespace(cell.text_content()) for cell in tr.xpath("./td|./th")]
+                if not any(cells):
+                    continue
+                add(
+                    SectionType.ARTICLE_TABLE_HEADER
+                    if row_index == 0
+                    else SectionType.ARTICLE_TABLE_ROW,
+                    TABLE_CELL_SEPARATOR.join(cells),
+                )
+
+        # Celdas ya emitidas como fila: no deben volver a entrar como párrafos
+        # sueltos. `root.iter()` visita la tabla antes que sus descendientes.
+        consumed: set = set()
+        # Qué se emitió por última vez dentro de la parte resolutiva. Un párrafo
+        # solo continúa un artículo si viene inmediatamente detrás de él.
+        last_in_resolve: SectionType | None = None
+
         for el in root.iter():
+            if el.tag == "table" and state == "RESOLVE":
+                add_table(el)
+                consumed.update(el.iterdescendants())
+                last_in_resolve = SectionType.ARTICLE_TABLE_ROW
+                continue
+            if el in consumed:
+                continue
             if el.tag not in {"h1", "h2", "p"}:
                 continue
             text = collapse_whitespace(el.text_content())
@@ -189,15 +240,15 @@ class ElPeruanoHtmlParser:
                 continue
             if upper.startswith("VISTOS") or upper.startswith("VISTO:"):
                 state = "VISTOS"
-                add(SectionType.VISTOS, text, label=text)
+                add(SectionType.VISTOS, text, label=_section_marker(text))
                 continue
             if upper.startswith("CONSIDERANDO") or upper.startswith("Y CONSIDERANDO"):
                 state = "CONSIDERANDO"
-                add(SectionType.CONSIDERANDO, text, label=text)
+                add(SectionType.CONSIDERANDO, text, label=_section_marker(text))
                 continue
             if upper.startswith("SE RESUELVE"):
                 state = "RESOLVE"
-                add(SectionType.RESOLVE_HEADER, text, label=text)
+                add(SectionType.RESOLVE_HEADER, text, label=_section_marker(text))
                 continue
             if _CLOSING_RE.match(text):
                 state = "CLOSING"
@@ -222,10 +273,20 @@ class ElPeruanoHtmlParser:
                 am = _ARTICLE_LABEL_RE.match(text)
                 if am:
                     add(SectionType.ARTICLE, text, label=collapse_whitespace(am.group("label")))
+                    last_in_resolve = SectionType.ARTICLE
                 elif _LIST_ITEM_RE.match(text):
                     add(SectionType.ARTICLE_LIST_ITEM, text)
+                    last_in_resolve = SectionType.ARTICLE_LIST_ITEM
+                elif last_in_resolve in (SectionType.ARTICLE, SectionType.ARTICLE_BODY):
+                    # "Artículo 1.- Designación" seguido de la parte dispositiva
+                    # en su propio párrafo. Clasificarlo como OTHER lo dejaba
+                    # fuera del extractor y el dispositivo entero no producía
+                    # ningún evento pese a estar capturado íntegro.
+                    add(SectionType.ARTICLE_BODY, text)
+                    last_in_resolve = SectionType.ARTICLE_BODY
                 else:
                     add(SectionType.OTHER, text)
+                    last_in_resolve = SectionType.OTHER
                 continue
             if state == "CLOSING":
                 add(SectionType.SIGNATURE, text)

@@ -28,6 +28,29 @@ class LiveSourceDisabled(RuntimeError):
     pass
 
 
+class CaptureHttpError(RuntimeError):
+    """La fuente respondió, pero con un estado que no permite guardar nada.
+
+    Lleva el código para que quien orquesta pueda distinguir lo transitorio de
+    lo definitivo. Importa porque en esta fuente se observó un 404 pasajero en
+    la ruta del PDF (2026-08-07): tratarlo como error final perdería el
+    documento en silencio, y reintentarlo en el acto castigaría al servidor.
+    """
+
+    def __init__(self, message: str, *, status_code: int | None, url: str) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.url = url
+
+
+class CaptureNetworkError(RuntimeError):
+    """No hubo respuesta (DNS, timeout, conexión): siempre reintentable."""
+
+    def __init__(self, message: str, *, url: str) -> None:
+        super().__init__(message)
+        self.url = url
+
+
 class PoliteFetcher:
     """Descarga un recurso y devuelve sus bytes junto al acta de la captura."""
 
@@ -87,9 +110,13 @@ class PoliteFetcher:
                     retries=retries,
                 )
                 if response.status_code != 200:
-                    raise RuntimeError(
+                    raise CaptureHttpError(
                         f"Captura fallida ({response.status_code}) para {url}; "
-                        f"reintentos: {retries}"
+                        f"reintentos: {retries}",
+                        status_code=response.status_code,
+                        url=url,
                     )
                 return response.content, capture
-        raise RuntimeError(f"Captura fallida para {url} tras {retries} reintentos: {last_error}")
+        raise CaptureNetworkError(
+            f"Captura fallida para {url} tras {retries} reintentos: {last_error}", url=url
+        )

@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     crawler_user_agent: str = "KipuKnowledge/0.1 (+contacto: configurar-email-real)"
     crawler_rate_limit_seconds: float = 2.0
     crawler_max_retries: int = 3
+    # Tope del recorrido del índice diario. No es una cuota de resultados: con 20
+    # por página cubre ~500 dispositivos, muy por encima de una edición real. Está
+    # para que un enlace de paginación cíclico no se convierta en un bucle contra
+    # la fuente. Si se alcanza, el descubrimiento falla en vez de truncar.
+    crawler_max_listing_pages: int = 25
 
     llm_extractor_enabled: bool = False
     llm_provider: str = ""

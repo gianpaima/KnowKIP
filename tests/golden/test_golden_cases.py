@@ -30,6 +30,18 @@ CASES = {
     "F": "2540702-1",
     "G": "2540905-2",
     "H": "2540896-1",
+    # Casos I–N: los seis dispositivos de la edición del 2026-08-07 que se
+    # ingirieron enteros y no produjeron ni un evento. El texto estaba
+    # capturado; lo que faltaba era leerlo. Quedan congelados porque un hueco
+    # del extractor no se ve desde ninguna parte —la ficha de la persona sale
+    # vacía y se lee como "no ocupó ningún cargo"— y esa es justamente la
+    # confusión que no puede repetirse.
+    "I": "2540926-1",  # "Aceptar la renuncia formulada por"
+    "J": "2540909-1",  # artículo-título + cuerpo aparte, con "primer día de labores"
+    "K": "2540840-1",  # artículo-título + cuerpo aparte
+    "L": "2540828-1",  # artículo-título + cuerpo aparte
+    "M": "2540315-1",  # colectivo de guiones, inicio y fin
+    "N": "2540891-1",  # colectivo en tabla, con entidad y DNI por fila
 }
 
 

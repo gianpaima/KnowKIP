@@ -1,0 +1,517 @@
+{
+  "document": {
+    "document_type_code": "OTHER",
+    "issue_place_raw": "Lima",
+    "issued_on": "2026-08-05",
+    "number_normalized": "431-2026-CG",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/10V4W9sMqYW8Bf92_WyNo_/*/2540891-1.PDF",
+    "publication_code": "2540891-1",
+    "published_on": "2026-08-07",
+    "title_raw": "Designan profesionales en el cargo de Jefe/a del Órgano de Control Institucional del Ministerio de Salud y de la Academia de la Magistratura"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 159,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Dar por terminada la designación en el cargo de Jefe/a del Órgano de Control Institucional de los/as profesionales que se detallan a continuación:",
+          "section_index": 21
+        }
+      },
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 2.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 134,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- Designar en el cargo de Jefe/a del Órgano de Control Institucional a los/as profesionales que se detallan a continuación:",
+          "section_index": 25
+        }
+      },
+      {
+        "article_class": "EFFECTIVE_DATE_CLAUSE",
+        "article_label": "Artículo 3.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 3.-",
+          "char_end": 289,
+          "char_start": 0,
+          "quoted_text": "Artículo 3.- Las acciones de personal dispuestas en los artículos 1 y 2 precedentes, tendrán efectividad a partir del día siguiente de la publicación de la presente resolución en el diario oficial El Peruano, sin perjuicio del procedimiento de entrega y recepción de cargo correspondiente.",
+          "section_index": 29
+        }
+      },
+      {
+        "article_class": "OTHER",
+        "article_label": "Artículo 4.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 4.-",
+          "char_end": 159,
+          "char_start": 0,
+          "quoted_text": "Artículo 4.- Disponer que las entidades proporcionen los medios necesarios para el ejercicio de la función de control, de conformidad con la normativa vigente.",
+          "section_index": 30
+        }
+      },
+      {
+        "article_class": "OTHER",
+        "article_label": "Artículo 5.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 5.-",
+          "char_end": 286,
+          "char_start": 0,
+          "quoted_text": "Artículo 5.- Disponer que la Gerencia de Capital Humano, la Gerencia de Administración y la Gerencia de Tecnologías de la Información y Gobierno Digital de la Contraloría General de la República, adopten las acciones que correspondan de acuerdo a lo dispuesto en la presente resolución.",
+          "section_index": 31
+        }
+      },
+      {
+        "article_class": "PUBLICATION_NOTICE",
+        "article_label": "Artículo 6.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 6.-",
+          "char_end": 203,
+          "char_start": 0,
+          "quoted_text": "Artículo 6.- Publicar la presente resolución en el diario oficial El Peruano, en el Portal del Estado Peruano (https://www.gob.pe/contraloria), y en la Intranet de la Contraloría General de la República.",
+          "section_index": 32
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1.-",
+        "assignment_effect": "END",
+        "assignments": [
+          {
+            "assignment_kind": "UNKNOWN",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "SERVICIO NACIONAL DE SANIDAD AGRARIA - SENASA",
+              "path_raw": "Jefe/a del Órgano de Control Institucional",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 78,
+                "char_start": 52,
+                "quoted_text": "YORGES AVALOS, DANTE AARON",
+                "section_index": 23
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": null,
+                    "char_end": 89,
+                    "char_start": 81,
+                    "quoted_text": "41345673",
+                    "section_index": 23
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "41345673"
+                }
+              ],
+              "text_raw": "YORGES AVALOS, DANTE AARON"
+            },
+            "position_label_raw": "Jefe/a del Órgano de Control Institucional",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          },
+          {
+            "assignment_kind": "UNKNOWN",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "MINISTERIO DE SALUD",
+              "path_raw": "Jefe/a del Órgano de Control Institucional",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 60,
+                "char_start": 26,
+                "quoted_text": "PANTOJA URIZAR GARFIAS, ANA TERESA",
+                "section_index": 24
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": null,
+                    "char_end": 71,
+                    "char_start": 63,
+                    "quoted_text": "10274380",
+                    "section_index": 24
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "10274380"
+                }
+              ],
+              "text_raw": "PANTOJA URIZAR GARFIAS, ANA TERESA"
+            },
+            "position_label_raw": "Jefe/a del Órgano de Control Institucional",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "END_DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 159,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Dar por terminada la designación en el cargo de Jefe/a del Órgano de Control Institucional de los/as profesionales que se detallan a continuación:",
+          "section_index": 21
+        },
+        "is_collective": true,
+        "legal_verb_raw": "Dar por terminada la designación",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 78,
+                "char_start": 52,
+                "quoted_text": "YORGES AVALOS, DANTE AARON",
+                "section_index": 23
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": null,
+                    "char_end": 89,
+                    "char_start": 81,
+                    "quoted_text": "41345673",
+                    "section_index": 23
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "41345673"
+                }
+              ],
+              "text_raw": "YORGES AVALOS, DANTE AARON"
+            },
+            "role": "AFFECTED_PERSON",
+            "substantive_role_raw": null
+          },
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 60,
+                "char_start": 26,
+                "quoted_text": "PANTOJA URIZAR GARFIAS, ANA TERESA",
+                "section_index": 24
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": null,
+                    "char_end": 71,
+                    "char_start": 63,
+                    "quoted_text": "10274380",
+                    "section_index": 24
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "10274380"
+                }
+              ],
+              "text_raw": "PANTOJA URIZAR GARFIAS, ANA TERESA"
+            },
+            "role": "AFFECTED_PERSON",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      },
+      {
+        "article_label": "Artículo 2.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "MINISTERIO DE SALUD",
+              "path_raw": "Jefe/a del Órgano de Control Institucional",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 52,
+                "char_start": 26,
+                "quoted_text": "YORGES AVALOS, DANTE AARON",
+                "section_index": 27
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": null,
+                    "char_end": 63,
+                    "char_start": 55,
+                    "quoted_text": "41345673",
+                    "section_index": 27
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "41345673"
+                }
+              ],
+              "text_raw": "YORGES AVALOS, DANTE AARON"
+            },
+            "position_label_raw": "Jefe/a del Órgano de Control Institucional",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          },
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "ACADEMIA DE LA MAGISTRATURA",
+              "path_raw": "Jefe/a del Órgano de Control Institucional",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 68,
+                "char_start": 34,
+                "quoted_text": "PANTOJA URIZAR GARFIAS, ANA TERESA",
+                "section_index": 28
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": null,
+                    "char_end": 79,
+                    "char_start": 71,
+                    "quoted_text": "10274380",
+                    "section_index": 28
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "10274380"
+                }
+              ],
+              "text_raw": "PANTOJA URIZAR GARFIAS, ANA TERESA"
+            },
+            "position_label_raw": "Jefe/a del Órgano de Control Institucional",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 134,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- Designar en el cargo de Jefe/a del Órgano de Control Institucional a los/as profesionales que se detallan a continuación:",
+          "section_index": 25
+        },
+        "is_collective": true,
+        "legal_verb_raw": "Designar",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 52,
+                "char_start": 26,
+                "quoted_text": "YORGES AVALOS, DANTE AARON",
+                "section_index": 27
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": null,
+                    "char_end": 63,
+                    "char_start": 55,
+                    "quoted_text": "41345673",
+                    "section_index": 27
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "41345673"
+                }
+              ],
+              "text_raw": "YORGES AVALOS, DANTE AARON"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          },
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": null,
+                "char_end": 68,
+                "char_start": 34,
+                "quoted_text": "PANTOJA URIZAR GARFIAS, ANA TERESA",
+                "section_index": 28
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": null,
+                    "char_end": 79,
+                    "char_start": 71,
+                    "quoted_text": "10274380",
+                    "section_index": 28
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "10274380"
+                }
+              ],
+              "text_raw": "PANTOJA URIZAR GARFIAS, ANA TERESA"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 1205,
+          "char_start": 0,
+          "quoted_text": "La Hoja Informativa Nº 000179-2026-CG/VCG, de la Vicecontraloría de Control Gubernamental; los Memorandos Nº 000218-2026-CG/GCSPB, Nº 000219-2026-CG/GCSPB y Nº 000220-2026-CG/GCSPB, de la Gerencia de Control de Servicios Públicos Básicos; el Memorando Nº 000259-2026-CG/GPOIN, de la Gerencia de Control Político, Institucional y Económico; la Hoja Informativa Nº 000014-2026-CG/AGR, de la Subgerencia de Control del Sector Agricultura y Ambiente; la Hoja Informativa Nº 000029-2026-CG/SALUD y Nº 000030-2026-CG/SALUD, de la Subgerencia de Control del Sector Salud; la Hoja Informativa Nº 000056-2026-CG/JUSPE, de la Subgerencia de Control del Sector Justicia, Político y Electoral; el Memorando Nº 000926-2026-CG/GCH, de la Gerencia de Capital Humano; los Memorandos Nº 001519-2026-CG/POLDEH y Nº 0001522-2026-CG/POLDEH, de la Subgerencia de Políticas y Desarrollo Humano; la Hoja Informativa Nº 000378-2026-CG/PER, de la Subgerencia de Personal y Compensaciones; la Hoja Informativa Nº 000639-2026-CG/AJ, de la Subgerencia de Asesoría Jurídica; y, el Memorando Nº 000795-2026-CG/GJNC, de la Gerencia de Asesoría Jurídica y Normatividad en Control Gubernamental, de la Contraloría General de la República;",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "000259-2026-CG/GPOIN"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 1205,
+          "char_start": 0,
+          "quoted_text": "La Hoja Informativa Nº 000179-2026-CG/VCG, de la Vicecontraloría de Control Gubernamental; los Memorandos Nº 000218-2026-CG/GCSPB, Nº 000219-2026-CG/GCSPB y Nº 000220-2026-CG/GCSPB, de la Gerencia de Control de Servicios Públicos Básicos; el Memorando Nº 000259-2026-CG/GPOIN, de la Gerencia de Control Político, Institucional y Económico; la Hoja Informativa Nº 000014-2026-CG/AGR, de la Subgerencia de Control del Sector Agricultura y Ambiente; la Hoja Informativa Nº 000029-2026-CG/SALUD y Nº 000030-2026-CG/SALUD, de la Subgerencia de Control del Sector Salud; la Hoja Informativa Nº 000056-2026-CG/JUSPE, de la Subgerencia de Control del Sector Justicia, Político y Electoral; el Memorando Nº 000926-2026-CG/GCH, de la Gerencia de Capital Humano; los Memorandos Nº 001519-2026-CG/POLDEH y Nº 0001522-2026-CG/POLDEH, de la Subgerencia de Políticas y Desarrollo Humano; la Hoja Informativa Nº 000378-2026-CG/PER, de la Subgerencia de Personal y Compensaciones; la Hoja Informativa Nº 000639-2026-CG/AJ, de la Subgerencia de Asesoría Jurídica; y, el Memorando Nº 000795-2026-CG/GJNC, de la Gerencia de Asesoría Jurídica y Normatividad en Control Gubernamental, de la Contraloría General de la República;",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "000926-2026-CG/GCH"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 1205,
+          "char_start": 0,
+          "quoted_text": "La Hoja Informativa Nº 000179-2026-CG/VCG, de la Vicecontraloría de Control Gubernamental; los Memorandos Nº 000218-2026-CG/GCSPB, Nº 000219-2026-CG/GCSPB y Nº 000220-2026-CG/GCSPB, de la Gerencia de Control de Servicios Públicos Básicos; el Memorando Nº 000259-2026-CG/GPOIN, de la Gerencia de Control Político, Institucional y Económico; la Hoja Informativa Nº 000014-2026-CG/AGR, de la Subgerencia de Control del Sector Agricultura y Ambiente; la Hoja Informativa Nº 000029-2026-CG/SALUD y Nº 000030-2026-CG/SALUD, de la Subgerencia de Control del Sector Salud; la Hoja Informativa Nº 000056-2026-CG/JUSPE, de la Subgerencia de Control del Sector Justicia, Político y Electoral; el Memorando Nº 000926-2026-CG/GCH, de la Gerencia de Capital Humano; los Memorandos Nº 001519-2026-CG/POLDEH y Nº 0001522-2026-CG/POLDEH, de la Subgerencia de Políticas y Desarrollo Humano; la Hoja Informativa Nº 000378-2026-CG/PER, de la Subgerencia de Personal y Compensaciones; la Hoja Informativa Nº 000639-2026-CG/AJ, de la Subgerencia de Asesoría Jurídica; y, el Memorando Nº 000795-2026-CG/GJNC, de la Gerencia de Asesoría Jurídica y Normatividad en Control Gubernamental, de la Contraloría General de la República;",
+          "section_index": 5
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "000795-2026-CG/GJNC"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Contralor General de la República",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 32,
+            "char_start": 0,
+            "quoted_text": "CÉSAR ENRIQUE AGUILAR SURICHAQUI",
+            "section_index": 34
+          },
+          "identifiers": [],
+          "text_raw": "CÉSAR ENRIQUE AGUILAR SURICHAQUI"
+        },
+        "signature_order": 1
+      }
+    ],
+    "warnings": [
+      "Artículo sin clasificación específica: Artículo 4.-",
+      "Artículo sin clasificación específica: Artículo 5.-"
+    ]
+  }
+}

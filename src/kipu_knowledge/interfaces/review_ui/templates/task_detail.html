@@ -51,7 +51,7 @@ ningún fragmento para no señalar texto equivocado; revisa la sección completa
 {% else %}
 <div class="evidence">{{ evidence.quoted_text }}</div>
 {% endif %}
-<p class="muted" style="margin:.2rem 0 0">{{ evidence.article_label or "sin etiqueta de artículo" }}
+<p class="muted" style="margin:.2rem 0 0">{{ evidence_label or "sin etiqueta de artículo" }}
 · cita sha256 <code>{{ evidence.quoted_text_sha256[:16] }}…</code></p>
 {% if section %}
 <details style="margin-top:.6rem">
@@ -217,8 +217,24 @@ Estado de resolución: <code>{{ org_mention.resolution_status.value }}</code></p
     {% for c in entity_choices %}
     <label class="choice">
       <input type="radio" name="entity_id" value="{{ c.id }}" data-label="{{ c.label }}"{% if loop.first %} checked{% endif %}>
-      <span><strong>{{ c.label }}</strong><br>
-      <span class="muted">{{ c.rationale }} · {{ c.mentions }} mención(es) registradas</span></span>
+      <span><strong>{{ c.label }}</strong>
+      <a href="/review/persons/{{ c.id }}" target="_blank" rel="noopener">expediente ↗</a><br>
+      <span class="muted">{{ c.rationale }} · {{ c.mentions }} mención(es) registradas</span>
+      {# El documento donde la ficha apareció por primera vez —y como qué— es lo
+         que permite comparar contra la mención nueva sin salir de la página. #}
+      {% if c.appearances %}
+      <ul class="muted" style="margin:.3rem 0 0; padding-left:1.1rem">
+        {% for a in c.appearances %}
+        <li>{% if loop.first %}Mencionada inicialmente en {% else %}Luego en {% endif %}
+        {{ a.document_type or "documento" }} {{ a.number or "sin número" }}
+        (publicado {{ a.published_on or "sin fecha" }}){% if a.role %} como «{{ a.role }}»{% endif %}
+        · <code>{{ a.resolution_status }}</code></li>
+        {% endfor %}
+        {% if c.mentions > c.appearances | length %}
+        <li>… y {{ c.mentions - c.appearances | length }} mención(es) más en el expediente.</li>
+        {% endif %}
+      </ul>
+      {% endif %}</span>
     </label>
     {% endfor %}
     <details>
@@ -279,6 +295,17 @@ Estado de resolución: <code>{{ org_mention.resolution_status.value }}</code></p
       <input type="radio" name="precedent_scope" value="none"{% if alias_blocked and not mention.role_context_normalized %} checked{% endif %}>
       <span>No, decidir solo este caso</span>
     </label>
+    {# La clave del precedente casa de forma literal: sin esto el revisor asumía
+       que «DIRECTORA EJECUTIVA» cubría también «DIRECTORA EJECUTIVA, COFOPRI» y
+       no entendía por qué esos casos seguían abriendo tareas. #}
+    <p class="hint">La clave registrada es literal
+    {%- if mention.role_context_normalized %} (por cargo: nombre
+    «{{ mention.text_normalized }}» + cargo exactamente
+    «{{ mention.role_context_normalized }}»){% else %}
+    (la grafía exacta «{{ mention.text_normalized }}»){% endif %}: un cargo
+    escrito distinto —por ejemplo con la entidad añadida— no queda cubierto y
+    abrirá su propia tarea. Al registrarla se resuelven también las tareas
+    pendientes que coincidan con la clave, citando esta decisión.</p>
   </fieldset>
   {% endif %}
 
@@ -317,7 +344,7 @@ Estado de resolución: <code>{{ org_mention.resolution_status.value }}</code></p
     if (scope && !scope.disabled && ["LINK_ENTITY", "CREATE_ENTITY"].indexOf(value) !== -1) {
       text += scope.value === "none"
         ? ". No se registrará precedente."
-        : ". Las menciones futuras se resolverán citando esta decisión.";
+        : ". Las menciones futuras y las tareas pendientes con la misma clave se resolverán citando esta decisión.";
     }
     summary.textContent = text;
     summary.hidden = false;

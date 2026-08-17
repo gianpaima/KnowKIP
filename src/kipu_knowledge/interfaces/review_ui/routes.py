@@ -375,6 +375,7 @@ def _task_context(task_id: str, db: Session, error: str | None = None) -> dict[s
 
     context.update(
         evidence=evidence,
+        evidence_label=_evidence_label(evidence, section),
         section=section,
         document=document,
         candidates=candidates,
@@ -388,6 +389,13 @@ def _task_context(task_id: str, db: Session, error: str | None = None) -> dict[s
     return context
 
 
+# Cuántos documentos de origen se listan por ficha candidata. La primera mención
+# es la que responde "¿de dónde salió esta persona?"; el resto es corroboración
+# y no necesita ser exhaustivo en la página de decisión (para eso está el
+# expediente).
+_CHOICE_APPEARANCES_LIMIT = 4
+
+
 def _person_choices(
     db: Session,
     variants: Sequence[tuple[m.Person, Any]],
@@ -398,8 +406,9 @@ def _person_choices(
     El identificador viaja en el `value` del control; el revisor nunca tiene que
     leerlo ni copiarlo. Las variantes de grafía van primero porque son las que
     motivan la tarea; los homónimos exactos después. Cada opción lleva el motivo
-    por el que se propone y cuántas menciones respaldan esa ficha, que es lo que
-    permite decidir sin salir de la página.
+    por el que se propone y en qué documentos aparece esa ficha —empezando por el
+    que la mencionó por primera vez—, que es lo que permite decidir si es la
+    misma persona sin salir de la página.
     """
     choices: dict[str, dict[str, Any]] = {}
     ordered: list[tuple[m.Person, str]] = [
@@ -419,8 +428,41 @@ def _person_choices(
             "label": person.preferred_name,
             "rationale": rationale,
             "mentions": mentions,
+            "appearances": _person_appearances(db, person.id),
         }
     return list(choices.values())
+
+
+def _person_appearances(db: Session, person_id: str) -> list[dict[str, Any]]:
+    """Documentos donde una ficha candidata ya fue mencionada, el inicial primero.
+
+    Es lo que la tarea de resolución le pide comparar al revisor: la mención
+    nueva contra dónde y como qué apareció antes la persona existente. Sin esta
+    lista solo veía el nombre repetido y tenía que salir a la base a buscar el
+    documento de origen.
+    """
+    rows = db.execute(
+        select(m.PersonMention, m.LegalDocument)
+        .join(m.LegalDocument, m.LegalDocument.id == m.PersonMention.legal_document_id)
+        .where(m.PersonMention.canonical_person_id == person_id)
+        # El documento sin fecha de publicación al final: no puede ser "el inicial".
+        .order_by(
+            m.LegalDocument.published_on.is_(None),
+            m.LegalDocument.published_on,
+            m.PersonMention.id,
+        )
+        .limit(_CHOICE_APPEARANCES_LIMIT)
+    ).all()
+    return [
+        {
+            "document_type": document.document_type_raw,
+            "number": document.number_raw,
+            "published_on": document.published_on,
+            "role": mention.role_context_raw,
+            "resolution_status": mention.resolution_status.value,
+        }
+        for mention, document in rows
+    ]
 
 
 def _cited(db: Session, evidence_span_id: str | None) -> dict[str, Any]:
@@ -517,6 +559,40 @@ def _organization_origins(db: Session, organization_id: str) -> list[dict[str, A
         }
         for mention in mentions
     ]
+
+
+# Nombre legible de cada tipo de sección, para cuando la evidencia no lleva
+# etiqueta de artículo. Decir "bloque de firma" explica por sí solo por qué la
+# cita es únicamente un nombre; "sin etiqueta de artículo" no explicaba nada.
+_SECTION_TYPE_LABEL = {
+    e.SectionType.SUMMARY: "sumilla",
+    e.SectionType.DOC_TYPE: "tipo de documento",
+    e.SectionType.DOC_NUMBER: "número del documento",
+    e.SectionType.ISSUE_LINE: "línea de fecha y lugar",
+    e.SectionType.VISTOS: "sección de vistos",
+    e.SectionType.CONSIDERANDO: "considerando",
+    e.SectionType.RESOLVE_HEADER: "encabezado resolutivo",
+    e.SectionType.ARTICLE: "artículo",
+    e.SectionType.ARTICLE_BODY: "cuerpo de artículo",
+    e.SectionType.ARTICLE_LIST_ITEM: "ítem de artículo colectivo",
+    e.SectionType.ARTICLE_TABLE_HEADER: "cabecera de tabla",
+    e.SectionType.ARTICLE_TABLE_ROW: "fila de tabla de artículo",
+    e.SectionType.CLOSING: "fórmula de cierre",
+    e.SectionType.SIGNATURE: "bloque de firma",
+    e.SectionType.PUBLICATION_CODE: "código de publicación",
+    e.SectionType.ANNEX: "anexo",
+}
+
+
+def _evidence_label(
+    evidence: m.EvidenceSpan | None, section: m.DocumentSection | None
+) -> str | None:
+    """Etiqueta con la que presentar una cita: artículo si lo hay, sección si no."""
+    if evidence is not None and evidence.article_label:
+        return evidence.article_label
+    if section is not None:
+        return _SECTION_TYPE_LABEL.get(section.section_type)
+    return None
 
 
 def _evidence_highlight(

@@ -478,6 +478,78 @@ class TestReviewFormByTaskType:
         assert "data-when" in page
 
 
+class TestCandidateContextOnTaskPage:
+    """La ficha candidata llega con su documento de origen y su expediente.
+
+    Sin esto, la página de una tarea de resolución mostraba la mención nueva y,
+    como toda evidencia del candidato, el nombre repetido: el revisor tenía que
+    salir a la base a averiguar en qué documento apareció la persona existente.
+    """
+
+    def _variant_page(self, api_client) -> str:
+        task = next(
+            t
+            for t in api_client.get("/v1/review-tasks").json()["items"]
+            if t["task_type"] == "PERSON_VARIANT_CHECK"
+        )
+        return api_client.get(f"/review/tasks/{task['id']}").text
+
+    def test_each_candidate_lists_where_it_was_first_mentioned(self, api_client):
+        page = self._variant_page(api_client)
+        assert "Mencionada inicialmente en" in page
+
+    def test_each_candidate_links_to_its_dossier(self, api_client, ingested_session):
+        page = self._variant_page(api_client)
+        candidate = (
+            ingested_session.execute(
+                select(m.Person).where(m.Person.preferred_name == "ELMER RAFAEL CUBA BUSTINZA")
+            )
+            .scalars()
+            .one()
+        )
+        assert f"/review/persons/{candidate.id}" in page
+        assert "expediente ↗" in page
+
+    def test_the_precedent_key_is_spelled_out_verbatim(self, api_client):
+        """El precedente casa por clave literal; el formulario debe decirlo para
+        que el revisor pueda anticipar su alcance real."""
+        page = self._variant_page(api_client)
+        assert "La clave registrada es literal" in page
+
+    def test_signature_evidence_names_its_section(self, api_client, ingested_session):
+        """La cita de una mención de firmante es el bloque de firma completo (solo
+        el nombre): decirlo explica la cita; "sin etiqueta de artículo" no."""
+        mention = (
+            ingested_session.execute(
+                select(m.PersonMention)
+                .join(m.EvidenceSpan, m.EvidenceSpan.id == m.PersonMention.evidence_span_id)
+                .join(
+                    m.DocumentSection,
+                    m.DocumentSection.id == m.EvidenceSpan.document_section_id,
+                )
+                .where(
+                    m.DocumentSection.section_type == e.SectionType.SIGNATURE,
+                    m.EvidenceSpan.article_label.is_(None),
+                )
+            )
+            .scalars()
+            .first()
+        )
+        assert mention is not None, "el corpus registra menciones de firmantes"
+        task = m.ReviewTask(
+            task_type=e.ReviewTaskType.ENTITY_RESOLUTION,
+            target_type="person_mention",
+            target_id=mention.id,
+            reason="prueba: evidencia de un bloque de firma",
+            priority=4,
+        )
+        ingested_session.add(task)
+        ingested_session.flush()
+        page = api_client.get(f"/review/tasks/{task.id}").text
+        assert "bloque de firma" in page
+        assert "sin etiqueta de artículo" not in page
+
+
 class TestReviewFlow:
     def test_review_tasks_and_decision(self, api_client, ingested_session):
         tasks = api_client.get("/v1/review-tasks").json()["items"]

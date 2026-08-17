@@ -151,7 +151,9 @@ class ReviewService:
                 ra.person_id = person.id
             if previous_person_id and previous_person_id != person.id:
                 self._absorb_person(previous_person_id, person.id)
-            self._record_precedent(mention, person.id, decision, payload)
+            precedent = self._record_precedent(mention, person.id, decision, payload)
+            if precedent is not None:
+                self._apply_precedent_to_pending(precedent, decision, exclude_mention_id=mention.id)
         elif task.target_type == "organization_mention":
             mention_org = self._s.get(m.OrganizationMention, task.target_id)
             org = self._s.get(m.Organization, entity_id)
@@ -179,7 +181,9 @@ class ReviewService:
             select(m.RoleAssignment).where(m.RoleAssignment.person_mention_id == mention.id)
         ).scalars():
             ra.person_id = person.id
-        self._record_precedent(mention, person.id, decision, payload)
+        precedent = self._record_precedent(mention, person.id, decision, payload)
+        if precedent is not None:
+            self._apply_precedent_to_pending(precedent, decision, exclude_mention_id=mention.id)
 
     def _handle_split_entity(
         self, task: m.ReviewTask, payload: dict[str, Any], decision: m.ReviewDecision
@@ -419,6 +423,93 @@ class ReviewService:
         self._s.add(precedent)
         self._s.flush()
         return precedent
+
+    def _apply_precedent_to_pending(
+        self,
+        precedent: m.IdentityPrecedent,
+        decision: m.ReviewDecision,
+        *,
+        exclude_mention_id: str,
+    ) -> None:
+        """Resuelve con el precedente recién sentado las tareas hermanas pendientes.
+
+        Sin esto, el revisor decide el mismo conflicto una vez por documento: el
+        precedente solo alcanzaba a las ingestas posteriores, y cada mención
+        CANDIDATE_MATCH anterior conservaba su tarea abierta pidiendo exactamente
+        la decisión que se acaba de tomar.
+
+        La cobertura la decide `person_precedent`, el mismo camino que usa la
+        ingesta: así hereda sus salvaguardas (clave literal, precedentes
+        contradictorios → None) y el resultado es idéntico a reingerir el
+        documento. Las menciones con un EXTRACTION_CONFLICT pendiente se saltan:
+        ahí las señales se contradijeron y el precedente es solo una de ellas,
+        así que cerrarlas en silencio elegiría por el humano.
+
+        Cada cierre registra su propio ReviewDecision sin revisor —la acción es
+        del sistema— citando el precedente y la decisión humana que lo originó.
+        No se crean Assertions: eso exige una corrida de extracción, y la cadena
+        mención → precedente → decisión ya deja el vínculo auditable.
+        """
+        resolver = SimpleEntityResolver(self._s)
+        siblings = (
+            self._s.execute(
+                select(m.PersonMention).where(
+                    m.PersonMention.text_normalized == precedent.name_normalized,
+                    m.PersonMention.resolution_status == e.ResolutionStatus.CANDIDATE_MATCH,
+                    m.PersonMention.id != exclude_mention_id,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for sibling in siblings:
+            tasks = (
+                self._s.execute(
+                    select(m.ReviewTask).where(
+                        m.ReviewTask.target_type == "person_mention",
+                        m.ReviewTask.target_id == sibling.id,
+                        m.ReviewTask.status == e.ReviewTaskStatus.PENDING,
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if any(t.task_type == e.ReviewTaskType.EXTRACTION_CONFLICT for t in tasks):
+                continue
+            applicable = resolver.person_precedent(
+                sibling.text_normalized, sibling.role_context_normalized
+            )
+            if applicable is None or applicable.person_id != precedent.person_id:
+                continue
+            sibling.canonical_person_id = applicable.person_id
+            sibling.resolution_status = e.ResolutionStatus.PRECEDENT_LINKED
+            sibling.identity_precedent_id = applicable.id
+            for ra in self._s.execute(
+                select(m.RoleAssignment).where(m.RoleAssignment.person_mention_id == sibling.id)
+            ).scalars():
+                ra.person_id = applicable.person_id
+            now = datetime.now(UTC)
+            for task in tasks:
+                self._s.add(
+                    m.ReviewDecision(
+                        review_task_id=task.id,
+                        action=e.DecisionAction.LINK_ENTITY,
+                        reviewer=None,
+                        payload={
+                            "entity_id": applicable.person_id,
+                            "identity_precedent_id": applicable.id,
+                            "origin_review_decision_id": decision.id,
+                        },
+                        notes=(
+                            f"Resuelta por el precedente {applicable.id} sentado por "
+                            f"{decision.reviewer or 'revisor no identificado'} en la "
+                            f"decisión {decision.id}"
+                        ),
+                    )
+                )
+                task.status = e.ReviewTaskStatus.RESOLVED
+                task.resolved_at = now
+        self._s.flush()
 
     def _revoke_precedents_for(self, mention: m.PersonMention, reason: str) -> None:
         """Revoca los precedentes vigentes que aplican a esta mención.

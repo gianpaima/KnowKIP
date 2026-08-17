@@ -558,6 +558,166 @@ class TestPersonVariantCheck:
         assert duplicate_id not in proposed
 
 
+class TestPrecedentRetroApplication:
+    """Un precedente recién sentado resuelve también las tareas hermanas pendientes.
+
+    El caso real que lo motiva: la misma firmante, con el mismo cargo, en tres
+    resoluciones del mismo organismo. La primera creó la ficha; cada una de las
+    siguientes quedó CANDIDATE_MATCH con su propia tarea, pidiéndole al revisor
+    exactamente la decisión que ya tomó. El precedente solo alcanzaba a las
+    ingestas posteriores.
+    """
+
+    NAME = "CECILIA ANTONIETA CASTRO TORRES"
+    ROLE = "DIRECTORA EJECUTIVA"
+    # El mismo cargo escrito con la entidad añadida: otra clave literal.
+    QUALIFIED_ROLE = "DIRECTORA EJECUTIVA, COFOPRI"
+
+    def _pending(
+        self,
+        session,
+        anchor,
+        *,
+        role: str | None,
+        task_type: e.ReviewTaskType = e.ReviewTaskType.ENTITY_RESOLUTION,
+    ):
+        mention = _seed_mention(session, anchor, name=self.NAME, role=role, person_id=None)
+        mention.resolution_status = e.ResolutionStatus.CANDIDATE_MATCH
+        task = m.ReviewTask(
+            task_type=task_type,
+            target_type="person_mention",
+            target_id=mention.id,
+            reason="homónimo pendiente (siembra de prueba)",
+        )
+        session.add(task)
+        session.flush()
+        return mention, task
+
+    def _person(self, session):
+        person = m.Person(preferred_name=self.NAME)
+        session.add(person)
+        session.flush()
+        return person
+
+    def _decide(self, session, task, person_id: str, **payload):
+        return ReviewService(session).decide(
+            task.id,
+            e.DecisionAction.LINK_ENTITY,
+            reviewer="revisor@example.org",
+            payload={"entity_id": person_id, **payload},
+        )
+
+    def test_office_precedent_resolves_the_pending_sibling_with_the_same_key(self, session, anchor):
+        person = self._person(session)
+        _target, target_task = self._pending(session, anchor, role=self.ROLE)
+        sibling, sibling_task = self._pending(session, anchor, role=self.ROLE)
+
+        self._decide(session, target_task, person.id)
+
+        precedent = session.execute(select(m.IdentityPrecedent)).scalars().one()
+        assert sibling.resolution_status == e.ResolutionStatus.PRECEDENT_LINKED
+        assert sibling.canonical_person_id == person.id
+        assert sibling.identity_precedent_id == precedent.id
+        assert sibling_task.status == e.ReviewTaskStatus.RESOLVED
+        assert sibling_task.resolved_at is not None
+
+    def test_a_differently_written_cargo_is_another_key_and_stays_pending(self, session, anchor):
+        person = self._person(session)
+        _target, target_task = self._pending(session, anchor, role=self.ROLE)
+        other, other_task = self._pending(session, anchor, role=self.QUALIFIED_ROLE)
+
+        self._decide(session, target_task, person.id)
+
+        assert other.resolution_status == e.ResolutionStatus.CANDIDATE_MATCH
+        assert other.canonical_person_id is None
+        assert other_task.status == e.ReviewTaskStatus.PENDING
+
+    def test_the_sweep_records_an_auditable_system_decision(self, session, anchor):
+        person = self._person(session)
+        _target, target_task = self._pending(session, anchor, role=self.ROLE)
+        _sibling, sibling_task = self._pending(session, anchor, role=self.ROLE)
+
+        human = self._decide(session, target_task, person.id)
+
+        precedent = session.execute(select(m.IdentityPrecedent)).scalars().one()
+        system = session.execute(
+            select(m.ReviewDecision).where(m.ReviewDecision.review_task_id == sibling_task.id)
+        ).scalar_one()
+        assert system.action == e.DecisionAction.LINK_ENTITY
+        # La acción es del sistema: atribuírsela al revisor falsearía la bitácora.
+        assert system.reviewer is None
+        assert system.payload["entity_id"] == person.id
+        assert system.payload["identity_precedent_id"] == precedent.id
+        assert system.payload["origin_review_decision_id"] == human.id
+        assert precedent.id in (system.notes or "")
+
+    def test_an_extraction_conflict_is_never_swept(self, session, anchor):
+        """Ahí las señales se contradijeron: el precedente es solo una de ellas,
+        y cerrar la tarea en silencio elegiría por el humano."""
+        person = self._person(session)
+        _target, target_task = self._pending(session, anchor, role=self.ROLE)
+        conflicted, conflict_task = self._pending(
+            session, anchor, role=self.ROLE, task_type=e.ReviewTaskType.EXTRACTION_CONFLICT
+        )
+
+        self._decide(session, target_task, person.id)
+
+        assert conflicted.resolution_status == e.ResolutionStatus.CANDIDATE_MATCH
+        assert conflicted.canonical_person_id is None
+        assert conflict_task.status == e.ReviewTaskStatus.PENDING
+
+    def test_role_assignments_follow_the_swept_link(self, session, anchor):
+        person = self._person(session)
+        _target, target_task = self._pending(session, anchor, role=self.ROLE)
+        sibling, _sibling_task = self._pending(session, anchor, role=self.ROLE)
+        assignment = m.RoleAssignment(person_mention_id=sibling.id)
+        session.add(assignment)
+        session.flush()
+
+        self._decide(session, target_task, person.id)
+
+        assert assignment.person_id == person.id
+
+    def test_global_alias_sweeps_a_pending_mention_with_another_cargo(self, session, anchor):
+        person = self._person(session)
+        _target, target_task = self._pending(session, anchor, role=self.ROLE)
+        qualified, qualified_task = self._pending(session, anchor, role=self.QUALIFIED_ROLE)
+
+        self._decide(session, target_task, person.id, scope="global")
+
+        assert qualified.resolution_status == e.ResolutionStatus.PRECEDENT_LINKED
+        assert qualified.canonical_person_id == person.id
+        assert qualified_task.status == e.ReviewTaskStatus.RESOLVED
+
+    def test_opting_out_of_the_precedent_leaves_siblings_untouched(self, session, anchor):
+        person = self._person(session)
+        _target, target_task = self._pending(session, anchor, role=self.ROLE)
+        sibling, sibling_task = self._pending(session, anchor, role=self.ROLE)
+
+        self._decide(session, target_task, person.id, create_precedent=False)
+
+        assert sibling.resolution_status == e.ResolutionStatus.CANDIDATE_MATCH
+        assert sibling_task.status == e.ReviewTaskStatus.PENDING
+
+    def test_create_entity_precedent_also_sweeps(self, session, anchor):
+        """ "Es otra persona" con precedente: las homónimas pendientes de la misma
+        clave son, por esa misma decisión, la persona recién creada."""
+        target, target_task = self._pending(session, anchor, role=self.ROLE)
+        sibling, sibling_task = self._pending(session, anchor, role=self.ROLE)
+
+        ReviewService(session).decide(
+            target_task.id,
+            e.DecisionAction.CREATE_ENTITY,
+            reviewer="revisor@example.org",
+            payload={"preferred_name": self.NAME},
+        )
+
+        assert target.canonical_person_id is not None
+        assert sibling.canonical_person_id == target.canonical_person_id
+        assert sibling.resolution_status == e.ResolutionStatus.PRECEDENT_LINKED
+        assert sibling_task.status == e.ReviewTaskStatus.RESOLVED
+
+
 class TestConflictingSignals:
     def test_contradictory_signals_do_not_link(self, ingest_codes, session, anchor):
         """Un precedente humano y una corroboración por oficio que discrepan

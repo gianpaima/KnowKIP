@@ -67,8 +67,13 @@ from kipu_knowledge.domain.normalization import (
     normalize_org_name,
     normalize_person_name,
     normalize_position_label,
+    org_name_contamination,
 )
 from kipu_knowledge.domain.parsed import ParsedDocument
+from kipu_knowledge.domain.state_entities import (
+    catalog_entity,
+    looks_like_uncatalogued_ministry,
+)
 from kipu_knowledge.ontology_version import ONTOLOGY_VERSION
 
 
@@ -240,6 +245,8 @@ class IngestService:
         self._carried_sources: list[tuple[str, e.DocumentSourceRole, str]] = []
         self._precedents_to_repoint: list[tuple[str, str, str | None]] = []
         self._persons_touched: set[str] = set()
+        self._organizations_touched: set[str] = set()
+        self._positions_touched: set[str] = set()
         if reprocess:
             self._supersede_previous(item)
 
@@ -337,6 +344,12 @@ class IngestService:
         # bitácora del recolector lo señala, se registra aquí mismo con su cita
         # para que ni el reproceso ni el reintento lo dejen vacío.
         issuer = ensure_document_issuer(session, self._store, doc)
+        # Los huérfanos se evalúan después de reasegurar el emisor: su mención
+        # recién re-creada es un sostén legítimo que el borrado debe ver.
+        self._drop_positions_without_holders()
+        self._drop_organizations_without_evidence()
+        if reprocess:
+            self._drop_variant_tasks_without_premise()
         issuer_warnings = (
             [f"emisor declarado pero no registrado ({issuer.outcome}): {issuer.detail}"]
             if issuer.outcome in (IssuerOutcome.NO_CAPTURE, IssuerOutcome.NO_EVIDENCE)
@@ -481,6 +494,14 @@ class IngestService:
                     | m.RoleAssignment.end_event_id.in_(event_ids)
                 )
             ).scalars():
+                # Los puestos y organizaciones que estas asignaciones sostenían
+                # pueden quedar sin nada tras re-extraer; ver
+                # `_drop_positions_without_holders` y
+                # `_drop_organizations_without_evidence`.
+                if ra.position_id:
+                    self._positions_touched.add(ra.position_id)
+                if ra.organization_id:
+                    self._organizations_touched.add(ra.organization_id)
                 session.delete(ra)
             session.flush()
             for event in session.execute(
@@ -517,6 +538,8 @@ class IngestService:
         for org_mention in session.execute(
             select(m.OrganizationMention).where(m.OrganizationMention.legal_document_id == doc.id)
         ).scalars():
+            if org_mention.canonical_organization_id:
+                self._organizations_touched.add(org_mention.canonical_organization_id)
             session.delete(org_mention)
         session.flush()
         for reference in session.execute(
@@ -637,6 +660,158 @@ class IngestService:
                 continue
             session.delete(person)
         self._persons_touched.clear()
+        session.flush()
+
+    def _drop_pending_tasks_for(self, target_type: str, target_id: str) -> None:
+        """Retira las tareas abiertas sobre una fila que va a borrarse.
+
+        Solo las PENDING sin decisión: son residuo mecánico de la extracción
+        reemplazada, igual que la fila a la que apuntan. Una tarea con decisión
+        —resuelta o descartada— es trabajo humano y se conserva aunque su
+        objetivo desaparezca; la UI ya tolera objetivos ausentes.
+        """
+        session = self._session
+        for task in session.execute(
+            select(m.ReviewTask).where(
+                m.ReviewTask.target_type == target_type,
+                m.ReviewTask.target_id == target_id,
+                m.ReviewTask.status == e.ReviewTaskStatus.PENDING,
+            )
+        ).scalars():
+            has_decision = session.execute(
+                select(m.ReviewDecision.id)
+                .where(m.ReviewDecision.review_task_id == task.id)
+                .limit(1)
+            ).first()
+            if has_decision:
+                continue
+            session.delete(task)
+
+    def _drop_positions_without_holders(self) -> None:
+        """Retira los puestos que la extracción reemplazada creó y esta ya no usa.
+
+        Espejo de `_drop_persons_without_evidence`: un Position nace de una
+        asignación. Si tras re-extraer ninguna asignación lo referencia y ningún
+        CAP lo declaró (PositionSlot), es residuo del patrón anterior —el caso
+        típico: el puesto quedó colgado de una organización fabricada por una
+        coletilla mal recortada— y conservarlo duplicaría el puesto real.
+        """
+        session = self._session
+        for position_id in self._positions_touched:
+            position = session.get(m.Position, position_id)
+            if position is None:
+                continue
+            holds = (
+                select(m.RoleAssignment.id).where(m.RoleAssignment.position_id == position_id),
+                select(m.PositionSlot.id).where(m.PositionSlot.position_id == position_id),
+            )
+            if any(session.execute(stmt.limit(1)).first() for stmt in holds):
+                continue
+            self._drop_pending_tasks_for("position", position_id)
+            session.delete(position)
+        self._positions_touched.clear()
+        session.flush()
+
+    def _drop_organizations_without_evidence(self) -> None:
+        """Retira las organizaciones que ya nada menciona ni usa.
+
+        Una Organization nace de una mención. Si al re-extraer el documento la
+        mención que la creó desaparece —el caso real: "Ministerio de Vivienda,
+        Construcción y Saneamiento, bajo el régimen de la Ley N° 30057" tras
+        corregir el recorte de coletillas— la ficha queda sin nada que afirmar,
+        y peor: su nombre normalizado seguiría enlazando en silencio cualquier
+        documento futuro con el mismo defecto.
+
+        Solo se retira lo que no sostiene nada: sin menciones, sin puestos, sin
+        asignaciones, sin unidades con puestos, y sin ser destino de una fusión
+        humana. Las unidades vacías son filas derivadas y se van con ella.
+        """
+        session = self._session
+        for org_id in self._organizations_touched:
+            org = session.get(m.Organization, org_id)
+            if org is None or org.merged_into_organization_id is not None:
+                continue
+            holds = (
+                select(m.OrganizationMention.id).where(
+                    m.OrganizationMention.canonical_organization_id == org_id
+                ),
+                select(m.Position.id).where(m.Position.organization_id == org_id),
+                select(m.RoleAssignment.id).where(m.RoleAssignment.organization_id == org_id),
+                select(m.Organization.id).where(
+                    m.Organization.merged_into_organization_id == org_id
+                ),
+            )
+            if any(session.execute(stmt.limit(1)).first() for stmt in holds):
+                continue
+            units = (
+                session.execute(
+                    select(m.OrganizationalUnit).where(
+                        m.OrganizationalUnit.organization_id == org_id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            unit_ids = [unit.id for unit in units]
+            if (
+                unit_ids
+                and session.execute(
+                    select(m.Position.id)
+                    .where(m.Position.organizational_unit_id.in_(unit_ids))
+                    .limit(1)
+                ).first()
+            ):
+                continue
+            # Hijas antes que padres, o la FK autorreferente rechaza el borrado.
+            remaining = {unit.id: unit for unit in units}
+            while remaining:
+                leaves = [
+                    unit
+                    for unit in remaining.values()
+                    if not any(u.parent_unit_id == unit.id for u in remaining.values())
+                ]
+                for unit in leaves:
+                    session.delete(remaining.pop(unit.id))
+                session.flush()
+            self._drop_pending_tasks_for("organization", org_id)
+            session.delete(org)
+        self._organizations_touched.clear()
+        session.flush()
+
+    def _drop_variant_tasks_without_premise(self) -> None:
+        """Cierra las ORG_VARIANT_CHECK abiertas cuya variante similar ya no existe.
+
+        La tarea pregunta "¿es esta organización la misma que aquella parecida?".
+        Cuando el reproceso retira la parecida —era una fabricación del extractor
+        anterior—, la pregunta se queda sin segundo término: se re-evalúa con la
+        misma heurística que la abrió (`similar_org_exists`) y, si ya no hay
+        ninguna candidata, la tarea es residuo. Solo se retiran tareas PENDING y
+        sin decisión: lo que un humano tocó se conserva.
+        """
+        session = self._session
+        for task in session.execute(
+            select(m.ReviewTask).where(
+                m.ReviewTask.task_type == e.ReviewTaskType.ORG_VARIANT_CHECK,
+                m.ReviewTask.target_type == "organization",
+                m.ReviewTask.status == e.ReviewTaskStatus.PENDING,
+            )
+        ).scalars():
+            target = session.get(m.Organization, task.target_id)
+            if (
+                target is not None
+                and target.merged_into_organization_id is None
+                and SimpleEntityResolver.similar_org_exists(session, target.name_normalized)
+                is not None
+            ):
+                continue
+            has_decision = session.execute(
+                select(m.ReviewDecision.id)
+                .where(m.ReviewDecision.review_task_id == task.id)
+                .limit(1)
+            ).first()
+            if has_decision:
+                continue
+            session.delete(task)
         session.flush()
 
     def _repoint_precedents(self, doc: m.LegalDocument) -> list[str]:
@@ -1066,7 +1241,14 @@ class _ResultPersister:
             org = self._s.get(m.Organization, proposals[0].entity_id)
             assert org is not None
             return org
+        # El catálogo curado enriquece la ficha nueva cuando la grafía coincide
+        # exactamente con el nombre vigente de una entidad conocida: la sigla y
+        # el tipo son datos declarados, no inferencias.
+        entry = catalog_entity(normalized)
         org = m.Organization(preferred_name=name, name_normalized=normalized)
+        if entry is not None:
+            org.acronym = entry.acronym
+            org.organization_type = entry.entity_type
         self._s.add(org)
         self._s.flush()
         mention = m.OrganizationMention(
@@ -1078,14 +1260,40 @@ class _ResultPersister:
             evidence_span_id=evidence.id if evidence else None,
         )
         self._s.add(mention)
+        # Una sola tarea por ficha nueva, la más específica primero: la
+        # contaminación explica la variante y la ausencia del catálogo, así que
+        # abrir las tres sería repetir la misma pregunta con menos precisión.
+        contaminant = org_name_contamination(normalized)
         similar = self._resolver.similar_org_exists(self._s, normalized)
-        if similar is not None:
+        if contaminant is not None:
+            self._task(
+                e.ReviewTaskType.EXTRACTION_CONFLICT,
+                "organization",
+                org.id,
+                f"'{name}' contiene la coletilla administrativa «{contaminant}»: la "
+                f"extracción arrastró la cláusula de contratación dentro del nombre del "
+                f"órgano. Corregir el extractor y reprocesar, o fusionar la organización "
+                f"con la ficha limpia",
+                priority=2,
+            )
+        elif similar is not None:
             self._task(
                 e.ReviewTaskType.ORG_VARIANT_CHECK,
                 "organization",
                 org.id,
                 f"'{name}' es similar a la organización existente '{similar.preferred_name}'; "
                 f"confirmar si es la misma entidad, una variante o una sucesión",
+            )
+        elif looks_like_uncatalogued_ministry(normalized):
+            self._task(
+                e.ReviewTaskType.ONTOLOGY_CANDIDATE,
+                "organization",
+                org.id,
+                f"'{name}' se llama ministerio pero no figura en el catálogo de carteras "
+                f"(domain/state_entities.py): puede ser una entidad nueva o renombrada "
+                f"—que merece entrar al catálogo con su norma— o una extracción "
+                f"defectuosa que hay que corregir",
+                priority=2,
             )
         self._s.flush()
         return org

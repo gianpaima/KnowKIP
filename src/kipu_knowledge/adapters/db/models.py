@@ -487,6 +487,10 @@ class Organization(PKMixin, Base):
     public_private_category: Mapped[str] = mapped_column(String(30), default="PUBLIC")
     valid_from: Mapped[date | None] = mapped_column(Date)
     valid_to: Mapped[date | None] = mapped_column(Date)
+    # Duplicado absorbido por otra organización tras revisión humana (espejo de
+    # `Person.merged_into_person_id`). La fila nunca se borra (regla 3): queda
+    # apuntando a la superviviente para que su identificador siga resolviendo.
+    merged_into_organization_id: Mapped[str | None] = mapped_column(ForeignKey("organization.id"))
 
 
 class OrganizationMention(PKMixin, Base):

@@ -75,11 +75,12 @@ _ACTIONS_BY_TARGET: dict[str, list[tuple[str, str]]] = {
         ("REJECT", "Rechazar la afirmación"),
         ("DISMISS", "Descartar esta tarea sin decidir"),
     ],
-    # ORG_VARIANT_CHECK apunta a una `organization` ya creada, pero fusionar
-    # organizaciones no está modelado (Organization no tiene el equivalente de
-    # `merged_into_person_id`), así que LINK_ENTITY fallaría. Hasta que exista,
-    # lo honesto es no ofrecer una salida que no lleva a ninguna parte.
+    # ORG_VARIANT_CHECK y las tareas de coletilla/catálogo apuntan a una
+    # `organization` ya creada. LINK_ENTITY la fusiona con la elegida
+    # (`merged_into_organization_id`): menciones, unidades, puestos y
+    # asignaciones pasan a la superviviente y la fila queda apuntándola.
     "organization": [
+        ("LINK_ENTITY", "Es la misma entidad — fusionarla con la organización elegida"),
         ("DISMISS", "Descartar esta tarea sin decidir"),
     ],
 }
@@ -92,7 +93,7 @@ _DEFAULT_ACTION = {
     "personnel_event": "MARK_DATE_NOT_STATED",
     "position": "RESOLVE_POSITION",
     "assertion": "ACCEPT",
-    "organization": "DISMISS",
+    "organization": "LINK_ENTITY",
 }
 
 # Acciones que registran un precedente de identidad y por tanto muestran el
@@ -206,6 +207,7 @@ def _task_context(task_id: str, db: Session, error: str | None = None) -> dict[s
         "default_action": _DEFAULT_ACTION.get(task.target_type, "DISMISS"),
         "precedent_actions": _PRECEDENT_ACTIONS,
         "entity_choices": [],
+        "entity_kind": "person",
         "organizations": [],
         "error": error,
     }
@@ -301,9 +303,16 @@ def _task_context(task_id: str, db: Session, error: str | None = None) -> dict[s
                 .first()
             )
     elif task.target_type == "organization":
-        context["organization"] = db.get(m.Organization, task.target_id)
+        organization = db.get(m.Organization, task.target_id)
+        context["organization"] = organization
         origins = _organization_origins(db, task.target_id)
         context["origins_title"] = "De dónde procede esta organización"
+        if organization is not None and organization.merged_into_organization_id is None:
+            # Con quién fusionar: primero las de nombre contenido/continente
+            # (las que motivan ORG_VARIANT_CHECK); si no hay ninguna, el resto
+            # del registro, porque LINK_ENTITY sin destino no lleva a nada.
+            context["entity_kind"] = "organization"
+            context["entity_choices"] = _organization_choices(db, organization)
     elif task.target_type == "organization_mention":
         org_mention = db.get(m.OrganizationMention, task.target_id)
         if org_mention is not None:
@@ -529,6 +538,75 @@ def _position_origins(db: Session, position_id: str) -> list[dict[str, Any]]:
             }
         )
     return origins
+
+
+def _organization_choices(db: Session, organization: m.Organization) -> list[dict[str, Any]]:
+    """Organizaciones con las que ORG_VARIANT_CHECK puede fusionar la variante.
+
+    Mismo contrato que `_person_choices`: id en el `value`, motivo visible y en
+    qué documentos aparece cada candidata, que es lo que permite decidir si es
+    la misma entidad sin salir de la página.
+    """
+    similar = SimpleEntityResolver.similar_orgs(db, organization.name_normalized)
+    candidates: list[tuple[m.Organization, str]] = [
+        (org, "nombre contenido en la variante o viceversa") for org in similar
+    ]
+    if not candidates:
+        rest = (
+            db.execute(
+                select(m.Organization)
+                .where(
+                    m.Organization.id != organization.id,
+                    m.Organization.merged_into_organization_id.is_(None),
+                )
+                .order_by(m.Organization.preferred_name)
+            )
+            .scalars()
+            .all()
+        )
+        candidates = [(org, "registro existente") for org in rest]
+    choices: list[dict[str, Any]] = []
+    for org, rationale in candidates:
+        mentions = db.execute(
+            select(func.count())
+            .select_from(m.OrganizationMention)
+            .where(m.OrganizationMention.canonical_organization_id == org.id)
+        ).scalar_one()
+        choices.append(
+            {
+                "id": org.id,
+                "label": org.preferred_name,
+                "rationale": rationale,
+                "mentions": mentions,
+                "appearances": _organization_appearances(db, org.id),
+            }
+        )
+    return choices
+
+
+def _organization_appearances(db: Session, organization_id: str) -> list[dict[str, Any]]:
+    """Documentos donde una organización candidata ya fue mencionada."""
+    rows = db.execute(
+        select(m.OrganizationMention, m.LegalDocument)
+        .join(m.LegalDocument, m.LegalDocument.id == m.OrganizationMention.legal_document_id)
+        .where(m.OrganizationMention.canonical_organization_id == organization_id)
+        .order_by(
+            m.LegalDocument.published_on.is_(None),
+            m.LegalDocument.published_on,
+            m.OrganizationMention.id,
+        )
+        .limit(_CHOICE_APPEARANCES_LIMIT)
+    ).all()
+    return [
+        {
+            "document_type": document.document_type_raw,
+            "number": document.number_raw,
+            "published_on": document.published_on,
+            "role": None,
+            "resolution_status": mention.resolution_status.value,
+        }
+        for mention, document in rows
+    ]
 
 
 def _organization_origins(db: Session, organization_id: str) -> list[dict[str, Any]]:

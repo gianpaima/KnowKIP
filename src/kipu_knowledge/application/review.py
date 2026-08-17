@@ -161,6 +161,10 @@ class ReviewService:
                 raise ReviewError("Mención u organización inexistente")
             mention_org.canonical_organization_id = org.id
             mention_org.resolution_status = e.ResolutionStatus.HUMAN_CONFIRMED
+        elif task.target_type == "organization":
+            # ORG_VARIANT_CHECK: el revisor afirma que la organización de la
+            # tarea (la variante) ES la elegida. La variante se absorbe.
+            self._merge_organization(duplicate_id=task.target_id, survivor_id=entity_id)
         else:
             raise ReviewError(f"LINK_ENTITY no aplica a {task.target_type}")
 
@@ -534,6 +538,163 @@ class ReviewService:
         ).scalars():
             precedent.revoked_at = now
             precedent.revoked_reason = reason
+
+    def _merge_organization(self, duplicate_id: str, survivor_id: str) -> None:
+        """Absorbe una organización duplicada en la superviviente.
+
+        Espejo de `_absorb_person` con lo que las organizaciones tienen de más:
+        unidades y puestos. Todo lo que apuntaba al duplicado pasa a apuntar a
+        la superviviente; cuando la superviviente ya tiene la fila equivalente
+        (misma unidad, mismo puesto) las referencias se mueven a la suya y la
+        copia derivada se retira. La fila de la organización no se borra (regla
+        3): queda apuntando a la superviviente.
+        """
+        if duplicate_id == survivor_id:
+            raise ReviewError("La organización no puede fusionarse consigo misma")
+        duplicate = self._s.get(m.Organization, duplicate_id)
+        survivor = self._s.get(m.Organization, survivor_id)
+        if duplicate is None or survivor is None:
+            raise ReviewError("Organización inexistente")
+        if survivor.merged_into_organization_id is not None:
+            raise ReviewError(
+                "La organización destino ya fue fusionada en otra; elige la superviviente"
+            )
+        if duplicate.merged_into_organization_id is not None:
+            raise ReviewError("La organización de la tarea ya fue fusionada")
+
+        for mention in self._s.execute(
+            select(m.OrganizationMention).where(
+                m.OrganizationMention.canonical_organization_id == duplicate_id
+            )
+        ).scalars():
+            mention.canonical_organization_id = survivor_id
+            mention.resolution_status = e.ResolutionStatus.HUMAN_CONFIRMED
+
+        unit_map = self._merge_units_into(duplicate_id, survivor_id)
+
+        for position in self._s.execute(
+            select(m.Position).where(m.Position.organization_id == duplicate_id)
+        ).scalars():
+            position.organization_id = survivor_id
+            if position.organizational_unit_id in unit_map:
+                position.organizational_unit_id = unit_map[position.organizational_unit_id]
+            self._merge_position_into_equivalent(position)
+
+        for ra in self._s.execute(
+            select(m.RoleAssignment).where(m.RoleAssignment.organization_id == duplicate_id)
+        ).scalars():
+            ra.organization_id = survivor_id
+
+        # Las unidades del duplicado que tenían equivalente en la superviviente
+        # ya no sostienen nada: son filas derivadas y la copia se retira.
+        for old_unit_id, new_unit_id in unit_map.items():
+            if old_unit_id == new_unit_id:
+                continue
+            unit = self._s.get(m.OrganizationalUnit, old_unit_id)
+            if unit is not None:
+                self._s.delete(unit)
+        self._s.flush()
+
+        duplicate.merged_into_organization_id = survivor_id
+        self._s.flush()
+
+    def _merge_units_into(self, duplicate_id: str, survivor_id: str) -> dict[str, str]:
+        """Traslada la jerarquía de unidades del duplicado a la superviviente.
+
+        Devuelve id_de_unidad_del_duplicado → id vigente tras la fusión: la
+        misma unidad si solo cambió de organización, o la equivalente de la
+        superviviente (mismo padre, mismo nombre normalizado) si ya existía.
+        Se resuelve de padres a hijas para que la equivalencia del padre decida
+        dónde buscar la de la hija.
+        """
+        units = (
+            self._s.execute(
+                select(m.OrganizationalUnit).where(
+                    m.OrganizationalUnit.organization_id == duplicate_id
+                )
+            )
+            .scalars()
+            .all()
+        )
+        by_id = {unit.id: unit for unit in units}
+        mapping: dict[str, str] = {}
+
+        def resolve(unit: m.OrganizationalUnit) -> str:
+            if unit.id in mapping:
+                return mapping[unit.id]
+            parent_id = (
+                resolve(by_id[unit.parent_unit_id])
+                if unit.parent_unit_id and unit.parent_unit_id in by_id
+                else unit.parent_unit_id
+            )
+            equivalent = self._s.execute(
+                select(m.OrganizationalUnit).where(
+                    m.OrganizationalUnit.organization_id == survivor_id,
+                    m.OrganizationalUnit.parent_unit_id == parent_id
+                    if parent_id is not None
+                    else m.OrganizationalUnit.parent_unit_id.is_(None),
+                    m.OrganizationalUnit.name_normalized == unit.name_normalized,
+                    m.OrganizationalUnit.id != unit.id,
+                )
+            ).scalar_one_or_none()
+            if equivalent is not None:
+                mapping[unit.id] = equivalent.id
+            else:
+                unit.organization_id = survivor_id
+                unit.parent_unit_id = parent_id
+                mapping[unit.id] = unit.id
+            return mapping[unit.id]
+
+        for unit in units:
+            resolve(unit)
+        self._s.flush()
+        return mapping
+
+    def _merge_position_into_equivalent(self, position: m.Position) -> None:
+        """Si la superviviente ya tiene el puesto equivalente, se usa el suyo.
+
+        Dos filas con la misma identidad (organización, unidad, etiqueta
+        normalizada) repartirían las asignaciones de un único puesto real. Las
+        referencias del recién trasladado se mueven al existente y la copia se
+        retira; los PositionSlot duplicados exactos no se re-insertan.
+        """
+        equivalent = (
+            self._s.execute(
+                select(m.Position).where(
+                    m.Position.organization_id == position.organization_id,
+                    m.Position.organizational_unit_id == position.organizational_unit_id
+                    if position.organizational_unit_id is not None
+                    else m.Position.organizational_unit_id.is_(None),
+                    m.Position.label_normalized == position.label_normalized,
+                    m.Position.id != position.id,
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if equivalent is None:
+            return
+        for ra in self._s.execute(
+            select(m.RoleAssignment).where(m.RoleAssignment.position_id == position.id)
+        ).scalars():
+            ra.position_id = equivalent.id
+        for slot in self._s.execute(
+            select(m.PositionSlot).where(m.PositionSlot.position_id == position.id)
+        ).scalars():
+            already = self._s.execute(
+                select(m.PositionSlot.id).where(
+                    m.PositionSlot.position_id == equivalent.id,
+                    m.PositionSlot.external_scheme == slot.external_scheme,
+                    m.PositionSlot.external_code == slot.external_code,
+                )
+            ).first()
+            if already:
+                self._s.delete(slot)
+            else:
+                slot.position_id = equivalent.id
+        self._s.flush()
+        self._s.delete(position)
+        self._s.flush()
 
     def _absorb_person(self, duplicate_id: str, survivor_id: str) -> None:
         """Marca como fusionada una persona que se quedó sin menciones propias.

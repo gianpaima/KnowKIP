@@ -245,3 +245,125 @@ def test_reprocess_keeps_the_corroborating_sources_a_human_linked(session, inges
     )
     assert len(carried) == 1, "el enlace corroborante viaja al documento reconstruido"
     assert "decisión del operador" in carried[0].matched_by
+
+
+def test_reprocess_drops_the_residue_of_a_polluted_organization(session, ingest_service):
+    """Regresión del caso RM 299-2026-VIVIENDA: el extractor viejo fabricaba una
+    organización con la coletilla del régimen laboral pegada al nombre. Corregido
+    el extractor, el reproceso debe retirar la organización fabricada, su puesto
+    y su tarea pendiente — nada los sostiene ya — sin tocar lo legítimo."""
+    _ingest_then_forget(session, ingest_service)
+    doc = session.execute(select(m.LegalDocument)).scalars().one()
+    event = session.execute(select(m.PersonnelEvent)).scalars().first()
+    person_mention = session.execute(select(m.PersonMention)).scalars().first()
+
+    bogus_org = m.Organization(
+        preferred_name="Instituto Nacional X, bajo el régimen de la Ley N° 30057",
+        name_normalized="INSTITUTO NACIONAL X, BAJO EL REGIMEN DE LA LEY N° 30057",
+    )
+    session.add(bogus_org)
+    session.flush()
+    session.add(
+        m.OrganizationMention(
+            legal_document_id=doc.id,
+            text_raw=bogus_org.preferred_name,
+            text_normalized=bogus_org.name_normalized,
+            canonical_organization_id=bogus_org.id,
+            resolution_status=e.ResolutionStatus.AUTO_LINKED,
+        )
+    )
+    bogus_position = m.Position(
+        organization_id=bogus_org.id,
+        preferred_label="Asesor X",
+        label_normalized="ASESOR X",
+    )
+    session.add(bogus_position)
+    session.flush()
+    session.add(
+        m.RoleAssignment(
+            person_mention_id=person_mention.id,
+            position_id=bogus_position.id,
+            organization_id=bogus_org.id,
+            start_event_id=event.id,
+        )
+    )
+    bogus_task = m.ReviewTask(
+        task_type=e.ReviewTaskType.ORG_VARIANT_CHECK,
+        target_type="organization",
+        target_id=bogus_org.id,
+        reason="residuo del extractor anterior",
+    )
+    session.add(bogus_task)
+    # Tarea espejo: apunta a una organización legítima pero su premisa —la
+    # variante parecida— es la fabricada que el reproceso va a retirar.
+    legit_org = (
+        session.execute(select(m.Organization).where(m.Organization.id != bogus_org.id))
+        .scalars()
+        .first()
+    )
+    premise_task = m.ReviewTask(
+        task_type=e.ReviewTaskType.ORG_VARIANT_CHECK,
+        target_type="organization",
+        target_id=legit_org.id,
+        reason="es similar a la organización fabricada",
+    )
+    session.add(premise_task)
+    session.commit()
+    bogus_org_id, bogus_position_id, bogus_task_id = bogus_org.id, bogus_position.id, bogus_task.id
+    premise_task_id, legit_org_id = premise_task.id, legit_org.id
+    orgs_before = session.execute(select(func.count(m.Organization.id))).scalar_one()
+    session.expunge_all()
+
+    ingest_service.reprocess(ENCARGO_CODE)
+    session.commit()
+
+    assert session.get(m.Organization, bogus_org_id) is None
+    assert session.get(m.Position, bogus_position_id) is None
+    assert session.get(m.ReviewTask, bogus_task_id) is None
+    # La tarea sobre la organización legítima perdió su premisa y también se va;
+    # la organización legítima, no.
+    assert session.get(m.ReviewTask, premise_task_id) is None
+    assert session.get(m.Organization, legit_org_id) is not None
+    # Las organizaciones legítimas del documento siguen: las sostienen los
+    # puestos y asignaciones de la nueva extracción.
+    assert session.execute(select(func.count(m.Organization.id))).scalar_one() == orgs_before - 1
+
+
+def test_reprocess_keeps_a_dismissed_task_even_if_its_target_goes_away(session, ingest_service):
+    """Una tarea con decisión humana es trabajo humano: sobrevive a su objetivo."""
+    _ingest_then_forget(session, ingest_service)
+    doc = session.execute(select(m.LegalDocument)).scalars().one()
+    bogus_org = m.Organization(
+        preferred_name="Instituto Nacional Y, bajo el régimen de la Ley N° 30057",
+        name_normalized="INSTITUTO NACIONAL Y, BAJO EL REGIMEN DE LA LEY N° 30057",
+    )
+    session.add(bogus_org)
+    session.flush()
+    session.add(
+        m.OrganizationMention(
+            legal_document_id=doc.id,
+            text_raw=bogus_org.preferred_name,
+            text_normalized=bogus_org.name_normalized,
+            canonical_organization_id=bogus_org.id,
+            resolution_status=e.ResolutionStatus.AUTO_LINKED,
+        )
+    )
+    task = m.ReviewTask(
+        task_type=e.ReviewTaskType.ORG_VARIANT_CHECK,
+        target_type="organization",
+        target_id=bogus_org.id,
+        reason="residuo con decisión humana",
+        status=e.ReviewTaskStatus.DISMISSED,
+    )
+    session.add(task)
+    session.commit()
+    bogus_org_id, task_id = bogus_org.id, task.id
+    session.expunge_all()
+
+    ingest_service.reprocess(ENCARGO_CODE)
+    session.commit()
+
+    assert session.get(m.Organization, bogus_org_id) is None
+    kept = session.get(m.ReviewTask, task_id)
+    assert kept is not None
+    assert kept.status == e.ReviewTaskStatus.DISMISSED

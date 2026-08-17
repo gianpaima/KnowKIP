@@ -105,6 +105,44 @@ def strip_thanks(text: str) -> str:
     return _THANKS_RE.sub("", text).strip().rstrip(".;,")
 
 
+# Coletillas administrativas con que el artículo remata el cargo: el régimen
+# laboral de la contratación ("bajo el régimen de la Ley N° 30057, Ley del
+# Servicio Civil"), su modalidad CAS, la clasificación del puesto o su código.
+# Describen cómo se contrata, no qué puesto ni qué órgano: pegadas al texto del
+# cargo viajaban dentro del nombre de la organización y fabricaban entidades
+# como "Ministerio de Vivienda, Construcción y Saneamiento, bajo el régimen de
+# la Ley N° 30057". Se exige separador previo (coma o punto y coma) para no
+# tocar un nombre que contenga estas palabras sin ser coletilla.
+_ADMIN_CLAUSE_HEADS = (
+    r"bajo el r[ée]gimen\b",
+    r"bajo la modalidad\b",
+    r"(?:puesto|cargo) considerado de confianza\b",
+    r"perteneciente al grupo\b",
+    r"con c[oó]digo de puesto\b",
+)
+_ADMIN_CLAUSE_RE = re.compile(
+    r"[,;]\s*(?:y\s+)?(?:" + "|".join(_ADMIN_CLAUSE_HEADS) + r").*$",
+    re.IGNORECASE,
+)
+
+# "… del Ministerio de Defensa - Director de Sistema Administrativo II": el
+# cargo estructural del clasificador nacional pegado con guion tras la entidad.
+# Solo se recorta el repertorio clásico del clasificador (Sistema
+# Administrativo / Programa Sectorial con nivel romano): un guion genérico
+# partiría siglas legítimas ("… – COFOPRI").
+_STRUCTURAL_POSITION_RE = re.compile(
+    r"\s*[-–—]\s*(?:Director(?:a)?|Jef[ea]|Asesor(?:a)?|Especialista|Ejecutiv[oa]|Gerente)\s+"
+    r"de\s+(?:Sistema\s+Administrativo|Programa\s+Sectorial)\s+[IVXL]+\s*$",
+)
+
+
+def strip_admin_clauses(text: str) -> str:
+    """Recorta del final del texto del cargo las coletillas administrativas."""
+    cleaned = _ADMIN_CLAUSE_RE.sub("", text)
+    cleaned = _STRUCTURAL_POSITION_RE.sub("", cleaned)
+    return cleaned.strip().rstrip(".;,")
+
+
 def extract_position_slot(role_text: str) -> tuple[str, tuple[str, str, str] | None]:
     """Separa la cláusula de correlativo CAP. Devuelve (rol limpio, (scheme, code, frase))."""
     m = _SLOT_RE.search(role_text)

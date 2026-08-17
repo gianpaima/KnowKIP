@@ -120,6 +120,42 @@ def reprocess(publication_code: str = typer.Option(..., "--publication-code")) -
         _print_outcome(service.reprocess(publication_code))
 
 
+@app.command("sync-org-catalog")
+def sync_org_catalog(dry_run: bool = typer.Option(False, "--dry-run")) -> None:
+    """Enriquece con sigla y tipo las organizaciones que el catálogo curado conoce.
+
+    Solo toca coincidencias exactas del nombre normalizado con el nombre vigente
+    del catálogo (domain/state_entities.py) y solo completa lo que falta o
+    difiere: es idempotente y cada cambio se imprime, que es su auditoría.
+    """
+    from sqlalchemy import select
+
+    from kipu_knowledge.adapters.db import models as m
+    from kipu_knowledge.domain.state_entities import catalog_entity
+
+    changed = 0
+    with session_scope() as session:
+        for org in session.execute(select(m.Organization)).scalars():
+            if org.merged_into_organization_id is not None:
+                continue
+            entry = catalog_entity(org.name_normalized)
+            if entry is None:
+                continue
+            updates: list[str] = []
+            if org.acronym != entry.acronym:
+                updates.append(f"acronym: {org.acronym!r} -> {entry.acronym!r}")
+                if not dry_run:
+                    org.acronym = entry.acronym
+            if org.organization_type != entry.entity_type:
+                updates.append(f"type: {org.organization_type!r} -> {entry.entity_type!r}")
+                if not dry_run:
+                    org.organization_type = entry.entity_type
+            if updates:
+                changed += 1
+                typer.echo(f"{org.preferred_name}: " + "; ".join(updates))
+    typer.echo(f"{'(dry-run) ' if dry_run else ''}organizaciones actualizadas={changed}")
+
+
 @app.command("validate")
 def validate(publication_code: str = typer.Option(..., "--publication-code")) -> None:
     """Valida la proyección RDF de una publicación con SHACL."""

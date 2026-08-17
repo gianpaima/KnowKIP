@@ -365,7 +365,7 @@ class DeterministicExtractor:
             if verb.lower().startswith(("nombrar", "se nombra"))
             else EventType.DESIGNATION
         )
-        role_text = p.strip_thanks(m.group("role"))
+        role_text = p.strip_admin_clauses(p.strip_thanks(m.group("role")))
         role_text, slot = p.extract_position_slot(role_text)
         date_phrase = m.group("date")
         effective = _explicit_date(f"a partir del {date_phrase}" if date_phrase else None)
@@ -420,7 +420,7 @@ class DeterministicExtractor:
         result: ExtractionResult,
         constitutional_mandate: bool,
     ) -> None:
-        role_text = p.strip_thanks(m.group("role"))
+        role_text = p.strip_admin_clauses(p.strip_thanks(m.group("role")))
         participants: list[ExtractedParticipant] = []
         assignments: list[ExtractedAssignment] = []
         for item in list_items:
@@ -472,7 +472,7 @@ class DeterministicExtractor:
         expresa queda NOT_STATED, y lo que determine la norma se decide después
         (`domain/legal_effect.py`), nunca aquí.
         """
-        role_text = p.strip_thanks(m.group("role"))
+        role_text = p.strip_admin_clauses(p.strip_thanks(m.group("role")))
         participants: list[ExtractedParticipant] = []
         assignments: list[ExtractedAssignment] = []
         for item in list_items:
@@ -533,7 +533,7 @@ class DeterministicExtractor:
             )
             return False
 
-        role_text = p.strip_thanks(m.group("role"))
+        role_text = p.strip_admin_clauses(p.strip_thanks(m.group("role")))
         participants: list[ExtractedParticipant] = []
         assignments: list[ExtractedAssignment] = []
         for row in rows:
@@ -603,7 +603,7 @@ class DeterministicExtractor:
         result: ExtractionResult,
         completes_predecessor: bool,  # noqa: ARG002 - la renuncia no hereda mandato
     ) -> None:
-        role_text = p.strip_thanks(m.group("role"))
+        role_text = p.strip_admin_clauses(p.strip_thanks(m.group("role")))
         role_text, _ = p.extract_position_slot(role_text)
         date_phrase = m.group("date")
         effective = _explicit_date(f"a partir del {date_phrase}" if date_phrase else None)
@@ -632,7 +632,7 @@ class DeterministicExtractor:
         )
 
     def _end_designation(self, article: ParsedSection, m, result: ExtractionResult) -> None:  # noqa: ANN001
-        role_text = p.strip_thanks(m.group("role"))
+        role_text = p.strip_admin_clauses(p.strip_thanks(m.group("role")))
         mention = _mention(article, m.group("name"))
         result.events.append(
             ExtractedEvent(
@@ -670,7 +670,7 @@ class DeterministicExtractor:
             prior_kind = pm.group("kind")
             prior_doc = pm.group("num")
             rest = rest[: pm.start()].strip()
-        role_text = rest.strip().rstrip(".;,")
+        role_text = p.strip_admin_clauses(rest.strip().rstrip(".;,"))
 
         participants: list[ExtractedParticipant] = []
         # El artículo no siempre nombra a la persona afectada; se buscan en los
@@ -749,6 +749,7 @@ class DeterministicExtractor:
             resp = (resp[: am.start()] + resp[am.end() :]).strip().rstrip(".;,")
         # Recorta cláusulas normativas accesorias ("cuyas funciones u obligaciones...")
         resp = resp.split(", cuyas ")[0].strip().rstrip(".;,")
+        resp = p.strip_admin_clauses(resp)
         # El artículo suele identificar a la persona por el cargo que YA ocupa antes
         # de decir qué se le encarga. Ese cargo es un hecho distinto del encargo: se
         # registra aparte en vez de quedar pegado a la etiqueta del puesto encargado.

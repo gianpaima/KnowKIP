@@ -128,6 +128,37 @@ def normalize_org_name(raw: str) -> str:
     return re.sub(r"\s*-\s*", "-", text).rstrip(".")
 
 
+# Fragmentos que delatan una coletilla administrativa dentro de un nombre de
+# organización ya normalizado. Ningún órgano del Estado se llama "bajo el
+# régimen" de nada: si uno de estos aparece, la extracción arrastró la cláusula
+# de la contratación y el nombre no es un nombre. La lista sale de casos
+# reales (RM 299-2026-VIVIENDA y pares); ampliarla es barato y su único costo
+# es una tarea de revisión de más.
+_ORG_NAME_CONTAMINANTS = (
+    "BAJO EL REGIMEN",
+    "BAJO LA MODALIDAD",
+    "PUESTO CONSIDERADO DE CONFIANZA",
+    "CARGO CONSIDERADO DE CONFIANZA",
+    "PERTENECIENTE AL GRUPO",
+    "CODIGO DE PUESTO",
+    "DE SISTEMA ADMINISTRATIVO",
+    "DE PROGRAMA SECTORIAL",
+)
+
+
+def org_name_contamination(name_normalized: str) -> str | None:
+    """Primer fragmento administrativo hallado en un nombre de organización.
+
+    Devuelve el fragmento —para citarlo en la tarea de revisión— o None si el
+    nombre está limpio. Detectar no corrige: la corrección es del extractor o
+    del revisor; esto solo impide que el nombre contaminado pase en silencio.
+    """
+    for fragment in _ORG_NAME_CONTAMINANTS:
+        if fragment in name_normalized:
+            return fragment
+    return None
+
+
 def normalize_position_label(raw: str) -> str:
     """Etiqueta de puesto normalizada.
 

@@ -8,6 +8,7 @@ from kipu_knowledge.domain.normalization import (
     normalize_org_name,
     normalize_person_name,
     normalize_position_label,
+    org_name_contamination,
     parse_ddmmyyyy,
     parse_issue_line,
     parse_spanish_date,
@@ -146,3 +147,40 @@ def test_reordering_does_not_claim_identity():
 def test_what_does_not_look_like_a_split_name_is_left_alone(raw: str):
     """Ante la duda no se reordena: una grafía inventada no la encuentra nadie."""
     assert normalize_person_name(raw) == collapse_whitespace(strip_accents(raw)).upper()
+
+
+class TestOrgNameContamination:
+    """El guard que impide que un nombre con coletilla pase en silencio."""
+
+    @pytest.mark.parametrize(
+        ("raw", "fragment"),
+        [
+            (
+                "Ministerio de Vivienda, Construcción y Saneamiento, "
+                "bajo el régimen de la Ley N° 30057, Ley del Servicio Civil",
+                "BAJO EL REGIMEN",
+            ),
+            (
+                "Ministerio de Energía y Minas, puesto considerado de confianza",
+                "PUESTO CONSIDERADO DE CONFIANZA",
+            ),
+            ("OSINFOR, con código de puesto DP00102032", "CODIGO DE PUESTO"),
+            (
+                "Ministerio de Defensa - Directora de Sistema Administrativo II",
+                "DE SISTEMA ADMINISTRATIVO",
+            ),
+        ],
+    )
+    def test_detects_administrative_clauses(self, raw: str, fragment: str):
+        assert org_name_contamination(normalize_org_name(raw)) == fragment
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "Ministerio de Vivienda, Construcción y Saneamiento",
+            "Organismo de Formalización de la Propiedad Informal – COFOPRI",
+            "Superintendencia Nacional de Aduanas y de Administración Tributaria",
+        ],
+    )
+    def test_clean_names_pass(self, raw: str):
+        assert org_name_contamination(normalize_org_name(raw)) is None

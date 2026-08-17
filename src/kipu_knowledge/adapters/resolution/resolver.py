@@ -243,7 +243,13 @@ class SimpleEntityResolver:
     def _organization_candidates(self, name_normalized: str) -> list[MatchProposal]:
         exact = (
             self._session.execute(
-                select(Organization).where(Organization.name_normalized == name_normalized)
+                select(Organization).where(
+                    Organization.name_normalized == name_normalized,
+                    # Una fusionada ya no enlaza nada: enlazar contra ella
+                    # repartiría menciones nuevas entre el duplicado y la
+                    # superviviente, que es lo que la fusión vino a cerrar.
+                    Organization.merged_into_organization_id.is_(None),
+                )
             )
             .scalars()
             .all()
@@ -259,15 +265,31 @@ class SimpleEntityResolver:
         ]
 
     @staticmethod
-    def similar_org_exists(session: Session, name_normalized: str) -> Organization | None:
-        """Heurística mínima de variantes: contención de nombres largos."""
+    def similar_orgs(session: Session, name_normalized: str) -> list[Organization]:
+        """Heurística mínima de variantes: contención de nombres largos.
+
+        Devuelve todas las candidatas —la UI de ORG_VARIANT_CHECK las ofrece
+        para fusionar— excluyendo las ya fusionadas, que no son destino válido.
+        """
         if len(name_normalized) < 12:
-            return None
-        rows = session.execute(select(Organization)).scalars().all()
+            return []
+        rows = (
+            session.execute(
+                select(Organization).where(Organization.merged_into_organization_id.is_(None))
+            )
+            .scalars()
+            .all()
+        )
+        found: list[Organization] = []
         for org in rows:
             other = normalize_org_name(org.preferred_name)
             if other == name_normalized:
                 continue
             if other in name_normalized or name_normalized in other:
-                return org
-        return None
+                found.append(org)
+        return found
+
+    @staticmethod
+    def similar_org_exists(session: Session, name_normalized: str) -> Organization | None:
+        candidates = SimpleEntityResolver.similar_orgs(session, name_normalized)
+        return candidates[0] if candidates else None

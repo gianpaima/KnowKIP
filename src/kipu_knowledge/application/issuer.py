@@ -178,7 +178,14 @@ def ensure_document_issuer(
 
     normalized = normalize_org_name(issuer_raw)
     canonical = (
-        session.execute(select(m.Organization).where(m.Organization.name_normalized == normalized))
+        session.execute(
+            select(m.Organization).where(
+                m.Organization.name_normalized == normalized,
+                # Una organización fusionada ya no recibe vínculos nuevos: la
+                # superviviente es la que responde por ese nombre.
+                m.Organization.merged_into_organization_id.is_(None),
+            )
+        )
         .scalars()
         .all()
     )

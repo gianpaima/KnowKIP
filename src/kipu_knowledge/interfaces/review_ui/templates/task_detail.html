@@ -155,6 +155,10 @@ Fecha efectiva: {{ event.effective_from or "no expresada" }} <code>{{ event.effe
 <p style="margin:0">{{ organization.preferred_name }}
 {% if organization.acronym %}<span class="chip">{{ organization.acronym }}</span>{% endif %}<br>
 <span class="muted">normalizado «{{ organization.name_normalized }}» · {{ organization.organization_type }}</span></p>
+{% if organization.merged_into_organization_id %}
+<p class="warn" style="margin:.4rem 0 0">Ya fusionada en <code>{{ organization.merged_into_organization_id }}</code>:
+las menciones y puestos apuntan a la superviviente.</p>
+{% endif %}
 </section>
 {% endif %}
 
@@ -218,7 +222,7 @@ Estado de resolución: <code>{{ org_mention.resolution_status.value }}</code></p
     <label class="choice">
       <input type="radio" name="entity_id" value="{{ c.id }}" data-label="{{ c.label }}"{% if loop.first %} checked{% endif %}>
       <span><strong>{{ c.label }}</strong>
-      <a href="/review/persons/{{ c.id }}" target="_blank" rel="noopener">expediente ↗</a><br>
+      {% if entity_kind != "organization" %}<a href="/review/persons/{{ c.id }}" target="_blank" rel="noopener">expediente ↗</a>{% endif %}<br>
       <span class="muted">{{ c.rationale }} · {{ c.mentions }} mención(es) registradas</span>
       {# El documento donde la ficha apareció por primera vez —y como qué— es lo
          que permite comparar contra la mención nueva sin salir de la página. #}

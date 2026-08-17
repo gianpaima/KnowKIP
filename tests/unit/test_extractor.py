@@ -109,6 +109,73 @@ class TestVerbPatterns:
         assert assignment.valid_to.value == date(2026, 8, 4)
         assert "dándosele" not in assignment.position_label_raw
 
+    def test_designar_con_coletilla_de_regimen(self, extractor):
+        """Regresión RM 299-2026-VIVIENDA: la cláusula del régimen laboral no es
+        parte del nombre del órgano ni del puesto (fabricaba organizaciones como
+        "Ministerio de Vivienda…, bajo el régimen de la Ley N° 30057")."""
+        doc = _doc_with_articles(
+            "Artículo Único.- Designar al señor XAVIER ARNULFO ZAGACETA MALDONADO, en el "
+            "puesto de Asesor de Secretaría General del Ministerio de Vivienda, Construcción "
+            "y Saneamiento, bajo el régimen de la Ley N° 30057, Ley del Servicio Civil."
+        )
+        assignment = extractor.extract(doc).events[0].assignments[0]
+        assert assignment.org_path.organization_name == (
+            "Ministerio de Vivienda, Construcción y Saneamiento"
+        )
+        assert "régimen" not in assignment.position_label_raw
+
+    def test_designar_con_coletilla_puesto_de_confianza(self, extractor):
+        doc = _doc_with_articles(
+            "Artículo 1.- Designar a la señora Mayra Mercedes Elisabeth Figueroa Valderrama "
+            "Vda. De Sánchez, en el puesto de Viceministra de Minas del Ministerio de Energía "
+            "y Minas, puesto considerado de confianza."
+        )
+        assignment = extractor.extract(doc).events[0].assignments[0]
+        assert assignment.org_path.organization_name == "Ministerio de Energía y Minas"
+        assert "confianza" not in assignment.position_label_raw
+
+    def test_designar_con_regimen_cas_no_rompe_la_sigla(self, extractor):
+        """La sigla pegada con guion o raya es parte del nombre; la coletilla CAS no."""
+        doc = _doc_with_articles(
+            "Artículo 2.- Designar al señor Johan Jan Cubas Arias, en el cargo de Asesor I "
+            "de la Gerencia General del Organismo de Formalización de la Propiedad Informal "
+            "– COFOPRI, bajo el régimen especial de Contratación Administrativa de Servicios "
+            "regulado por el Decreto Legislativo N° 1057, bajo la modalidad de CAS confianza."
+        )
+        assignment = extractor.extract(doc).events[0].assignments[0]
+        assert assignment.org_path.organization_name == (
+            "Organismo de Formalización de la Propiedad Informal – COFOPRI"
+        )
+
+    def test_designar_con_grupo_y_codigo_de_puesto(self, extractor):
+        doc = _doc_with_articles(
+            "Artículo 1.- Designar, a partir del 10 de agosto de 2026, al señor Renato "
+            "Adrian Salinas Huett, en el puesto de confianza de Jefe de la Oficina de "
+            "Administración del Organismo de Supervisión de los Recursos Forestales y de "
+            "Fauna Silvestre – OSINFOR, perteneciente al grupo de Directivo Público, con "
+            "código de puesto DP00102032, bajo el régimen de la Ley N° 30057, Ley del "
+            "Servicio Civil."
+        )
+        event = extractor.extract(doc).events[0]
+        assignment = event.assignments[0]
+        assert event.effective_from.value == date(2026, 8, 10)
+        assert assignment.org_path.organization_name == (
+            "Organismo de Supervisión de los Recursos Forestales y de Fauna Silvestre – OSINFOR"
+        )
+        assert "DP00102032" not in assignment.position_label_raw
+
+    def test_designar_con_cargo_estructural_tras_guion(self, extractor):
+        """El cargo estructural del clasificador ("- Directora de Sistema
+        Administrativo II") tampoco es parte del nombre de la entidad."""
+        doc = _doc_with_articles(
+            "Artículo Único.- Designar a la señora GESSICA GISELLE REQUENA RENTERIA en el "
+            "cargo de Jefa de la Oficina General de Gestión Documentaria del Ministerio de "
+            "Defensa - Directora de Sistema Administrativo II."
+        )
+        assignment = extractor.extract(doc).events[0].assignments[0]
+        assert assignment.org_path.organization_name == "Ministerio de Defensa"
+        assert assignment.org_path.unit_chain == ["Oficina General de Gestión Documentaria"]
+
     def test_dar_por_concluida_designacion(self, extractor):
         doc = _doc_with_articles(
             "Artículo 1.- Dar por concluida la designación del señor PEDRO GOMEZ RIOS "

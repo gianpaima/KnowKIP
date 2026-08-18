@@ -299,7 +299,7 @@ def succession_chain_ids(session: Session, organization_id: str) -> list[str]:
     if org is None:
         return []
     chain = [org.id]
-    current = org
+    current: m.Organization | None = org
     hops = 0
     while current is not None and current.predecessor_organization_id is not None and hops < 10:
         current = session.get(m.Organization, current.predecessor_organization_id)

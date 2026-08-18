@@ -33,6 +33,12 @@ class SourceAuthority(StrEnum):
     OFFICIAL_GAZETTE = "OFFICIAL_GAZETTE"  # El Peruano (Normas Legales)
     ISSUING_ENTITY = "ISSUING_ENTITY"  # portal de la entidad que emitió el acto
     MIRROR = "MIRROR"  # recopilador o copia de terceros
+    # Fuentes de contexto (docs/web-context-design.md): peso jurídico nulo.
+    # Hablan de los actos, no los publican: un sistema con estas autoridades
+    # jamás aparece en document_source ni alimenta el registro funcional.
+    PRESS = "PRESS"  # medio de comunicación formal
+    SOCIAL_MEDIA = "SOCIAL_MEDIA"  # plataforma de red social (contenido público)
+    OTHER_WEB = "OTHER_WEB"  # otras fuentes web admitidas por la política
 
 
 class DocumentSourceRole(StrEnum):
@@ -102,6 +108,36 @@ class SectionType(StrEnum):
     PUBLICATION_CODE = "PUBLICATION_CODE"
     ANNEX = "ANNEX"
     OTHER = "OTHER"
+
+
+class WebDocumentKind(StrEnum):
+    """Qué clase de página web es un documento de contexto.
+
+    La distinción importa porque los metadatos disponibles y el trato difieren:
+    un artículo de prensa tiene byline y sección; un post tiene cuenta y no
+    titular; un perfil no afirma nada por sí mismo salvo la existencia y
+    descripción pública de la cuenta.
+    """
+
+    NEWS_ARTICLE = "NEWS_ARTICLE"
+    SOCIAL_POST = "SOCIAL_POST"
+    SOCIAL_PROFILE = "SOCIAL_PROFILE"  # página pública de una cuenta
+    INSTITUTIONAL_NEWS = "INSTITUTIONAL_NEWS"  # notas de prensa de entidades (gob.pe)
+    OTHER = "OTHER"
+
+
+class WebBodyScope(StrEnum):
+    """Cuánto del cuerpo del documento entregó el servidor a la captura.
+
+    Existe por los muros de pago: se captura solo lo que una petición simple y
+    sin sesión recibe (evadir el muro está prohibido por política), y el
+    sistema debe saber si tiene el texto entero o un recorte, para no citar
+    como completo lo que no lo es.
+    """
+
+    FULL = "FULL"
+    PARTIAL_PAYWALL = "PARTIAL_PAYWALL"
+    METADATA_ONLY = "METADATA_ONLY"
 
 
 class ReferenceType(StrEnum):
@@ -219,6 +255,13 @@ class ReviewTaskType(StrEnum):
     # ni siquiera cuando una es el diario oficial, porque una divergencia puede
     # significar fe de erratas, versión posterior o captura equivocada.
     SOURCE_DISCREPANCY = "SOURCE_DISCREPANCY"
+    # Mención en un documento de contexto web sin señal corroborante suficiente
+    # para vincularla a una persona: el nombre solo nunca vincula (homonimia).
+    WEB_MENTION_RESOLUTION = "WEB_MENTION_RESOLUTION"
+    # Un documento de contexto afirma algo incompatible con el registro
+    # funcional. A diferencia de SOURCE_DISCREPANCY, la resolución jamás
+    # modifica el registro oficial: el contexto no tiene autoridad sobre él.
+    WEB_DISCREPANCY = "WEB_DISCREPANCY"
 
 
 class ReviewTaskStatus(StrEnum):

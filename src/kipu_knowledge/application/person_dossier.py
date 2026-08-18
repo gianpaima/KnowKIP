@@ -41,6 +41,7 @@ from kipu_knowledge.domain.normalization import (
     normalize_position_label,
     person_name_tokens,
 )
+from kipu_knowledge.domain.web_context import is_short_name_form
 
 # Regla con la que se responde "¿qué ocupa hoy?": no es una inferencia nueva,
 # es la lectura de las asignaciones vigentes con las fechas que ya están
@@ -79,6 +80,10 @@ class PersonDossier:
     possible_duplicates: list[dict[str, Any]] = field(default_factory=list)
     current_roles: list[dict[str, Any]] = field(default_factory=list)
     coverage: dict[str, Any] = field(default_factory=dict)
+    # Capa de contexto atribuido (docs/web-context-design.md): lo que fuentes
+    # web admitidas publicaron sobre esta persona. Nunca se mezcla con el
+    # registro funcional de arriba: cada entrada dice quién lo publicó.
+    web_context: dict[str, Any] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -198,6 +203,7 @@ def build_dossier(session: Session, person_id: str, on: date | None = None) -> P
     dossier.open_reviews = _open_reviews(session, mentions, assignments)
     dossier.possible_duplicates = _possible_duplicates(resolver, person_id, aliases)
     dossier.coverage = _coverage(session, mentions)
+    dossier.web_context = _web_context(session, person_id, [a["spelling"] for a in aliases])
     return dossier
 
 
@@ -856,6 +862,133 @@ def _coverage(session: Session, mentions: list[m.PersonMention]) -> dict[str, An
             "este sistema. Que algo no aparezca aquí no significa que no exista."
         ),
     }
+
+
+def _web_context(session: Session, person_id: str, spellings: list[str]) -> dict[str, Any]:
+    """La capa de contexto atribuido de la ficha: documentos web y sus afirmaciones.
+
+    Cada entrada declara su publicador, su alcance de captura (`body_scope`) y
+    la cita en que se apoya. Los documentos cuya mención sigue sin resolver van
+    aparte, como las menciones sin atribuir del corpus: contarlos dentro sería
+    vincular por nombre.
+    """
+    # Una entrada por documento, no por mención: un artículo que nombra a la
+    # persona con tres grafías es UNA pieza de cobertura escrita de tres formas.
+    documents: list[dict[str, Any]] = []
+    by_doc: dict[str, dict[str, Any]] = {}
+    for mention in session.execute(
+        select(m.WebPersonMention).where(m.WebPersonMention.canonical_person_id == person_id)
+    ).scalars():
+        entry = by_doc.get(mention.web_document_id)
+        if entry is None:
+            entry = _web_document_entry(session, mention.web_document_id)
+            if entry is None:
+                continue
+            entry["claims"] = _web_claims(session, person_id, entry["artifact_version_id"])
+            by_doc[mention.web_document_id] = entry
+            documents.append(entry)
+        entry["mentions"].append(_web_mention_of(session, mention))
+    documents.sort(key=lambda row: row["published_at_raw"] or "", reverse=True)
+
+    # Las menciones web guardan la forma corta que escribió la fuente ("CESAR
+    # LUNA VICTORIA"); la ficha conoce grafías registrales completas. La
+    # comparación es la misma regla de formas cortas del extractor, aplicada
+    # aquí en memoria: la tabla de menciones sin resolver es pequeña.
+    unlinked: list[dict[str, Any]] = []
+    if spellings:
+        full_forms = [person_name_tokens(s) for s in spellings]
+        for mention in session.execute(
+            select(m.WebPersonMention).where(m.WebPersonMention.canonical_person_id.is_(None))
+        ).scalars():
+            run = person_name_tokens(mention.text_normalized)
+            if not any(is_short_name_form(run, full) for full in full_forms):
+                continue
+            entry = _web_document_entry(session, mention.web_document_id)
+            if entry is not None:
+                entry["mentions"].append(_web_mention_of(session, mention))
+                unlinked.append(entry)
+
+    return {
+        "documents": documents,
+        "unlinked_mentions": unlinked,
+        "note": (
+            "Contexto publicado por fuentes sin peso jurídico (prensa, web). Cada "
+            "afirmación es de su publicador, no del registro funcional: se muestra "
+            "con su cita y nunca crea ni modifica cargos ni fechas."
+        ),
+    }
+
+
+def _web_mention_of(session: Session, mention: m.WebPersonMention) -> dict[str, Any]:
+    return {
+        "written_as": mention.text_raw,
+        "resolution_status": str(mention.resolution_status),
+        "matched_by": mention.matched_by,
+        "evidence": _evidence_of(session, mention.evidence_span_id),
+    }
+
+
+def _web_document_entry(session: Session, web_document_id: str) -> dict[str, Any] | None:
+    doc = session.get(m.WebDocument, web_document_id)
+    if doc is None:
+        return None
+    item = session.get(m.PublicationItem, doc.publication_item_id)
+    system = session.get(m.SourceSystem, item.source_system_id) if item else None
+    references: list[dict[str, Any]] = []
+    for reference in session.execute(
+        select(m.WebReference).where(m.WebReference.web_document_id == doc.id)
+    ).scalars():
+        references.append(
+            {
+                "target_number_raw": reference.target_number_raw,
+                "resolved_document": _document_of(session, reference.target_document_id),
+                "evidence": _evidence_of(session, reference.evidence_span_id),
+            }
+        )
+    return {
+        "web_document_id": doc.id,
+        "artifact_version_id": doc.parsed_from_artifact_version_id,
+        "source_name": system.name if system else None,
+        "source_authority": str(system.authority) if system else None,
+        "kind": str(doc.kind),
+        "headline_raw": doc.headline_raw,
+        "published_at_raw": doc.published_at_raw,
+        "author_raw": doc.author_raw,
+        "section_raw": doc.section_raw,
+        "body_scope": str(doc.body_scope),
+        "canonical_url": item.canonical_url if item else None,
+        "mentions": [],
+        "references": references,
+    }
+
+
+def _web_claims(session: Session, person_id: str, artifact_version_id: str) -> list[dict[str, Any]]:
+    """Afirmaciones `web:*` vigentes extraídas de esa captura sobre esta persona."""
+    rows: list[dict[str, Any]] = []
+    for assertion, run in session.execute(
+        select(m.Assertion, m.ExtractionRun)
+        .join(m.ExtractionRun, m.ExtractionRun.id == m.Assertion.extraction_run_id)
+        .where(
+            m.ExtractionRun.artifact_version_id == artifact_version_id,
+            m.Assertion.subject_type == "person",
+            m.Assertion.subject_id == person_id,
+            m.Assertion.superseded_at.is_(None),
+            m.Assertion.predicate.like("web:%"),
+        )
+        .order_by(m.Assertion.predicate)
+    ).all():
+        rows.append(
+            {
+                "predicate": assertion.predicate,
+                "object_value": assertion.object_value_json,
+                "review_status": str(assertion.review_status),
+                "confidence": assertion.confidence,
+                "extracted_by": run.extractor_version
+                + (f" ({run.model_provider}/{run.model_name})" if run.model_provider else ""),
+                "evidence": _evidence_of(session, assertion.evidence_span_id),
+            }
+        )
+    return rows
 
 
 def persons_without_projected_facts(session: Session) -> list[dict[str, Any]]:

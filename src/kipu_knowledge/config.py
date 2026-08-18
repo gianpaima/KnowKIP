@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     llm_extractor_enabled: bool = False
     llm_provider: str = ""
     llm_model: str = ""
+    # Clave del proveedor LLM. Solo en .env (gitignored); jamás en el repo.
+    anthropic_api_key: str = ""
 
 
 @lru_cache

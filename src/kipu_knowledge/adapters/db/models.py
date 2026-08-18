@@ -667,6 +667,102 @@ class Signatory(PKMixin, Base):
 
 
 # ---------------------------------------------------------------------------
+# Contexto web atribuido: prensa, redes sociales y otras fuentes
+# (docs/web-context-design.md). Capa separada del registro funcional: nada de
+# aquí crea ni modifica eventos, asignaciones ni fechas de efectos.
+# ---------------------------------------------------------------------------
+
+
+class WebDocument(PKMixin, Base):
+    """Una página web de contexto según su propia captura.
+
+    Análogo de `legal_document` para fuentes sin peso jurídico: cuelga de un
+    `publication_item` (serie WEB, código derivado de la URL canónica) cuyo
+    `source_system` tiene autoridad PRESS/SOCIAL_MEDIA/OTHER_WEB, y todos sus
+    metadatos salen de los bytes capturados (JSON-LD schema.org, OpenGraph),
+    nunca de lo que el buscador o el extractor crean saber.
+    """
+
+    __tablename__ = "web_document"
+
+    publication_item_id: Mapped[str] = mapped_column(
+        ForeignKey("publication_item.id"), unique=True, index=True
+    )
+    kind: Mapped[e.WebDocumentKind] = mapped_column(_enum(e.WebDocumentKind, "web_document_kind"))
+    # Nulo en posts y perfiles: una publicación social no tiene titular y
+    # fabricarle uno sería contenido nuestro, no de la fuente.
+    headline_raw: Mapped[str | None] = mapped_column(String(1000))
+    published_at_raw: Mapped[str | None] = mapped_column(String(100))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    modified_at_raw: Mapped[str | None] = mapped_column(String(100))
+    author_raw: Mapped[str | None] = mapped_column(String(400))
+    # Handle de la cuenta que publica, en posts y perfiles. Distinto del autor:
+    # la cuenta es atribución del documento; el byline, un dato dentro de él.
+    account_raw: Mapped[str | None] = mapped_column(String(300))
+    section_raw: Mapped[str | None] = mapped_column(String(200))
+    language: Mapped[str | None] = mapped_column(String(10))
+    # Cuánto del cuerpo entregó el servidor (muros de pago): el sistema no debe
+    # citar como completo lo que no lo es.
+    body_scope: Mapped[e.WebBodyScope] = mapped_column(_enum(e.WebBodyScope, "web_body_scope"))
+    parsed_from_artifact_version_id: Mapped[str] = mapped_column(ForeignKey("artifact_version.id"))
+
+
+class WebPersonMention(PKMixin, Base):
+    """Aparición de una persona en un documento de contexto, con su evidencia.
+
+    Mismo patrón que `person_mention`, con una regla más dura: la vinculación
+    automática exige nombre + señal corroborante en el mismo documento (norma
+    ya ingerida que involucra a la persona, o cargo+organización de una
+    asignación vigente). Nombre solo abre tarea WEB_MENTION_RESOLUTION: el
+    corpus curado de identidades no se contamina con homónimos periodísticos.
+    """
+
+    __tablename__ = "web_person_mention"
+
+    web_document_id: Mapped[str] = mapped_column(ForeignKey("web_document.id"), index=True)
+    text_raw: Mapped[str] = mapped_column(String(400))
+    text_normalized: Mapped[str] = mapped_column(String(400), index=True)
+    # Cargo con que la fuente nombra a la persona ("el superintendente de la
+    # Sunat, …"); señal corroborante independiente del nombre, como en el corpus.
+    role_context_raw: Mapped[str | None] = mapped_column(String(1000))
+    role_context_normalized: Mapped[str | None] = mapped_column(String(1000), index=True)
+    evidence_span_id: Mapped[str] = mapped_column(ForeignKey("evidence_span.id"))
+    canonical_person_id: Mapped[str | None] = mapped_column(ForeignKey("person.id"), index=True)
+    resolution_status: Mapped[e.ResolutionStatus] = mapped_column(
+        _enum(e.ResolutionStatus, "resolution_status"), default=e.ResolutionStatus.UNRESOLVED
+    )
+    # La señal literal que sostuvo la vinculación automática ("cita RS
+    # 027-2026-EF ya ingerida", "cargo+org coincide con asignación vigente").
+    # Nula mientras no hay vinculación; auditable siempre que la haya.
+    matched_by: Mapped[str | None] = mapped_column(Text)
+    identity_precedent_id: Mapped[str | None] = mapped_column(
+        ForeignKey("identity_precedent.id"), index=True
+    )
+
+
+class WebReference(PKMixin, Base):
+    """Norma citada por un documento de contexto, anclada a su cita textual.
+
+    Análoga a `document_reference`. Es la única vinculación automática total
+    que la política permite sobre contexto, por ser mecánica y verificable: o
+    el número normalizado coincide con un `legal_document` ingerido o no. Con
+    `target_document_id` resuelto, el documento pasa de "habla de la persona"
+    a "cita el mismo acto que respalda su asignación".
+    """
+
+    __tablename__ = "web_reference"
+
+    web_document_id: Mapped[str] = mapped_column(ForeignKey("web_document.id"), index=True)
+    reference_type: Mapped[e.ReferenceType] = mapped_column(
+        _enum(e.ReferenceType, "reference_type")
+    )
+    target_document_id: Mapped[str | None] = mapped_column(ForeignKey("legal_document.id"))
+    target_number_raw: Mapped[str] = mapped_column(String(300))
+    target_doc_kind_raw: Mapped[str | None] = mapped_column(String(200))
+    evidence_span_id: Mapped[str] = mapped_column(ForeignKey("evidence_span.id"))
+
+
+# ---------------------------------------------------------------------------
 # Revisión humana y gobernanza de ontología
 # ---------------------------------------------------------------------------
 

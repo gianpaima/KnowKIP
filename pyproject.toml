@@ -63,6 +63,7 @@ no_implicit_optional = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src", "."]
 addopts = "-q"
 markers = [
     "pdf: pruebas que requieren el cuadernillo PDF (omitidas si no está disponible)",

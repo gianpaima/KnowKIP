@@ -103,3 +103,34 @@ def test_no_person_page_paints_an_empty_field(api_client, ingested_session):
         page = api_client.get(f"/review/persons/{person.id}")
         assert page.status_code == 200
         assert "None" not in page.text, f"campo vacío pintado en la ficha de {person.id}"
+
+
+def test_web_context_section_renders_with_citation_anchor(api_client, ingested_session, store):
+    """La sección "Contexto público" servida de verdad, con su ancla al acto."""
+    from tests.unit.test_web_enrich import (
+        ARTICLE_PARAGRAPHS,
+        ARTICLE_URL,
+        FakeFetcher,
+        article_html,
+    )
+
+    from kipu_knowledge.application.web_enrich import enrich_person
+
+    person = ingested_session.execute(
+        select(m.Person)
+        .join(m.PersonMention, m.PersonMention.canonical_person_id == m.Person.id)
+        .where(m.PersonMention.text_normalized == "CESAR ALFONSO LUNA VICTORIA LEON")
+        .limit(1)
+    ).scalar_one()
+    fetcher = FakeFetcher({ARTICLE_URL: article_html(ARTICLE_PARAGRAPHS)})
+    enrich_person(ingested_session, store, person.id, [ARTICLE_URL], fetcher)
+    ingested_session.commit()
+
+    page = api_client.get(f"/review/persons/{person.id}")
+    assert page.status_code == 200
+    html = page.text
+    assert "Contexto público (prensa y web)" in html
+    assert "RPP Noticias" in html
+    # El ancla al acto ingerido y su condición de contexto, visibles.
+    assert "Resolución Suprema 027-2026-EF" in html
+    assert "AUTO_LINKED" in html

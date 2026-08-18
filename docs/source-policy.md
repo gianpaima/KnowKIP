@@ -133,14 +133,100 @@ El emparejamiento entre fuentes **no es automático**: `link-source` exige
 
 ## Clasificación y finalidad de los datos
 
-- **Ámbito**: exclusivamente información funcional pública (quién ocupa qué
-  cargo público, según actos publicados en el diario oficial).
-- **Exclusiones**: no se extraen DNI ni otros identificadores personales; no se
-  enriquece con redes sociales ni fuentes externas; no se construyen perfiles
-  personales; no se interpreta culpabilidad, responsabilidad o idoneidad.
-- **Finalidad**: trazabilidad histórica y verificable de la función pública.
+Reestructurada el 2026-08-18 (antes: solo información funcional del diario
+oficial, sin fuentes externas ni perfiles). La versión anterior queda en el
+historial git; el cambio es deliberado y este es el texto vigente.
+
+- **Ámbito**: el **perfil público** de personas con función pública que ya
+  están en la base por un acto oficial ingerido: su registro funcional (cargos,
+  actos, fechas) más el contexto publicado sobre esa persona en fuentes
+  externas admitidas (prensa, portales institucionales, redes sociales
+  públicas).
+- **Dos capas que nunca se mezclan**:
+  - El **registro funcional** se construye exclusivamente de actos oficiales.
+    Ninguna fuente de contexto crea ni modifica cargos, eventos de personal ni
+    fechas de efectos, ni siquiera con revisión humana: si el contexto revela
+    un acto que falta, el camino es localizar e ingerir la norma.
+  - El **contexto** vive como afirmaciones atribuidas ("el medio M afirmó X"),
+    cada una con cita textual, captura inmutable y atribución al publicador.
+    Esto incluye trayectoria previa, formación, profesión, actividad privada
+    declarada por la fuente, cuentas públicas y declaraciones públicas, y
+    también señalamientos publicados (investigaciones, cuestionamientos)
+    siempre como dicho-de-la-fuente, jamás como hecho del sistema.
+- **Personas alcanzadas**: solo quienes ya existen en `person` por aparecer en
+  un acto oficial. El sistema no incorpora personas desde fuentes de contexto
+  ni sigue a particulares sin función pública.
+- **Exclusiones que se mantienen**: datos sensibles (salud, orientación,
+  religión, afiliación, datos de familiares y menores) aunque la fuente los
+  publique; identificadores personales fuera de los que declara un acto
+  oficial; contenido no público (cuentas privadas, grupos cerrados, contenido
+  tras login); y cualquier veredicto propio del sistema sobre culpabilidad,
+  responsabilidad o idoneidad — el sistema registra qué se publicó, no juzga.
+- **Finalidad**: trazabilidad histórica y verificable de la función pública y
+  de su contexto público, siempre con retorno a la fuente.
 - Los nombres de personas provienen del propio acto oficial publicado, que por
   ley es de acceso público; se conservan tal como aparecen, con evidencia.
+
+## Fuentes de contexto web (prensa, redes sociales y otras)
+
+Diseño en `docs/web-context-design.md`. Reglas de esta política:
+
+- **Lista blanca por publicador**: cada medio o plataforma se habilita
+  individualmente, con inspección fechada de su `robots.txt` y condiciones
+  registrada en este documento antes del primer uso en vivo — el mismo
+  procedimiento que El Peruano y gob.pe. La lista ejecutable vive en
+  `domain/web_sources.py` y debe reflejar exactamente lo inspeccionado aquí.
+- **Autoridad**: `PRESS`, `SOCIAL_MEDIA` u `OTHER_WEB`, todas con peso
+  jurídico nulo. Un `web_document` jamás participa en `document_source` como
+  publicación de un acto: habla de actos, no los publica.
+- **Misma mecánica de captura**: `PoliteFetcher` (User-Agent identificado,
+  rate limit, backoff), CAS con SHA-256, versiones inmutables. Se captura solo
+  lo que el servidor entrega a una petición simple y sin sesión: prohibido
+  evadir muros de pago, CAPTCHAs, límites o exigencias de login. `body_scope`
+  registra honestamente si se obtuvo el cuerpo completo, un recorte de muro de
+  pago o solo metadatos.
+- **Redes sociales**: únicamente contenido público de cuentas públicas
+  (institucionales o personales-públicas de quien ejerce la función). Las
+  condiciones de la plataforma mandan: si una plataforma no sirve contenido
+  público sin sesión o lo prohíbe, esa plataforma queda en `METADATA_ONLY` o
+  fuera, y así se documenta en su inspección.
+- **Los cuerpos capturados no se republican**: la API/UI expone metadatos, la
+  URL y las citas probatorias (`EvidenceSpan.quoted_text`), como con los PDF.
+- **Discrepancias**: contexto que contradice el registro funcional abre tarea
+  `WEB_DISCREPANCY`; su resolución nunca modifica el registro funcional.
+
+### Inspección de rpp.pe (2026-08-18, previa al alta)
+
+- `robots.txt` para `User-agent: *`: prohíbe `/buscar/*`, `/tema*`, `/amp/*`,
+  el archivo histórico (`/archivo/*/…`), `/alert*`, `/p/*`, `/basics/*` y
+  recursos internos. **Las páginas de artículo están permitidas.** Declara 11
+  sitemaps por sección.
+- Bloquea por nombre una lista de bots de entrenamiento de IA (GPTBot, CCBot,
+  anthropic-ai, Claudebot, Bytespider…). Este crawler no es ninguno de ellos:
+  se identifica con su propio User-Agent (`CRAWLER_USER_AGENT`), captura
+  artículos sueltos como evidencia y no republica cuerpos ni entrena modelos
+  con ellos. Si RPP añadiera una prohibición que alcance a crawlers
+  identificados genéricos, se re-inspecciona y se da de baja.
+- Artículos server-rendered con JSON-LD `NewsArticle` (titular, fechas, autor,
+  sección): el parser de metadatos no necesita ejecutar JavaScript.
+- **Consecuencia operativa**: el descubrimiento NO usa el buscador del sitio.
+  Las URLs las aporta el operador (o, a futuro, los sitemaps permitidos).
+
+### Inspección de larepublica.pe (2026-08-18, previa al alta)
+
+- `robots.txt` para `User-agent: *`: prohíbe `/buscador*`, paginación,
+  `/archive/*`, `/archivo/*`, `/envivo/*`, tags y rutas técnicas. **Artículos
+  permitidos**, y `Allow` explícito para `/sitemap*`, `/sitemaps*` y `/rss/*`
+  (26 sitemaps y 12 feeds RSS declarados: vía legítima de descubrimiento
+  futuro).
+- JSON-LD `NewsArticle` en artículos; server-rendered.
+- Misma consecuencia operativa que RPP: sin buscador del sitio; URLs del
+  operador o sitemaps/RSS.
+
+Ambas altas usan el `PoliteFetcher` de siempre (rate limit 2 s por defecto,
+sin concurrencia, backoff, cero evasión). El alta ejecutable —dominios
+admitidos y prefijos prohibidos— está en `domain/web_sources.py`; ampliar la
+lista exige nueva inspección fechada aquí.
 
 ## Fixtures del repositorio
 

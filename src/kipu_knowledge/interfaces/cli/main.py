@@ -698,6 +698,104 @@ def link_source(
         _echo_capture(outcome)
 
 
+@app.command("enrich-person")
+def enrich_person_cmd(
+    person_id: str,
+    url: list[str] = typer.Option(  # noqa: B008 - patrón de Typer
+        [], "--url", help="URL de un artículo admitido (repetible)"
+    ),
+    queries: bool = typer.Option(
+        False, "--queries", help="Solo imprime consultas sugeridas para buscar cobertura"
+    ),
+) -> None:
+    """Enriquece una ficha con contexto web (docs/web-context-design.md).
+
+    Las URLs las trae el operador: los robots.txt de los medios admitidos
+    prohíben usar sus buscadores. Con --queries imprime qué buscar afuera.
+    """
+    from kipu_knowledge.application.web_enrich import (
+        EnrichmentError,
+        UrlOutcome,
+        enrich_person,
+        suggested_queries,
+    )
+
+    with session_scope() as session:
+        try:
+            if queries:
+                for query in suggested_queries(session, person_id):
+                    typer.echo(query)
+                return
+            report = enrich_person(session, build_store_from_settings(), person_id, list(url))
+        except EnrichmentError as exc:
+            typer.secho(str(exc), fg=typer.colors.RED)
+            raise typer.Exit(code=1) from exc
+        typer.echo(f"persona: {report.person_name} — corrida {report.crawl_run_id}")
+        color = {
+            UrlOutcome.INGESTED: typer.colors.GREEN,
+            UrlOutcome.ALREADY_PRESENT: typer.colors.BLUE,
+            UrlOutcome.RETRY_PENDING: typer.colors.YELLOW,
+        }
+        for result in report.results:
+            typer.secho(
+                f"[{result.outcome}] {result.url} — {result.detail}",
+                fg=color.get(result.outcome, typer.colors.RED),
+            )
+
+
+@app.command("classify-web-context")
+def classify_web_context_cmd(web_document_id: str) -> None:
+    """Clasifica afirmaciones de contexto de un documento web ya capturado (LLM).
+
+    Requiere LLM_EXTRACTOR_ENABLED=true, LLM_PROVIDER=anthropic, LLM_MODEL y
+    ANTHROPIC_API_KEY. Cada cita propuesta se verifica byte a byte contra la
+    captura; lo que no aparece literal, se descarta.
+    """
+    from kipu_knowledge.adapters.extraction.web_llm import (
+        AnthropicWebContextClassifier,
+        WebClassifierNotConfigured,
+    )
+    from kipu_knowledge.application.web_claims import ClassificationError, classify_web_document
+
+    try:
+        classifier = AnthropicWebContextClassifier()
+    except WebClassifierNotConfigured as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+    with session_scope() as session:
+        try:
+            report = classify_web_document(
+                session, build_store_from_settings(), classifier, web_document_id
+            )
+        except ClassificationError as exc:
+            typer.secho(str(exc), fg=typer.colors.RED)
+            raise typer.Exit(code=1) from exc
+        typer.echo(
+            f"aceptadas={report.accepted} rechazadas={report.rejected} "
+            f"reemplazadas={report.superseded} corrida={report.extraction_run_id}"
+        )
+        for outcome in report.outcomes:
+            color = typer.colors.GREEN if outcome.accepted else typer.colors.YELLOW
+            typer.secho(
+                f"[{'OK' if outcome.accepted else 'NO'}] {outcome.predicate}: "
+                f"«{outcome.quote_preview}» — {outcome.reason}",
+                fg=color,
+            )
+
+
+@app.command("web-sources")
+def web_sources_cmd() -> None:
+    """Lista los publicadores de contexto admitidos y su inspección."""
+    from kipu_knowledge.domain.web_sources import WEB_SOURCES
+
+    for spec in WEB_SOURCES:
+        typer.echo(
+            f"{spec.name} ({spec.source_family}) — {spec.authority} — "
+            f"inspeccionado {spec.inspected_on.isoformat()}"
+        )
+        typer.echo(f"  {spec.inspection_notes}")
+
+
 @app.command("serve")
 def serve(host: str = "127.0.0.1", port: int = 8000, reload: bool = False) -> None:
     """Arranca la API + UI de revisión."""

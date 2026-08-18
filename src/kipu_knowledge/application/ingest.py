@@ -539,7 +539,7 @@ class IngestService:
                 # de la extracción reemplazada: la re-extracción abre las suyas
                 # sobre las menciones nuevas. Sin esto quedaban tareas PENDING
                 # apuntando a filas inexistentes (igual que puestos y orgs).
-                if table is m.PersonMention:
+                if isinstance(derived, m.PersonMention):
                     self._drop_pending_tasks_for("person_mention", derived.id)
                 session.delete(derived)
         # Las menciones de organización se rehacen como las de persona. El emisor

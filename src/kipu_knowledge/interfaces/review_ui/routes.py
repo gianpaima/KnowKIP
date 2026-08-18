@@ -1009,6 +1009,9 @@ _AUTHORITY_LABEL = {
     e.SourceAuthority.OFFICIAL_GAZETTE: "diario oficial",
     e.SourceAuthority.ISSUING_ENTITY: "entidad emisora",
     e.SourceAuthority.MIRROR: "copia de terceros",
+    e.SourceAuthority.PRESS: "prensa (contexto)",
+    e.SourceAuthority.SOCIAL_MEDIA: "red social (contexto)",
+    e.SourceAuthority.OTHER_WEB: "web (contexto)",
 }
 
 

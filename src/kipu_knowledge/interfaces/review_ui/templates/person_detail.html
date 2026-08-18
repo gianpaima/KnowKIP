@@ -281,6 +281,87 @@
 {% endif %}
 
 <!-- ------------------------------------------------------------------ -->
+{% if d.web_context.documents or d.web_context.unlinked_mentions %}
+<section class="card">
+  <h2 style="margin:0 0 .2rem">Contexto público (prensa y web)</h2>
+  <p class="muted" style="margin:0 0 .8rem">{{ d.web_context.note }}</p>
+
+  {% for w in d.web_context.documents %}
+  <article class="stack" style="padding:.8rem 0; border-top:1px solid var(--line)">
+    <p style="margin:0 0 .3rem">
+      <strong>{{ w.headline_raw or "(sin titular)" }}</strong>
+      <span class="chip">{{ w.source_name }}</span>
+      <span class="chip">{{ w.kind }}</span>
+      {% if w.body_scope != "FULL" %}<span class="chip warn">{{ w.body_scope }}</span>{% endif %}
+    </p>
+    <p class="muted" style="margin:0 0 .4rem">
+      {% if w.published_at_raw %}{{ w.published_at_raw }} · {% endif %}
+      {% if w.author_raw %}{{ w.author_raw }} · {% endif %}
+      {% if w.canonical_url %}<a href="{{ w.canonical_url }}" rel="noopener noreferrer" target="_blank">ver en la fuente</a>{% endif %}
+    </p>
+    {% for wm in w.mentions %}
+    <p style="margin:0 0 .4rem">
+      Nombrada como «{{ wm.written_as }}»
+      <span class="chip">{{ wm.resolution_status }}</span>
+      {% if wm.matched_by %}<span class="muted">— {{ wm.matched_by }}</span>{% endif %}
+    </p>
+    {% endfor %}
+    {% if w.references %}
+    <p class="muted" style="margin:0 0 .2rem">Normas que cita:</p>
+    <ul style="margin:0 0 .4rem">
+      {% for r in w.references %}
+      <li>
+        {{ r.target_number_raw }}
+        {% if r.resolved_document %}
+          — <span class="chip">ingerida</span> {{ doc_link(r.resolved_document) }}
+        {% else %}
+          — <span class="muted">no consta en el corpus</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if w.claims %}
+    <p class="muted" style="margin:0 0 .2rem">Lo que este documento afirma (siempre del publicador, con su cita):</p>
+    {% for c in w.claims %}
+    <div style="padding:.3rem 0">
+      <span class="chip">{{ c.predicate }}</span>
+      <span class="chip">{{ c.review_status }}</span>
+      <span class="muted">{{ c.extracted_by }}</span>
+      {{ evidence(c.evidence) }}
+    </div>
+    {% endfor %}
+    {% endif %}
+  </article>
+  {% endfor %}
+
+  {% if d.web_context.unlinked_mentions %}
+  <p class="warn" style="margin:.8rem 0 .4rem">
+    Documentos web que nombran esta grafía <strong>sin señal corroborante</strong>:
+    no forman parte del contexto de esta ficha hasta que un revisor decida.
+  </p>
+  {% for w in d.web_context.unlinked_mentions %}
+  <article class="stack" style="padding:.8rem 0; border-top:1px solid var(--line)">
+    {% for wm in w.mentions %}
+    <p style="margin:0 0 .3rem">
+      «{{ wm.written_as }}» en <strong>{{ w.headline_raw or "(sin titular)" }}</strong>
+      <span class="chip">{{ w.source_name }}</span>
+      <span class="chip">{{ wm.resolution_status }}</span>
+    </p>
+    {% endfor %}
+    {% if w.canonical_url %}
+    <p class="muted" style="margin:0 0 .4rem">
+      <a href="{{ w.canonical_url }}" rel="noopener noreferrer" target="_blank">ver en la fuente</a>
+    </p>
+    {% endif %}
+    {% for wm in w.mentions %}{{ evidence(wm.evidence) }}{% endfor %}
+  </article>
+  {% endfor %}
+  {% endif %}
+</section>
+{% endif %}
+
+<!-- ------------------------------------------------------------------ -->
 {% if d.unlinked_mentions %}
 <section class="card">
   <h2 style="margin:0 0 .2rem">Menciones con la misma grafía, sin atribuir</h2>

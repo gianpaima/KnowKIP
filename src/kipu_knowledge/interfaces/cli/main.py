@@ -127,20 +127,34 @@ def sync_org_catalog(dry_run: bool = typer.Option(False, "--dry-run")) -> None:
     Solo toca coincidencias exactas del nombre normalizado con el nombre vigente
     del catálogo (domain/state_entities.py) y solo completa lo que falta o
     difiere: es idempotente y cada cambio se imprime, que es su auditoría.
+
+    Además fusiona las fichas vivas cuyas grafías el catálogo declara de la
+    misma entidad ("… (OECE)" y "… – OECE" son el mismo organismo por dato
+    declarado): es el espejo persistente de la convergencia que la ingesta
+    aplica al crear, para fichas nacidas antes de que el catálogo conociera a
+    la entidad. Sobrevive la de nombre canónico; si ninguna lo lleva, la más
+    antigua. Las tareas pendientes sobre la absorbida quedan resueltas con su
+    decisión firmada por esta sincronización.
     """
     from sqlalchemy import select
 
     from kipu_knowledge.adapters.db import models as m
-    from kipu_knowledge.domain.state_entities import catalog_entity
+    from kipu_knowledge.application.review import ReviewService
+    from kipu_knowledge.domain import enums as e
+    from kipu_knowledge.domain.normalization import normalize_org_name
+    from kipu_knowledge.domain.state_entities import StateEntity, catalog_entity
 
     changed = 0
+    merged = 0
     with session_scope() as session:
-        for org in session.execute(select(m.Organization)).scalars():
+        by_entity: dict[int, tuple[StateEntity, list[m.Organization]]] = {}
+        for org in session.execute(select(m.Organization).order_by(m.Organization.id)).scalars():
             if org.merged_into_organization_id is not None:
                 continue
             entry = catalog_entity(org.name_normalized)
             if entry is None:
                 continue
+            by_entity.setdefault(id(entry), (entry, []))[1].append(org)
             updates: list[str] = []
             if org.acronym != entry.acronym:
                 updates.append(f"acronym: {org.acronym!r} -> {entry.acronym!r}")
@@ -153,7 +167,59 @@ def sync_org_catalog(dry_run: bool = typer.Option(False, "--dry-run")) -> None:
             if updates:
                 changed += 1
                 typer.echo(f"{org.preferred_name}: " + "; ".join(updates))
-    typer.echo(f"{'(dry-run) ' if dry_run else ''}organizaciones actualizadas={changed}")
+
+        service = ReviewService(session)
+        for entry, group in by_entity.values():
+            if len(group) < 2:
+                continue
+            canonical_normalized = normalize_org_name(entry.canonical_name)
+            survivor = next(
+                (o for o in group if o.name_normalized == canonical_normalized), group[0]
+            )
+            for org in group:
+                if org.id == survivor.id:
+                    continue
+                merged += 1
+                typer.echo(
+                    f"fusión declarada: '{org.preferred_name}' -> '{survivor.preferred_name}' "
+                    f"({entry.acronym or entry.canonical_name})"
+                )
+                if dry_run:
+                    continue
+                pending = (
+                    session.execute(
+                        select(m.ReviewTask).where(
+                            m.ReviewTask.target_type == "organization",
+                            m.ReviewTask.target_id == org.id,
+                            m.ReviewTask.status == e.ReviewTaskStatus.PENDING,
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                if pending:
+                    # La fusión resuelve la pregunta que la tarea hacía; la
+                    # decisión queda firmada por la sincronización, no anónima.
+                    service.decide(
+                        pending[0].id,
+                        e.DecisionAction.LINK_ENTITY,
+                        reviewer="sync-org-catalog",
+                        payload={"entity_id": survivor.id},
+                        notes="grafías declaradas de la misma entidad por el catálogo curado",
+                    )
+                    for task in pending[1:]:
+                        service.decide(
+                            task.id,
+                            e.DecisionAction.DISMISS,
+                            reviewer="sync-org-catalog",
+                            notes="resuelta por la fusión declarada del catálogo",
+                        )
+                else:
+                    service.merge_declared_duplicate(org.id, survivor.id)
+    typer.echo(
+        f"{'(dry-run) ' if dry_run else ''}organizaciones actualizadas={changed} "
+        f"fusionadas={merged}"
+    )
 
 
 @app.command("validate")
@@ -260,6 +326,12 @@ def ingest_date(
 def retry_pending(
     limit: int = typer.Option(None, "--limit"),
     no_pdf: bool = typer.Option(False, "--no-pdf"),
+    include_failed: bool = typer.Option(
+        False,
+        "--include-failed",
+        help="Reintenta también lo FAILED (tras corregir el parser); reevalúa la "
+        "relevancia con las reglas vigentes antes de pedir nada",
+    ),
 ) -> None:
     """Reintenta los dispositivos que quedaron con un fallo transitorio.
 
@@ -270,7 +342,9 @@ def retry_pending(
 
     with session_scope() as session:
         service = DailyIngestService(session, build_store_from_settings())
-        results = service.retry_pending(limit=limit, capture_pdf=not no_pdf)
+        results = service.retry_pending(
+            limit=limit, capture_pdf=not no_pdf, include_failed=include_failed
+        )
     if not results:
         typer.echo("No hay dispositivos pendientes de reintento.")
         return
@@ -456,6 +530,42 @@ def resolve_affected(
             f"[{row.outcome}] tarea={row.task_id} doc={row.document_number or '?'} — {row.detail}",
             fg=color,
         )
+
+
+@app.command("resolve-positions-by-issuer")
+def resolve_positions_by_issuer(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Solo evalúa; no modifica nada"),
+) -> None:
+    """Resuelve puestos sin órgano cuando la resolución es del propio organismo.
+
+    Condición estrecha (ver application/position_org.py): emisora declarada por
+    el índice, resuelta a un organismo del catálogo —nunca un ministerio ni la
+    PCM— y tipo documental que no sea RS ni RM, porque un pliego designa con
+    frecuencia en entidades adscritas. Todo lo demás queda para el revisor."""
+    from kipu_knowledge.application.position_org import (
+        IssuerResolutionOutcome,
+        resolve_pending_position_orgs,
+    )
+
+    with session_scope() as session:
+        results = resolve_pending_position_orgs(session, dry_run=dry_run)
+    if not results:
+        typer.echo("No hay tareas POSITION_ORG_UNRESOLVED pendientes.")
+        return
+    colors = {
+        IssuerResolutionOutcome.RESOLVED: typer.colors.GREEN,
+        IssuerResolutionOutcome.ALREADY_RESOLVED: typer.colors.WHITE,
+        IssuerResolutionOutcome.NO_DOCUMENT: typer.colors.WHITE,
+    }
+    for row in results:
+        typer.secho(
+            f"[{row.outcome}] tarea={row.task_id[:8]} — {row.detail}",
+            fg=colors.get(row.outcome, typer.colors.YELLOW),
+        )
+    resolved = sum(1 for r in results if r.outcome == IssuerResolutionOutcome.RESOLVED)
+    typer.echo(
+        f"{resolved} de {len(results)} {'a resolver' if dry_run else 'resueltas'} por emisora"
+    )
 
 
 @app.command("backfill-source-links")

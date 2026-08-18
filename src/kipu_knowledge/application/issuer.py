@@ -11,11 +11,15 @@ el encabezado puede registrarse como mención de organización con cita literal.
 
 Lo que ese encabezado NO es, es el nombre registral de la entidad: el índice
 escribe "MUJER Y POBLACIONES VULNERABLES" donde la entidad se llama "Ministerio
-de la Mujer y Poblaciones Vulnerables". Por eso la mención solo se vincula a una
-organización canónica si la grafía normalizada coincide exactamente con una ya
-existente, y **nunca crea una organización nueva**: fabricar entidades canónicas
-desde rótulos de catálogo sembraría duplicados que después alguien tendría que
-fusionar a mano.
+de la Mujer y Poblaciones Vulnerables". Por eso la mención solo se vincula
+cuando la identidad no requiere parecido: o la grafía normalizada coincide
+exactamente con una organización existente, o el catálogo curado
+(domain/state_entities.py) declara a qué entidad corresponde el rótulo —el
+índice sectorial y las siglas son grafías registradas allí—. En ese segundo
+caso, si la entidad aún no tiene ficha, la mención del emisor es la evidencia
+con la que nace, y nace con su **nombre canónico registral**, no con el rótulo:
+así no se siembran duplicados y las grafías posteriores convergen en ella.
+Un rótulo que ni coincide ni figura en el catálogo queda sin vincular.
 
 Sin evidencia no se registra nada (regla 2): si los bytes del listado faltan,
 no cuadran con su sha256 o no contienen el encabezado, el emisor queda sin
@@ -37,6 +41,7 @@ from kipu_knowledge.application.source_links import verified_bytes
 from kipu_knowledge.domain import enums as e
 from kipu_knowledge.domain.contracts import ArtifactStore
 from kipu_knowledge.domain.normalization import normalize_org_name
+from kipu_knowledge.domain.state_entities import catalog_entity, parent_entity
 
 RULE_VERSION = "issuer-from-index/1.0"
 SPAN_KIND = "listing_issuer_heading"
@@ -57,6 +62,71 @@ class IssuerResult:
     outcome: IssuerOutcome
     issuer_raw: str | None
     detail: str
+
+
+def _resolve_issuer_org(session: Session, normalized: str) -> m.Organization | None:
+    """Organización a la que el rótulo del índice corresponde, si la identidad
+    no requiere parecido.
+
+    Primero la coincidencia exacta y única de grafía; después el catálogo
+    curado, que registra el rótulo sectorial y las siglas como grafías de la
+    entidad. Si el catálogo la conoce y no tiene ficha, la mención del emisor
+    es la evidencia con la que nace —con su nombre canónico registral—. El
+    parecido nunca decide nada.
+    """
+    exact = (
+        session.execute(
+            select(m.Organization).where(
+                m.Organization.name_normalized == normalized,
+                # Una organización fusionada ya no recibe vínculos nuevos: la
+                # superviviente es la que responde por ese nombre.
+                m.Organization.merged_into_organization_id.is_(None),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if len(exact) == 1:
+        return exact[0]
+    if len(exact) > 1:
+        return None
+    entry = catalog_entity(normalized)
+    if entry is None:
+        return None
+    canonical_normalized = normalize_org_name(entry.canonical_name)
+    same_entity = [
+        org
+        for org in session.execute(
+            select(m.Organization)
+            .where(m.Organization.merged_into_organization_id.is_(None))
+            .order_by(m.Organization.id)
+        ).scalars()
+        if catalog_entity(org.name_normalized) is entry
+    ]
+    if same_entity:
+        return next(
+            (org for org in same_entity if org.name_normalized == canonical_normalized),
+            same_entity[0],
+        )
+    org = m.Organization(
+        preferred_name=entry.canonical_name,
+        name_normalized=canonical_normalized,
+        acronym=entry.acronym,
+        organization_type=entry.entity_type,
+    )
+    parent = parent_entity(entry)
+    if parent is not None:
+        parent_row = session.execute(
+            select(m.Organization).where(
+                m.Organization.name_normalized == normalize_org_name(parent.canonical_name),
+                m.Organization.merged_into_organization_id.is_(None),
+            )
+        ).scalar_one_or_none()
+        if parent_row is not None:
+            org.parent_organization_id = parent_row.id
+    session.add(org)
+    session.flush()
+    return org
 
 
 def _declared_issuer(session: Session, doc: m.LegalDocument) -> tuple[str, str] | None:
@@ -177,21 +247,7 @@ def ensure_document_issuer(
     session.flush()
 
     normalized = normalize_org_name(issuer_raw)
-    canonical = (
-        session.execute(
-            select(m.Organization).where(
-                m.Organization.name_normalized == normalized,
-                # Una organización fusionada ya no recibe vínculos nuevos: la
-                # superviviente es la que responde por ese nombre.
-                m.Organization.merged_into_organization_id.is_(None),
-            )
-        )
-        .scalars()
-        .all()
-    )
-    # Solo la coincidencia exacta y única autoriza el vínculo automático; el
-    # rótulo del índice no es el nombre registral y el parecido no decide nada.
-    linked = canonical[0] if len(canonical) == 1 else None
+    linked = _resolve_issuer_org(session, normalized)
     mention = m.OrganizationMention(
         legal_document_id=doc.id,
         text_raw=issuer_raw,
@@ -235,6 +291,52 @@ def backfill_issuers(
     )
     for doc in docs:
         results.append(ensure_document_issuer(session, store, doc, dry_run=dry_run))
+
+    # Segunda pasada: menciones de emisor registradas cuando el rótulo no
+    # resolvía a ninguna organización. El catálogo puede conocerlas hoy (una
+    # entidad curada después, un alias sectorial nuevo): la cita ya está; solo
+    # falta el vínculo, y vincularlo tarde es igual de declarativo.
+    unresolved = session.execute(
+        select(m.LegalDocument, m.OrganizationMention)
+        .join(m.OrganizationMention, m.OrganizationMention.id == m.LegalDocument.issuer_mention_id)
+        .where(m.OrganizationMention.canonical_organization_id.is_(None))
+        .order_by(m.LegalDocument.number_normalized)
+    ).all()
+    for doc, mention in unresolved:
+        item = session.get(m.PublicationItem, doc.publication_item_id)
+        code = item.publication_code if item is not None else None
+        linked = None if dry_run else _resolve_issuer_org(session, mention.text_normalized)
+        if dry_run:
+            entry = catalog_entity(mention.text_normalized)
+            detail = (
+                f"[dry-run] vincularía «{mention.text_raw}» a {entry.canonical_name}"
+                if entry is not None
+                else "el rótulo sigue sin resolver a ninguna organización"
+            )
+            results.append(
+                IssuerResult(
+                    doc.number_raw,
+                    code,
+                    IssuerOutcome.LINKED if entry is not None else IssuerOutcome.NO_EVIDENCE,
+                    mention.text_raw,
+                    detail,
+                )
+            )
+            continue
+        if linked is None:
+            continue
+        mention.canonical_organization_id = linked.id
+        mention.resolution_status = e.ResolutionStatus.AUTO_LINKED
+        results.append(
+            IssuerResult(
+                doc.number_raw,
+                code,
+                IssuerOutcome.LINKED,
+                mention.text_raw,
+                f"emisor «{mention.text_raw}» vinculado a {linked.preferred_name} "
+                f"(grafía declarada por el catálogo)",
+            )
+        )
     session.flush()
     return results
 

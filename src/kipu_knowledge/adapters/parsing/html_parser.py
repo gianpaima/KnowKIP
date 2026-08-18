@@ -4,7 +4,9 @@ Estrategia:
 1. Delimitar el contenedor real del dispositivo: div#x<codigo> (nunca el body completo;
    la página del buscador incluye navegación, publicidad y hasta títulos incrustados de
    OTROS dispositivos, como se observó en fixtures reales).
-2. Validar campos obligatorios: sumilla, tipo, número y código de publicación.
+2. Validar campos obligatorios: sumilla, tipo y número. (El código de
+   publicación como <p> final es redundante con el contenedor y la maquetación
+   alterna lo omite: si aparece se conserva como sección, si falta no invalida.)
 3. Segmentar en secciones tipadas conservando el texto original y el orden.
 
 Falla de forma explícita (ParseError) si el contenedor no existe o faltan campos.
@@ -36,11 +38,24 @@ _DOC_TYPE_MAP = {
     "RESOLUCION DIRECTORAL": DocumentTypeCode.RESOLUCION_DIRECTORAL,
 }
 
+# La maquetación estándar numera "Artículo 1.-"; la alterna (SBS, Despacho
+# Presidencial) escribe el ordinal en letras: "Artículo Primero.-". Ambas son
+# la misma cosa dicha por la fuente y ambas abren artículo.
+_ORDINAL_WORDS = (
+    r"(?:D[ée]cimo\s+)?(?:Primero|Segundo|Tercero|Cuarto|Quinto|Sexto|"
+    r"S[ée]ptimo|Octavo|Noveno)|D[ée]cimo|Vig[ée]simo"
+)
 _ARTICLE_LABEL_RE = re.compile(
-    r"^(?P<label>Art[íi]culo\s+(?:[ÚU]nico|\d+)\s*[º°]?\s*[.-]*)\s*",
+    r"^(?P<label>Art[íi]culo\s+(?:[ÚU]nico|\d+|" + _ORDINAL_WORDS + r")\s*[º°]?\s*[.-]*)\s*",
     re.IGNORECASE,
 )
 _CLOSING_RE = re.compile(r"^Reg[íi]strese[,.]?\s", re.IGNORECASE)
+# La maquetación alterna publica tipo y número en un único <h2>
+# ("RESOLUCIÓN SBS N° 01976-2026", "RESOLUCIÓN N° 000064-2026-DP/SGDP") en vez
+# de dos. El tipo es lo que precede al marcador de número; el número, el resto.
+_COMBINED_TYPE_NUMBER_RE = re.compile(
+    r"^(?P<type>[^\d]+?)\s+(?P<number>N[º°.]\s*\S.*)$",
+)
 # Marcador que encabeza una sección: "VISTOS:", "VISTOS,", "CONSIDERANDO:",
 # "SE RESUELVE:". El párrafo puede seguir en la misma línea —"VISTOS, el
 # Proveído Nº …; y,"— y entonces el label es solo el marcador, no el párrafo
@@ -48,9 +63,13 @@ _CLOSING_RE = re.compile(r"^Reg[íi]strese[,.]?\s", re.IGNORECASE)
 # el párrafo como etiqueta además de ser falso desbordaba la columna (200) en
 # PostgreSQL, cosa que SQLite no comprueba y las pruebas no veían.
 _SECTION_MARKER_RE = re.compile(
-    r"^\s*(?:VISTOS?|Y\s+CONSIDERANDO|CONSIDERANDO|SE\s+RESUELVE)\s*[:,.\-]*",
+    r"^\s*(?:VISTOS?|Y\s+CONSIDERANDO|CONSIDERANDO|SE\s+RESUELVE|RESUELVE)\s*[:,.\-]*",
     re.IGNORECASE,
 )
+# La maquetación alterna abre la parte resolutiva con "RESUELVE:" a secas (el
+# sujeto va en un párrafo anterior: "EL SUPERINTENDENTE ... CONSIDERANDO ...").
+# Con frontera de palabra: "RESUELVEN el recurso..." no abre nada.
+_RESOLVE_HEAD_RE = re.compile(r"^(?:SE\s+)?RESUELVE\b")
 _LIST_ITEM_RE = re.compile(r"^-\s+\S")
 _PUBLICATION_DATE_RE = re.compile(
     r"Fecha de publicaci[oó]n:\s*(?:<!--\s*-->)?\s*(\d{2}/\d{2}/\d{4})"
@@ -156,7 +175,6 @@ class ElPeruanoHtmlParser:
         title_raw: str | None = None
         doc_type_raw: str | None = None
         number_raw: str | None = None
-        publication_code_seen: str | None = None
         issue_place: str | None = None
         issued_on = None
 
@@ -219,13 +237,26 @@ class ElPeruanoHtmlParser:
             upper = strip_accents(text).upper()
 
             if el.tag == "h1":
-                title_raw = text
+                # La maquetación alterna parte la sumilla en varios <h1>
+                # consecutivos; es un solo título dicho en varias líneas y
+                # quedarse con la última lo convertía en un fragmento sin sentido.
+                title_raw = f"{title_raw} {text}" if title_raw else text
                 add(SectionType.SUMMARY, text)
                 continue
             if el.tag == "h2":
                 if doc_type_raw is None:
-                    doc_type_raw = text
-                    add(SectionType.DOC_TYPE, text)
+                    combined = _COMBINED_TYPE_NUMBER_RE.match(text)
+                    if combined is not None:
+                        # Un solo <h2> con tipo y número juntos (maquetación
+                        # alterna). Se separan para que `number_normalized` no
+                        # arrastre el tipo, pero la sección conserva el texto
+                        # íntegro tal como lo publicó la fuente.
+                        doc_type_raw = combined.group("type").strip()
+                        number_raw = combined.group("number").strip()
+                        add(SectionType.DOC_NUMBER, text)
+                    else:
+                        doc_type_raw = text
+                        add(SectionType.DOC_TYPE, text)
                 elif number_raw is None:
                     number_raw = text
                     add(SectionType.DOC_NUMBER, text)
@@ -235,7 +266,6 @@ class ElPeruanoHtmlParser:
 
             # <p>: depende del estado
             if text == code:
-                publication_code_seen = text
                 add(SectionType.PUBLICATION_CODE, text)
                 continue
             if upper.startswith("VISTOS") or upper.startswith("VISTO:"):
@@ -246,7 +276,7 @@ class ElPeruanoHtmlParser:
                 state = "CONSIDERANDO"
                 add(SectionType.CONSIDERANDO, text, label=_section_marker(text))
                 continue
-            if upper.startswith("SE RESUELVE"):
+            if _RESOLVE_HEAD_RE.match(upper):
                 state = "RESOLVE"
                 add(SectionType.RESOLVE_HEADER, text, label=_section_marker(text))
                 continue
@@ -293,13 +323,16 @@ class ElPeruanoHtmlParser:
                 continue
             add(SectionType.OTHER, text)
 
+        # El código de publicación como <p> final es redundante con el
+        # contenedor div#x<código> —que ya ancló la identidad del dispositivo al
+        # entrar— y la maquetación alterna (decretos de alcaldía, entre otros) lo
+        # omite. Si aparece, se conserva como sección; su ausencia no invalida.
         missing = [
             name
             for name, value in {
                 "sumilla": title_raw,
                 "tipo de documento": doc_type_raw,
                 "número": number_raw,
-                "código de publicación": publication_code_seen,
             }.items()
             if not value
         ]

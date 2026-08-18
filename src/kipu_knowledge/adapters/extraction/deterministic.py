@@ -84,7 +84,9 @@ def _name_span(section: ParsedSection, name: str) -> EvidenceRef:
 
 
 def _mention(section: ParsedSection, name: str) -> ExtractedPersonMention:
-    cleaned = name.strip()
+    # ", identificado con DNI N° X" declara el documento, no el nombre; el
+    # identificador se atribuye aparte (`_identifiers`) desde el texto íntegro.
+    cleaned = p.strip_identity_clause(name.strip())
     return ExtractedPersonMention(
         text_raw=cleaned,
         evidence=_name_span(section, cleaned),
@@ -326,14 +328,26 @@ class DeterministicExtractor:
         if m and rows and self._tabular_collective(article, m, header, rows, result, starts=False):
             return True
 
+        # La guarda de nombre evalúa el nombre sin la cláusula "identificado con
+        # DNI N° …": la cláusula trae dígitos y descartaba el artículo entero.
         m = p.ACCEPT_RESIGNATION_RE.match(body)
-        if m and p.looks_like_person_name(m.group("name").strip()):
+        if m and p.looks_like_person_name(p.strip_identity_clause(m.group("name").strip())):
             self._accept_resignation(article, m, result, completes_predecessor)
             return True
 
-        m = p.END_DESIGNATION_RE.match(body)
-        if m:
-            self._end_designation(article, m, result)
+        # Un artículo puede encadenar dos términos: "Dejar sin efecto la
+        # designación del señor X …; asimismo, dejar sin efecto, la designación
+        # del señor Y …". Cada cláusula es su propio acto sobre su propia
+        # persona; sin partirlas, la segunda viajaba dentro del cargo de la
+        # primera y esa persona no producía evento.
+        end_matches = [
+            match
+            for match in (p.END_DESIGNATION_RE.match(clause) for clause in p.split_asimismo(body))
+            if match is not None
+        ]
+        if end_matches:
+            for match in end_matches:
+                self._end_designation(article, match, result)
             return True
 
         m = p.END_ACTING_RE.match(body)
@@ -342,12 +356,12 @@ class DeterministicExtractor:
             return True
 
         m = p.ENCARGAR_PERSON_RE.match(body)
-        if m and p.looks_like_person_name(m.group("name").strip()):
+        if m and p.looks_like_person_name(p.strip_identity_clause(m.group("name").strip())):
             self._encargar_person(article, m, result)
             return True
 
         m = p.START_EVENT_RE.match(body)
-        if m and p.looks_like_person_name(m.group("name").strip()):
+        if m and p.looks_like_person_name(p.strip_identity_clause(m.group("name").strip())):
             self._individual_start(article, m, result, completes_predecessor)
             return True
 
@@ -620,6 +634,15 @@ class DeterministicExtractor:
         role_text, _ = p.extract_position_slot(role_text)
         date_phrase = m.group("date")
         effective = _explicit_date(f"a partir del {date_phrase}" if date_phrase else None)
+        # "…, considerándosele como último día de labores el 7 de agosto de
+        # 2026 …": el fin declarado con otra fórmula. Se separa del puesto —o
+        # quedaría pegado a su etiqueta y al nombre del órgano— y vale como
+        # fecha expresada, no inferida (espejo del primer día de labores).
+        last_day = p.LAST_WORKDAY_RE.search(role_text)
+        if last_day:
+            role_text = role_text[: last_day.start()].strip().rstrip(".;,")
+            if effective.status != DateStatus.EXPLICIT:
+                effective = _explicit_date(last_day.group(0).strip(" ,"))
         mention = _mention(article, m.group("name"))
         assignment = ExtractedAssignment(
             person=mention,
@@ -683,16 +706,31 @@ class DeterministicExtractor:
             prior_kind = pm.group("kind")
             prior_doc = pm.group("num")
             rest = rest[: pm.start()].strip()
-        role_text = p.strip_admin_clauses(rest.strip().rstrip(".;,"))
 
         participants: list[ExtractedParticipant] = []
+        # "… el encargo del señor X en el puesto de Y": cuando el artículo nombra
+        # a la persona, se separa del puesto (o el nombre viajaba dentro de la
+        # etiqueta y del órgano) y la corroboración por considerandos sobra: la
+        # afirmación directa del artículo manda.
+        affected: ExtractedPersonMention | None = None
+        inline = p.ACTING_PERSON_INLINE_RE.match(rest.strip())
+        if inline and p.looks_like_person_name(
+            p.strip_identity_clause(inline.group("name").strip())
+        ):
+            affected = _mention(article, inline.group("name"))
+            rest = inline.group("role")
+            participants.append(
+                ExtractedParticipant(role=ParticipantRole.AFFECTED_PERSON, person=affected)
+            )
+        role_text = p.strip_admin_clauses(p.strip_thanks(rest.strip().rstrip(".;,")))
+
         # El artículo no siempre nombra a la persona afectada; se buscan en los
         # considerandos TODOS los candidatos ("se encarga a la señora X, …, el
         # puesto de Y"), no solo el primero: dos encargos declarados son una
         # contradicción que debe abrir conflicto, nunca una elección silenciosa.
         # Junto al nombre se captura el puesto encargado y el instrumento citado,
         # que son los datos contra los que el persister corrobora.
-        for recital in considerandos:
+        for recital in [] if affected is not None else considerandos:
             rm = p.RECITAL_ENCARGO_RE.search(recital.text_normalized)
             if rm and p.looks_like_person_name(rm.group("name").strip()):
                 # El instrumento relevante es el último citado ANTES de "se
@@ -721,7 +759,7 @@ class DeterministicExtractor:
                 participants=participants,
                 assignments=[
                     ExtractedAssignment(
-                        person=None,
+                        person=affected,
                         position_label_raw=role_text,
                         org_path=_org_path(role_text),
                         assignment_kind=AssignmentKind.ACTING,
@@ -907,6 +945,15 @@ class DeterministicExtractor:
                 )
                 result.signatories.append(current)
             elif current is not None:
-                current.capacity_raw = (
-                    f"{current.capacity_raw}, {text}" if current.capacity_raw else text
-                )
+                # La capacidad del firmante son unas pocas líneas cortas bajo el
+                # nombre (cargo, órgano, entidad; a veces partidas a media frase
+                # por el ancho de columna). Un anexo pegado tras el cierre
+                # ("Lineamientos…", articulado numerado) cae en el mismo estado y
+                # desbordaba la columna con miles de caracteres: una línea larga,
+                # una con dígitos o exceder el presupuesto total ya no describe a
+                # nadie y cierra la atribución.
+                joined = f"{current.capacity_raw}, {text}" if current.capacity_raw else text
+                if len(text) > 120 or len(joined) > 380 or any(ch.isdigit() for ch in text):
+                    current = None
+                    continue
+                current.capacity_raw = joined

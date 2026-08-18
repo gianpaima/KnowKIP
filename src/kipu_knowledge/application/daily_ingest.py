@@ -273,22 +273,28 @@ class DailyIngestService:
     # ------------------------------------------------------------------
 
     def retry_pending(
-        self, *, limit: int | None = None, capture_pdf: bool = True
+        self, *, limit: int | None = None, capture_pdf: bool = True, include_failed: bool = False
     ) -> list[ItemResult]:
         """Re-intenta lo que quedó transitorio, en un paso aparte y explícito.
 
         Deliberadamente no vive dentro de la corrida diaria: un fallo transitorio
         se reintenta cuando alguien lo decide, no en el acto contra un servidor
         que acaba de responder mal.
+
+        Con `include_failed` reintenta también lo FAILED: es la vía de
+        recuperación cuando el fallo era del parser y el parser ya se corrigió.
+        Antes de re-pedir nada se reevalúa la relevancia con las reglas
+        vigentes: entre el fallo y el reintento las reglas pueden haber
+        cambiado (p. ej. las apelaciones electorales del JNE), y reintentar lo
+        que hoy se descartaría gastaría peticiones en ingerir lo que no toca.
         """
+        statuses = [e.CrawlItemStatus.RETRY_PENDING, e.CrawlItemStatus.INGESTED_PDF_PENDING]
+        if include_failed:
+            statuses.append(e.CrawlItemStatus.FAILED)
         rows = (
             self._session.execute(
                 select(m.CrawlItem)
-                .where(
-                    m.CrawlItem.status.in_(
-                        [e.CrawlItemStatus.RETRY_PENDING, e.CrawlItemStatus.INGESTED_PDF_PENDING]
-                    )
-                )
+                .where(m.CrawlItem.status.in_(statuses))
                 .order_by(m.CrawlItem.discovered_at)
             )
             .scalars()
@@ -306,6 +312,24 @@ class DailyIngestService:
             if row.status == e.CrawlItemStatus.INGESTED_PDF_PENDING:
                 results.append(self._retry_pdf_only(row))
                 continue
+            if row.status == e.CrawlItemStatus.FAILED:
+                verdict = classify_summary(row.summary_raw)
+                if not verdict.should_ingest:
+                    # La decisión de hoy queda escrita con su regla: el veredicto
+                    # original vive en el índice archivado, no en esta fila.
+                    row.relevance = verdict.relevance
+                    row.relevance_rule = verdict.rule
+                    row.relevance_rationale = verdict.rationale
+                    results.append(
+                        self._settle(
+                            row,
+                            row.publication_code,
+                            e.CrawlItemStatus.SKIPPED_NOT_RELEVANT,
+                            verdict.relevance,
+                            f"reevaluado al reintentar: {verdict.rationale}",
+                        )
+                    )
+                    continue
             results.append(self._ingest_entry(row, entry, issue_item, capture_pdf=capture_pdf))
         return results
 

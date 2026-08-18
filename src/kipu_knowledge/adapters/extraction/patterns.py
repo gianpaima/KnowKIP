@@ -58,6 +58,10 @@ ORG_HEAD_WORDS = (
     # La DINI es entidad por derecho propio pese a llamarse "Dirección …": sin
     # esta cabecera exacta caía como unidad y su puesto nacía sin organización.
     "Dirección Nacional de Inteligencia",
+    # El Despacho Presidencial es el pliego que designa en sus resoluciones;
+    # "Despacho" a secas es cabecera de unidad ("Despacho Viceministerial") y
+    # sin el compuesto la entidad caía como unidad de nadie.
+    "Despacho Presidencial",
 )
 
 # Las resoluciones también nombran a la entidad solo por su sigla ("Jefe de la
@@ -71,6 +75,7 @@ _ACRONYM_ORG_RE = re.compile(r"^(?:" + "|".join(re.escape(a) for a in ACRONYM_OR
 UNIT_HEAD_WORDS = (
     "Oficina General",
     "Oficina",
+    "Subsecretaría",
     "Secretaría General",
     "Secretaría",
     "Gerencia General",
@@ -101,6 +106,27 @@ class OrgPathSplit:
     organization: str | None = None
 
 
+# Lo que sigue a la entidad dentro del segmento de organización no siempre es
+# parte de su nombre: "ante el Directorio del Banco de la Nación" dice dónde
+# representa, "en representación del Poder Ejecutivo" por cuenta de quién, y
+# "en adición a las funciones…" cómo se acumula. Pegados al nombre fabricaban
+# organizaciones como "Ministerio de Economía y Finanzas ante el Directorio del
+# Banco de la Nación". Son del cargo, no del órgano: la entidad queda limpia y
+# la cola vuelve a la etiqueta del rol (salvo la de acumulación, que ya vive
+# fiel en la frase completa y no distingue puestos).
+_ORG_SEGMENT_TAIL_RE = re.compile(
+    r"\s+(?=ante\s+(?:el|la)\b)|,?\s+(?=en\s+representaci[oó]n\b)|,?\s+(?=en\s+adici[oó]n\s+a\b)",
+    re.IGNORECASE,
+)
+
+
+def _split_org_segment(seg: str) -> tuple[str, str | None]:
+    parts = _ORG_SEGMENT_TAIL_RE.split(seg, maxsplit=1)
+    if len(parts) == 1:
+        return seg, None
+    return parts[0].strip().rstrip(",;"), parts[1].strip()
+
+
 def split_org_path(role_text: str) -> OrgPathSplit:
     """Divide "Jefa de X de la Oficina Y de la Secretaría Z del Ministerio W".
 
@@ -120,7 +146,15 @@ def split_org_path(role_text: str) -> OrgPathSplit:
     units: list[str] = []
     for seg in rest:
         if organization is None and _is_org_segment(seg):
-            organization = seg
+            organization, tail = _split_org_segment(seg)
+            if tail and tail.lower().startswith("ante"):
+                # "ante …" distingue el puesto (dos representantes del mismo
+                # órgano ante destinos distintos son puestos distintos).
+                role = f"{role} {tail}"
+            elif tail and tail.lower().startswith(("en representación", "en representacion")):
+                role = f"{role}, {tail}"
+            # La cola de acumulación ("en adición a las funciones…") no vuelve:
+            # no distingue puestos y ya vive fiel en la frase completa.
         else:
             units.append(seg)
     return OrgPathSplit(role_label=role, unit_chain=units, organization=organization)
@@ -132,7 +166,8 @@ def _is_org_segment(seg: str) -> bool:
 
 # --- Limpieza de textos de rol ---
 
-_THANKS_RE = re.compile(r"[;,]?\s*d[áa]ndosele las gracias.*$", re.IGNORECASE)
+# Singular y plural: los artículos colectivos agradecen "dándoseles las gracias".
+_THANKS_RE = re.compile(r"[;,]?\s*d[áa]ndoseles? las gracias.*$", re.IGNORECASE)
 _SLOT_RE = re.compile(
     r",?\s*previst[oa] en el (?P<scheme>CAP(?:\s+Provisional)?)\b.*?"
     r"n[úu]mero correlativo\s+(?P<code>\d+)\s*",
@@ -248,6 +283,17 @@ FIRST_WORKDAY_RE = re.compile(
     re.IGNORECASE,
 )
 
+# "…, considerándosele como último día de labores el 7 de agosto de 2026 y en
+# consecuencia dar por concluida la designación dispuesta en …": la fuente
+# declara el fin con otra fórmula (espejo de FIRST_WORKDAY_RE). Sin reconocerla
+# la frase entera —fecha incluida— viajaba dentro del cargo y de ahí al nombre
+# de la organización (visto en las renuncias de la ANIN, RJ 2026).
+LAST_WORKDAY_RE = re.compile(
+    r",?\s*consider[áa]ndosel[ea] como [úu]ltimo d[íi]a de labores\s+el\s+"
+    r"(?P<date>" + DATE_ES + r")",
+    re.IGNORECASE,
+)
+
 ACCEPT_RESIGNATION_RE = re.compile(
     r"^(?P<verb>Aceptar la renuncia|Se acepta la renuncia)"
     r"(?:\s*,\s*(?:con eficacia(?: anticipada)?\s+(?:al|a partir del)|a partir del)\s+"
@@ -268,13 +314,37 @@ END_ACTING_RE = re.compile(
     r"(?P<rest>.+?)\s*\.?$"
 )
 
+# "Dar por concluido el encargo del señor X en el puesto de Y": la persona va
+# nombrada en el propio artículo, no en los considerandos. Sin separarla, el
+# nombre entero viajaba dentro de la etiqueta del puesto y de ahí al nombre de
+# la organización (RS de la PCM sobre el CEPLAN, agosto 2026).
+ACTING_PERSON_INLINE_RE = re.compile(
+    r"^se[ñn]or(?:a|ita)?\s+(?P<name>.+?),?\s+"
+    r"(?:en el (?:puesto|cargo)(?: de confianza)? de|al cargo de|como)\s+"
+    r"(?P<role>.+)$"
+)
+
+# "Dejar sin efecto la designación del señor X, como Y" es la forma individual
+# del mismo acto de término que COLLECTIVE_END_RE reconoce en plural (la usa,
+# p. ej., la SBS con sus representantes ante directorios). En minúscula y con
+# coma tras "efecto" aparece como segunda cláusula de un artículo compuesto
+# ("…; asimismo, dejar sin efecto, la designación de…").
 END_DESIGNATION_RE = re.compile(
-    r"^(?P<verb>Dar por concluida la designaci[oó]n)\s+"
+    r"^(?P<verb>Dar por concluida la designaci[oó]n|[Dd]ejar sin efecto,?\s+la designaci[oó]n)\s+"
     r"(?:de la se[ñn]ora|del se[ñn]or|de)\s+"
     r"(?P<name>.+?)"
-    r"\s+(?:en el cargo de|al cargo de|como)\s+"
+    r",?\s+(?:en el cargo de|al cargo de|como)\s+"
     r"(?P<role>.+?)\s*\.?$"
 )
+
+# "…; asimismo, …" encadena dos actos en un artículo. El conector separa
+# cláusulas resolutivas completas; cada una se evalúa como acto propio.
+_ASIMISMO_SPLIT_RE = re.compile(r";\s*asimismo,?\s+", re.IGNORECASE)
+
+
+def split_asimismo(text: str) -> list[str]:
+    return [clause.strip() for clause in _ASIMISMO_SPLIT_RE.split(text) if clause.strip()]
+
 
 ENCARGAR_PERSON_RE = re.compile(
     r"^(?P<verb>ENCARGAR|Encargar|Se encarga)\s*,?\s+"
@@ -357,7 +427,8 @@ TRAILING_EFFECTIVE_FROM_RE = re.compile(
 # responsabilidad se suma a las funciones propias, así que se conserva su rastro.
 ADDITION_CLAUSE_RE = re.compile(
     r"[,;]?\s*(?:y\s+|e\s+)?(?P<clause>en adici[oó]n a (?:sus|las) funciones"
-    r"(?:\s+(?:propias|de su cargo|que viene desempe[ñn]ando))?)",
+    r"(?:\s+(?:propias|de su cargo|que viene desempe[ñn]ando|"
+    r"que actualmente desempe[ñn]an?))?)",
     re.IGNORECASE,
 )
 
@@ -427,7 +498,10 @@ PUBLICATION_NOTICE_RE = re.compile(
     r"publicaci[oó]n de la presente [Rr]esoluci[oó]n|Publicar la presente [Rr]esoluci[oó]n",
     re.IGNORECASE,
 )
-NOTIFICATION_RE = re.compile(r"se le notifique|notif[íi]quese|notificar la presente", re.IGNORECASE)
+NOTIFICATION_RE = re.compile(
+    r"se le notifique|notif[íi]quese|notificar la presente|notifique la presente",
+    re.IGNORECASE,
+)
 
 UPPERCASE_NAME_RE = re.compile(r"^[A-ZÁÉÍÓÚÑÜ][A-ZÁÉÍÓÚÑÜ\s.'-]+$")
 
@@ -507,6 +581,24 @@ def extract_person_identifiers(text: str) -> list[tuple[str, str, int, int]]:
         for match in pattern.finditer(text):
             found.append((scheme, match.group("value"), match.start(), match.end()))
     return sorted(found, key=lambda item: item[2])
+
+
+# "NOMBRE APELLIDO, identificado con DNI N° 23952017" dentro del grupo de
+# nombre de un patrón resolutivo: la cláusula declara el documento, no forma
+# parte del nombre. Se recorta de la mención; el identificador no se pierde
+# porque `identifiers_for_name` lo atribuye desde el texto del artículo.
+_IDENTITY_CLAUSE_RE = re.compile(
+    r",?\s*identificad[oa] con\s+"
+    r"(?:D\.?\s*N\.?\s*I\.?|Documento\s+Nacional\s+de\s+Identidad|"
+    r"C\.?\s*E\.?|Carn[eé]\s+de\s+Extranjer[ií]a)"
+    r"\s*(?:N[º°.]?\s*)?[A-Za-z0-9]+",
+    re.IGNORECASE,
+)
+
+
+def strip_identity_clause(name: str) -> str:
+    """Recorta ", identificado con DNI N° X" del final de un nombre capturado."""
+    return _IDENTITY_CLAUSE_RE.sub("", name).strip().strip(",")
 
 
 # Ventana máxima entre el final de un nombre y el identificador que le pertenece.

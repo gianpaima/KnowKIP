@@ -1,0 +1,282 @@
+{
+  "document": {
+    "document_type_code": "OTHER",
+    "issue_place_raw": "Lima",
+    "issued_on": "2026-08-10",
+    "number_normalized": "000064-2026-DP/SGDP",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/EL6YyD5Dq5P9j3xpEGn3Tu/*/2541929-1.PDF",
+    "publication_code": "2541929-1",
+    "published_on": "2026-08-11",
+    "title_raw": "Designan ejecutiva de la Subsecretaría de Prensa de la Secretaría de Comunicación Estratégica y Prensa del Despacho Presidencial"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo 1.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 24,
+          "char_start": 0,
+          "quoted_text": "Artículo 1.- Designación",
+          "section_index": 9
+        }
+      },
+      {
+        "article_class": "NOTIFICATION",
+        "article_label": "Artículo 2.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 2.-",
+          "char_end": 25,
+          "char_start": 0,
+          "quoted_text": "Artículo 2.- Notificación",
+          "section_index": 11
+        }
+      },
+      {
+        "article_class": "PUBLICATION_NOTICE",
+        "article_label": "Artículo 3.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo 3.-",
+          "char_end": 24,
+          "char_start": 0,
+          "quoted_text": "Artículo 3.- Publicación",
+          "section_index": 13
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo 1.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": "Despacho Presidencial",
+              "path_raw": "ejecutiva de la Subsecretaría de Prensa de la Secretaría de Comunicación Estratégica y Prensa del Despacho Presidencial",
+              "role_label": "ejecutiva",
+              "unit_chain": [
+                "Subsecretaría de Prensa",
+                "Secretaría de Comunicación Estratégica y Prensa"
+              ]
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 53,
+                "char_start": 21,
+                "quoted_text": "BETTINA MILAGROS MENDOZA SALINAS",
+                "section_index": 10
+              },
+              "identifiers": [],
+              "text_raw": "BETTINA MILAGROS MENDOZA SALINAS"
+            },
+            "position_label_raw": "ejecutiva de la Subsecretaría de Prensa de la Secretaría de Comunicación Estratégica y Prensa del Despacho Presidencial",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo 1.-",
+          "char_end": 251,
+          "char_start": 0,
+          "quoted_text": "DESIGNAR a la señora BETTINA MILAGROS MENDOZA SALINAS, en el puesto de ejecutiva de la Subsecretaría de Prensa de la Secretaría de Comunicación Estratégica y Prensa del Despacho Presidencial, bajo el régimen de la Ley Nº 30057, Ley del Servicio Civil.",
+          "section_index": 10
+        },
+        "is_collective": false,
+        "legal_verb_raw": "DESIGNAR",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo 1.-",
+                "char_end": 53,
+                "char_start": 21,
+                "quoted_text": "BETTINA MILAGROS MENDOZA SALINAS",
+                "section_index": 10
+              },
+              "identifiers": [],
+              "text_raw": "BETTINA MILAGROS MENDOZA SALINAS"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [
+      {
+        "evidence": {
+          "article_label": "VISTOS:",
+          "char_end": 421,
+          "char_start": 0,
+          "quoted_text": "VISTOS: El Memorando Nº 000309-2026-DP/SGDP de la Secretaría General del Despacho Presidencial; el Memorando Múltiple Nº 000183-2026-DP/SSG de la Subsecretaría General; el Memorando Nº 001074-2026-DP/OGRH, el Informe Nº 000805-2026-DP/OGRH-UFGEC y el Informe Nº 000073-2026-DP/OGRH-UFGEC-RCC de la Oficina General de Recursos Humanos; el Informe Legal Nº 000071-2026-DP/OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 3
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "000309-2026-DP/SGDP"
+      },
+      {
+        "evidence": {
+          "article_label": "VISTOS:",
+          "char_end": 421,
+          "char_start": 0,
+          "quoted_text": "VISTOS: El Memorando Nº 000309-2026-DP/SGDP de la Secretaría General del Despacho Presidencial; el Memorando Múltiple Nº 000183-2026-DP/SSG de la Subsecretaría General; el Memorando Nº 001074-2026-DP/OGRH, el Informe Nº 000805-2026-DP/OGRH-UFGEC y el Informe Nº 000073-2026-DP/OGRH-UFGEC-RCC de la Oficina General de Recursos Humanos; el Informe Legal Nº 000071-2026-DP/OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 3
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Memorando",
+        "target_number_raw": "001074-2026-DP/OGRH"
+      },
+      {
+        "evidence": {
+          "article_label": "VISTOS:",
+          "char_end": 421,
+          "char_start": 0,
+          "quoted_text": "VISTOS: El Memorando Nº 000309-2026-DP/SGDP de la Secretaría General del Despacho Presidencial; el Memorando Múltiple Nº 000183-2026-DP/SSG de la Subsecretaría General; el Memorando Nº 001074-2026-DP/OGRH, el Informe Nº 000805-2026-DP/OGRH-UFGEC y el Informe Nº 000073-2026-DP/OGRH-UFGEC-RCC de la Oficina General de Recursos Humanos; el Informe Legal Nº 000071-2026-DP/OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 3
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe",
+        "target_number_raw": "000805-2026-DP/OGRH-UFGEC"
+      },
+      {
+        "evidence": {
+          "article_label": "VISTOS:",
+          "char_end": 421,
+          "char_start": 0,
+          "quoted_text": "VISTOS: El Memorando Nº 000309-2026-DP/SGDP de la Secretaría General del Despacho Presidencial; el Memorando Múltiple Nº 000183-2026-DP/SSG de la Subsecretaría General; el Memorando Nº 001074-2026-DP/OGRH, el Informe Nº 000805-2026-DP/OGRH-UFGEC y el Informe Nº 000073-2026-DP/OGRH-UFGEC-RCC de la Oficina General de Recursos Humanos; el Informe Legal Nº 000071-2026-DP/OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 3
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe",
+        "target_number_raw": "000073-2026-DP/OGRH-UFGEC-RCC"
+      },
+      {
+        "evidence": {
+          "article_label": "VISTOS:",
+          "char_end": 421,
+          "char_start": 0,
+          "quoted_text": "VISTOS: El Memorando Nº 000309-2026-DP/SGDP de la Secretaría General del Despacho Presidencial; el Memorando Múltiple Nº 000183-2026-DP/SSG de la Subsecretaría General; el Memorando Nº 001074-2026-DP/OGRH, el Informe Nº 000805-2026-DP/OGRH-UFGEC y el Informe Nº 000073-2026-DP/OGRH-UFGEC-RCC de la Oficina General de Recursos Humanos; el Informe Legal Nº 000071-2026-DP/OGAJ de la Oficina General de Asesoría Jurídica; y,",
+          "section_index": 3
+        },
+        "reference_type": "INTERNAL_SEEN_DOCUMENT",
+        "target_doc_kind_raw": "Informe Legal",
+        "target_number_raw": "000071-2026-DP/OGAJ"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 672,
+          "char_start": 0,
+          "quoted_text": "De conformidad con la Ley Nº 30057, Ley del Servicio Civil, y su Reglamento General, aprobado por el Decreto Supremo Nº 040-2014-PCM, y modificatorias; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el Nombramiento y Designación de Funcionarios Públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción, y su Reglamento, aprobado por el Decreto Supremo Nº 053-2022-PCM; y, la Resolución Nº 000046-2024-DP/SG, que aprueba el Texto Integrado del Reglamento de Organización y Funciones del Despacho Presidencial;",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "30057"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 672,
+          "char_start": 0,
+          "quoted_text": "De conformidad con la Ley Nº 30057, Ley del Servicio Civil, y su Reglamento General, aprobado por el Decreto Supremo Nº 040-2014-PCM, y modificatorias; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el Nombramiento y Designación de Funcionarios Públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción, y su Reglamento, aprobado por el Decreto Supremo Nº 053-2022-PCM; y, la Resolución Nº 000046-2024-DP/SG, que aprueba el Texto Integrado del Reglamento de Organización y Funciones del Despacho Presidencial;",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Supremo",
+        "target_number_raw": "040-2014-PCM"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 672,
+          "char_start": 0,
+          "quoted_text": "De conformidad con la Ley Nº 30057, Ley del Servicio Civil, y su Reglamento General, aprobado por el Decreto Supremo Nº 040-2014-PCM, y modificatorias; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el Nombramiento y Designación de Funcionarios Públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción, y su Reglamento, aprobado por el Decreto Supremo Nº 053-2022-PCM; y, la Resolución Nº 000046-2024-DP/SG, que aprueba el Texto Integrado del Reglamento de Organización y Funciones del Despacho Presidencial;",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "27594"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 672,
+          "char_start": 0,
+          "quoted_text": "De conformidad con la Ley Nº 30057, Ley del Servicio Civil, y su Reglamento General, aprobado por el Decreto Supremo Nº 040-2014-PCM, y modificatorias; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el Nombramiento y Designación de Funcionarios Públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción, y su Reglamento, aprobado por el Decreto Supremo Nº 053-2022-PCM; y, la Resolución Nº 000046-2024-DP/SG, que aprueba el Texto Integrado del Reglamento de Organización y Funciones del Despacho Presidencial;",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Ley",
+        "target_number_raw": "31419"
+      },
+      {
+        "evidence": {
+          "article_label": null,
+          "char_end": 672,
+          "char_start": 0,
+          "quoted_text": "De conformidad con la Ley Nº 30057, Ley del Servicio Civil, y su Reglamento General, aprobado por el Decreto Supremo Nº 040-2014-PCM, y modificatorias; la Ley Nº 27594, Ley que regula la participación del Poder Ejecutivo en el Nombramiento y Designación de Funcionarios Públicos; la Ley Nº 31419, Ley que establece disposiciones para garantizar la idoneidad en el acceso y ejercicio de la función pública de funcionarios y directivos de libre designación y remoción, y su Reglamento, aprobado por el Decreto Supremo Nº 053-2022-PCM; y, la Resolución Nº 000046-2024-DP/SG, que aprueba el Texto Integrado del Reglamento de Organización y Funciones del Despacho Presidencial;",
+          "section_index": 7
+        },
+        "reference_type": "NORMATIVE_CITATION",
+        "target_doc_kind_raw": "Decreto Supremo",
+        "target_number_raw": "053-2022-PCM"
+      }
+    ],
+    "signatories": [
+      {
+        "capacity_raw": "Secretario General, Secretaría General del Despacho Presidencial, Despacho Presidencial",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 30,
+            "char_start": 0,
+            "quoted_text": "MARISSA CARLA PALOMINO BONILLA",
+            "section_index": 16
+          },
+          "identifiers": [],
+          "text_raw": "MARISSA CARLA PALOMINO BONILLA"
+        },
+        "signature_order": 1
+      }
+    ],
+    "warnings": []
+  }
+}

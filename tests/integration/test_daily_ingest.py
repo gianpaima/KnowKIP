@@ -294,6 +294,71 @@ def test_parse_failure_is_final_not_retryable(session, store, daily_kit):
     assert row.status is e.CrawlItemStatus.FAILED
 
 
+def test_failed_items_can_be_retried_once_the_parser_is_fixed(session, store, daily_kit):
+    """Un fallo de parser es final para la corrida, pero no para siempre.
+
+    Corregido el parser, `retry-pending --include-failed` es la vía de
+    recuperación: reintenta lo FAILED sin tocar el comportamiento por defecto.
+    """
+    broken = daily_kit.adapter(
+        [daily_kit.listing(daily_kit.catalogue, total=4)],
+        fail_codes={"2540861-1": ValueError("Campos obligatorios ausentes: número")},
+    )
+    DailyIngestService(session, store, adapter=broken).run(daily_kit.run_date, capture_pdf=False)
+    row = session.execute(
+        select(m.CrawlItem).where(m.CrawlItem.publication_code == "2540861-1")
+    ).scalar_one()
+    assert row.status is e.CrawlItemStatus.FAILED
+
+    # Sin el flag, lo FAILED no se toca: sigue siendo un fallo final.
+    fixed = daily_kit.adapter([daily_kit.listing(daily_kit.catalogue, total=4)])
+    service = DailyIngestService(session, store, adapter=fixed)
+    assert service.retry_pending(capture_pdf=False) == []
+
+    retried = service.retry_pending(capture_pdf=False, include_failed=True)
+    assert [item.status for item in retried] == [e.CrawlItemStatus.INGESTED]
+    session.refresh(row)
+    assert row.status is e.CrawlItemStatus.INGESTED
+    assert row.attempts == 2
+    assert row.last_error is None
+
+
+def test_failed_item_now_irrelevant_is_skipped_without_fetching(session, store, daily_kit):
+    """Entre el fallo y el reintento las reglas de relevancia pueden cambiar.
+
+    Pasó con las apelaciones electorales del JNE (regla 1.1): decenas de
+    dispositivos FAILED que hoy ni se ingerirían. El reintento los reevalúa con
+    las reglas vigentes y los despacha sin gastar una petición en ellos.
+    """
+    broken = daily_kit.adapter(
+        [daily_kit.listing(daily_kit.catalogue, total=4)],
+        fail_codes={"2540861-1": ValueError("Campos obligatorios ausentes: número")},
+    )
+    DailyIngestService(session, store, adapter=broken).run(daily_kit.run_date, capture_pdf=False)
+    row = session.execute(
+        select(m.CrawlItem).where(m.CrawlItem.publication_code == "2540861-1")
+    ).scalar_one()
+    assert row.status is e.CrawlItemStatus.FAILED
+    # La sumilla con que se descubrió era de otra época de las reglas; hoy es
+    # una apelación electoral que el filtro descarta.
+    row.summary_raw = "Confirman la Resolución N.º 00028-2026-JEE-QSPI/JNE emitida por el JEE"
+    session.flush()
+
+    would_fail = daily_kit.adapter(
+        [daily_kit.listing(daily_kit.catalogue, total=4)],
+        fail_codes={"2540861-1": ValueError("no debería pedirse")},
+    )
+    service = DailyIngestService(session, store, adapter=would_fail)
+    retried = service.retry_pending(capture_pdf=False, include_failed=True)
+
+    assert [item.status for item in retried] == [e.CrawlItemStatus.SKIPPED_NOT_RELEVANT]
+    assert would_fail.fetched == []  # se despachó sin tocar la fuente
+    session.refresh(row)
+    assert row.status is e.CrawlItemStatus.SKIPPED_NOT_RELEVANT
+    assert row.relevance is e.Relevance.NOT_RELEVANT
+    assert "reevaluado al reintentar" in (row.outcome_detail or "")
+
+
 def test_database_error_on_one_device_does_not_abort_the_run(session, store, daily_kit):
     """Un dato que no cabe en el esquema aborta la transacción en PostgreSQL.
 

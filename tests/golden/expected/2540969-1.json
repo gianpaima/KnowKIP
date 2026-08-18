@@ -1,0 +1,402 @@
+{
+  "document": {
+    "document_type_code": "OTHER",
+    "issue_place_raw": "Lima",
+    "issued_on": "2026-08-05",
+    "number_normalized": "01976-2026",
+    "pdf_url": "https://busquedas.elperuano.pe/api/archivo/file/DnLS6WU7qVqAxorBSiK18L/*/2540969-1.PDF",
+    "publication_code": "2540969-1",
+    "published_on": "2026-08-10",
+    "title_raw": "Designan representante principal del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación"
+  },
+  "extraction": {
+    "article_classifications": [
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo Primero.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo Primero.-",
+          "char_end": 608,
+          "char_start": 0,
+          "quoted_text": "Artículo Primero.- Dejar sin efecto la designación del señor José Carlos Antonio Torres Chávez, identificado con DNI N° 07926665, como representante del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación a la que hace referencia la Resolución SBS N° 2537-2024 dejando sin efecto las facultades y atribuciones que le fueron otorgadas por la referida resolución; asimismo, dejar sin efecto, la designación del señor Ilich Mayorga Miranda, identificado con DNI N° 23952547, como representante alterno.",
+          "section_index": 13
+        }
+      },
+      {
+        "article_class": "PERSONNEL_EVENT",
+        "article_label": "Artículo Segundo.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo Segundo.-",
+          "char_end": 289,
+          "char_start": 0,
+          "quoted_text": "Artículo Segundo.- Designar, al señor Ilich Mayorga Miranda, identificado con DNI N° 23952547, como representante principal del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación.",
+          "section_index": 14
+        }
+      },
+      {
+        "article_class": "OTHER",
+        "article_label": "Artículo Tercero.-",
+        "confidence": 0.9,
+        "evidence": {
+          "article_label": "Artículo Tercero.-",
+          "char_end": 1222,
+          "char_start": 0,
+          "quoted_text": "Artículo Tercero.- Ratificar la designación del señor Daniel Leonidas Arica Benites, identificado con DNI N° 41310809, como representante principal del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación, efectuada mediante Resolución SBS N° 2537-2024; quien, de manera conjunta, con el señor Ilich Mayorga Miranda, realizarán todos los actos necesarios para llevar adelante el proceso de liquidación de dicha entidad, contando para ello con las facultades y atribuciones consignadas en el artículo segundo de la Resolución SBS N° 2745-2020, las previstas en los artículos 21, 27, 28 y 29 del Reglamento de los Regímenes Especiales y de la Liquidación de las Empresas del Sistema Financiero y del Sistema de Seguros, aprobado por Resolución SBS N° 455-99 y sus modificatorias; y las disposiciones establecidas en el Reglamento para la Reestructuración, Repotenciación, Disolución y Liquidación de las Derramas, Cajas de Beneficios y otros fondos que reciban recursos de sus afiliados y otorguen pensiones de cesantía y jubilación y similares, aprobado mediante la Resolución SBS N° 8504-2010 y sus modificatorias.",
+          "section_index": 15
+        }
+      }
+    ],
+    "events": [
+      {
+        "article_label": "Artículo Primero.-",
+        "assignment_effect": "END",
+        "assignments": [
+          {
+            "assignment_kind": "UNKNOWN",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": null,
+              "path_raw": "representante del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación a la que hace referencia la Resolución SBS N° 2537-2024 dejando sin efecto las facultades y atribuciones que le fueron otorgadas por la referida resolución",
+              "role_label": "representante del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación a la que hace referencia la Resolución SBS N° 2537-2024 dejando sin efecto las facultades y atribuciones que le fueron otorgadas por la referida resolución",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo Primero.-",
+                "char_end": 94,
+                "char_start": 61,
+                "quoted_text": "José Carlos Antonio Torres Chávez",
+                "section_index": 13
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": "Artículo Primero.-",
+                    "char_end": 128,
+                    "char_start": 113,
+                    "quoted_text": "DNI N° 07926665",
+                    "section_index": 13
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "07926665"
+                }
+              ],
+              "text_raw": "José Carlos Antonio Torres Chávez"
+            },
+            "position_label_raw": "representante del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación a la que hace referencia la Resolución SBS N° 2537-2024 dejando sin efecto las facultades y atribuciones que le fueron otorgadas por la referida resolución",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "END_DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo Primero.-",
+          "char_end": 608,
+          "char_start": 0,
+          "quoted_text": "Artículo Primero.- Dejar sin efecto la designación del señor José Carlos Antonio Torres Chávez, identificado con DNI N° 07926665, como representante del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación a la que hace referencia la Resolución SBS N° 2537-2024 dejando sin efecto las facultades y atribuciones que le fueron otorgadas por la referida resolución; asimismo, dejar sin efecto, la designación del señor Ilich Mayorga Miranda, identificado con DNI N° 23952547, como representante alterno.",
+          "section_index": 13
+        },
+        "is_collective": false,
+        "legal_verb_raw": "Dejar sin efecto la designación",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo Primero.-",
+                "char_end": 94,
+                "char_start": 61,
+                "quoted_text": "José Carlos Antonio Torres Chávez",
+                "section_index": 13
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": "Artículo Primero.-",
+                    "char_end": 128,
+                    "char_start": 113,
+                    "quoted_text": "DNI N° 07926665",
+                    "section_index": 13
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "07926665"
+                }
+              ],
+              "text_raw": "José Carlos Antonio Torres Chávez"
+            },
+            "role": "AFFECTED_PERSON",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      },
+      {
+        "article_label": "Artículo Primero.-",
+        "assignment_effect": "END",
+        "assignments": [
+          {
+            "assignment_kind": "UNKNOWN",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": null,
+              "path_raw": "representante alterno",
+              "role_label": "representante alterno",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo Primero.-",
+                "char_end": 545,
+                "char_start": 524,
+                "quoted_text": "Ilich Mayorga Miranda",
+                "section_index": 13
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": "Artículo Primero.-",
+                    "char_end": 579,
+                    "char_start": 564,
+                    "quoted_text": "DNI N° 23952547",
+                    "section_index": 13
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "23952547"
+                }
+              ],
+              "text_raw": "Ilich Mayorga Miranda"
+            },
+            "position_label_raw": "representante alterno",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "END_DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo Primero.-",
+          "char_end": 608,
+          "char_start": 0,
+          "quoted_text": "Artículo Primero.- Dejar sin efecto la designación del señor José Carlos Antonio Torres Chávez, identificado con DNI N° 07926665, como representante del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación a la que hace referencia la Resolución SBS N° 2537-2024 dejando sin efecto las facultades y atribuciones que le fueron otorgadas por la referida resolución; asimismo, dejar sin efecto, la designación del señor Ilich Mayorga Miranda, identificado con DNI N° 23952547, como representante alterno.",
+          "section_index": 13
+        },
+        "is_collective": false,
+        "legal_verb_raw": "dejar sin efecto, la designación",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo Primero.-",
+                "char_end": 545,
+                "char_start": 524,
+                "quoted_text": "Ilich Mayorga Miranda",
+                "section_index": 13
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": "Artículo Primero.-",
+                    "char_end": 579,
+                    "char_start": 564,
+                    "quoted_text": "DNI N° 23952547",
+                    "section_index": 13
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "23952547"
+                }
+              ],
+              "text_raw": "Ilich Mayorga Miranda"
+            },
+            "role": "AFFECTED_PERSON",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      },
+      {
+        "article_label": "Artículo Segundo.-",
+        "assignment_effect": "START",
+        "assignments": [
+          {
+            "assignment_kind": "TITULAR",
+            "completes_predecessor_period": false,
+            "end_condition_text": null,
+            "org_path": {
+              "organization_name": null,
+              "path_raw": "representante principal del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación",
+              "role_label": "representante principal del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación",
+              "unit_chain": []
+            },
+            "person": {
+              "evidence": {
+                "article_label": "Artículo Segundo.-",
+                "char_end": 59,
+                "char_start": 38,
+                "quoted_text": "Ilich Mayorga Miranda",
+                "section_index": 14
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": "Artículo Segundo.-",
+                    "char_end": 93,
+                    "char_start": 78,
+                    "quoted_text": "DNI N° 23952547",
+                    "section_index": 14
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "23952547"
+                }
+              ],
+              "text_raw": "Ilich Mayorga Miranda"
+            },
+            "position_label_raw": "representante principal del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación",
+            "position_slot": null,
+            "valid_from": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            },
+            "valid_to": {
+              "source_phrase": null,
+              "status": "NOT_STATED",
+              "value": null
+            }
+          }
+        ],
+        "confidence": 0.95,
+        "effective_from": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "effective_to": {
+          "source_phrase": null,
+          "status": "NOT_STATED",
+          "value": null
+        },
+        "end_condition_text": null,
+        "event_type": "DESIGNATION",
+        "evidence": {
+          "article_label": "Artículo Segundo.-",
+          "char_end": 289,
+          "char_start": 0,
+          "quoted_text": "Artículo Segundo.- Designar, al señor Ilich Mayorga Miranda, identificado con DNI N° 23952547, como representante principal del Superintendente de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones en el proceso de liquidación de la Derrama del Poder Judicial en Liquidación.",
+          "section_index": 14
+        },
+        "is_collective": false,
+        "legal_verb_raw": "Designar",
+        "mandate_hint": null,
+        "participants": [
+          {
+            "cited_document_number_raw": null,
+            "confidence": 0.95,
+            "encargo_position_raw": null,
+            "organization_name": null,
+            "person": {
+              "evidence": {
+                "article_label": "Artículo Segundo.-",
+                "char_end": 59,
+                "char_start": 38,
+                "quoted_text": "Ilich Mayorga Miranda",
+                "section_index": 14
+              },
+              "identifiers": [
+                {
+                  "evidence": {
+                    "article_label": "Artículo Segundo.-",
+                    "char_end": 93,
+                    "char_start": 78,
+                    "quoted_text": "DNI N° 23952547",
+                    "section_index": 14
+                  },
+                  "scheme": "DNI",
+                  "value_raw": "23952547"
+                }
+              ],
+              "text_raw": "Ilich Mayorga Miranda"
+            },
+            "role": "APPOINTEE",
+            "substantive_role_raw": null
+          }
+        ],
+        "prior_document_number_raw": null
+      }
+    ],
+    "references": [],
+    "signatories": [
+      {
+        "capacity_raw": "Superintendente de Banca, Seguros y AFP",
+        "person": {
+          "evidence": {
+            "article_label": null,
+            "char_end": 31,
+            "char_start": 0,
+            "quoted_text": "SERGIO JAVIER ESPINOSA CHIROQUE",
+            "section_index": 17
+          },
+          "identifiers": [],
+          "text_raw": "SERGIO JAVIER ESPINOSA CHIROQUE"
+        },
+        "signature_order": 1
+      }
+    ],
+    "warnings": [
+      "Artículo sin clasificación específica: Artículo Tercero.-"
+    ]
+  }
+}

@@ -42,6 +42,11 @@ CASES = {
     "L": "2540828-1",  # artículo-título + cuerpo aparte
     "M": "2540315-1",  # colectivo de guiones, inicio y fin
     "N": "2540891-1",  # colectivo en tabla, con entidad y DNI por fila
+    # Casos O–P: la maquetación alterna que hacía fallar el parser entero
+    # ("Campos obligatorios ausentes: número"): un solo <h2> con tipo y número
+    # juntos, "RESUELVE:" sin "SE", y artículos con ordinal en letras.
+    "O": "2541929-1",  # Despacho Presidencial: h2 combinado, artículo-título
+    "P": "2540969-1",  # SBS: ordinales, "; asimismo," encadenado, DNI en el nombre
 }
 
 

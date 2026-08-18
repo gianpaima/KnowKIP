@@ -539,6 +539,17 @@ class ReviewService:
             precedent.revoked_at = now
             precedent.revoked_reason = reason
 
+    def merge_declared_duplicate(self, duplicate_id: str, survivor_id: str) -> None:
+        """Fusiona dos fichas que el catálogo curado declara la misma entidad.
+
+        No es una inferencia de nombres: es el espejo persistente de la
+        convergencia que la ingesta ya aplica al crear (dos grafías vigentes de
+        la misma entidad del catálogo son la misma organización por dato
+        declarado). La usa `kipu sync-org-catalog` sobre fichas nacidas antes de
+        que el catálogo conociera a la entidad.
+        """
+        self._merge_organization(duplicate_id=duplicate_id, survivor_id=survivor_id)
+
     def _merge_organization(self, duplicate_id: str, survivor_id: str) -> None:
         """Absorbe una organización duplicada en la superviviente.
 

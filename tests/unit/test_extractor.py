@@ -103,6 +103,49 @@ class TestVerbPatterns:
         )
         assert "a partir" not in assignment.position_label_raw
 
+    def test_renuncia_con_ultimo_dia_de_labores(self, extractor):
+        """RJ de la ANIN (agosto 2026): el fin declarado con "considerándosele
+        como último día de labores…". Sin reconocerlo, la frase entera —fecha
+        incluida— viajaba dentro del cargo y de ahí al nombre del órgano."""
+        doc = _doc_with_articles(
+            "Artículo 1.- Aceptar la renuncia del señor JUAN PEREZ QUISPE al cargo de "
+            "Asesor de la Jefatura de la Autoridad Nacional de Infraestructura, "
+            "considerándosele como último día de labores el 7 de agosto de 2026 y en "
+            "consecuencia dar por concluida la designación dispuesta en el artículo 1 "
+            "de la Resolución Jefatural N°00011-2026-ANIN/JEF."
+        )
+        event = extractor.extract(doc).events[0]
+        assert event.event_type == EventType.ACCEPT_RESIGNATION
+        assert event.effective_from.status == DateStatus.EXPLICIT
+        assert event.effective_from.value == date(2026, 8, 7)
+        assignment = event.assignments[0]
+        assert assignment.org_path.organization_name == "Autoridad Nacional de Infraestructura"
+        assert "último día" not in assignment.position_label_raw
+        assert "considerándosele" not in assignment.position_label_raw
+
+    def test_encargo_concluido_con_persona_en_el_articulo(self, extractor):
+        """RS de la PCM sobre el CEPLAN: el artículo nombra a la persona junto al
+        puesto. Sin separarla, el nombre viajaba dentro de la etiqueta y el
+        agradecimiento dentro del nombre del órgano."""
+        doc = _doc_with_articles(
+            "Artículo 1.- Dar por concluido el encargo del señor LUIS ENRIQUE DE LA FLOR "
+            "SAENZ en el puesto de Presidente del Consejo Directivo del Centro Nacional "
+            "de Planeamiento Estratégico (CEPLAN), dándosele las gracias por los "
+            "servicios prestados."
+        )
+        event = extractor.extract(doc).events[0]
+        assert event.event_type == EventType.END_ACTING_ASSIGNMENT
+        assert event.participants[0].role == ParticipantRole.AFFECTED_PERSON
+        assert event.participants[0].person.text_raw == "LUIS ENRIQUE DE LA FLOR SAENZ"
+        assignment = event.assignments[0]
+        assert assignment.person is not None
+        assert assignment.org_path.organization_name == (
+            "Centro Nacional de Planeamiento Estratégico (CEPLAN)"
+        )
+        assert assignment.org_path.role_label == "Presidente del Consejo Directivo"
+        assert "gracias" not in assignment.position_label_raw
+        assert "señor" not in assignment.position_label_raw
+
     def test_nombrar_es_appointment(self, extractor):
         doc = _doc_with_articles(
             "Artículo 2.- Nombrar a la señora Clara Rossana Urteaga Goldstein como "
@@ -437,6 +480,35 @@ class TestOrgPathSplit:
             "Servicio Nacional de Capacitación para la Industria de la Construcción - SENCICO"
         )
         assert sencico.role_label == "Presidente Ejecutivo"
+
+    def test_cola_del_segmento_de_organizacion_vuelve_al_rol(self):
+        # Casos reales de ORG_VARIANT_CHECK de agosto 2026: lo que sigue a la
+        # entidad no es parte de su nombre. "ante …" y "en representación …"
+        # distinguen el puesto y vuelven al rol; la acumulación no.
+        mef = split_org_path(
+            "representante del Ministerio de Economía y Finanzas ante el "
+            "Directorio del Banco de la Nación"
+        )
+        assert mef.organization == "Ministerio de Economía y Finanzas"
+        assert mef.role_label == "representante ante el Directorio del Banco de la Nación"
+
+        oece = split_org_path(
+            "miembro del Consejo Directivo del Organismo Especializado para las "
+            "Contrataciones Públicas Eficientes – OECE, en representación del Poder Ejecutivo"
+        )
+        assert oece.organization == (
+            "Organismo Especializado para las Contrataciones Públicas Eficientes – OECE"
+        )
+        assert oece.role_label == (
+            "miembro del Consejo Directivo, en representación del Poder Ejecutivo"
+        )
+
+        produce = split_org_path(
+            "Presidente del Consejo de Supervisión de Fondos del Ministerio de la "
+            "Producción, en adición a las funciones que actualmente desempeña"
+        )
+        assert produce.organization == "Ministerio de la Producción"
+        assert "adición" not in (produce.role_label or "")
 
     def test_programa_sectorial_no_es_cabecera_de_organizacion(self):
         # "Programa" a secas partiría el cargo estructural del clasificador.

@@ -17,6 +17,7 @@ Reglas de diseño:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from kipu_knowledge.domain.normalization import normalize_org_name, strip_accents
@@ -238,6 +239,32 @@ ATTACHED_ENTITIES: tuple[StateEntity, ...] = (
         attached_to="Ministerio de Vivienda, Construcción y Saneamiento",
     ),
     StateEntity(
+        "Centro Nacional de Planeamiento Estratégico",
+        "CEPLAN",
+        entity_type="SPECIALIZED_TECHNICAL_BODY",
+        creation_basis=(
+            "Decreto Legislativo N° 1088 (Ley del Sistema Nacional de Planeamiento "
+            "Estratégico y del CEPLAN)"
+        ),
+        attached_to="Presidencia del Consejo de Ministros",
+    ),
+    StateEntity(
+        "Organismo Especializado para las Contrataciones Públicas Eficientes",
+        "OECE",
+        entity_type="SPECIALIZED_TECHNICAL_BODY",
+        former_names=(
+            FormerName(
+                "Organismo Supervisor de las Contrataciones del Estado",
+                basis=(
+                    "Ley N° 32069, Ley General de Contrataciones Públicas (crea el OECE; "
+                    "toda referencia al OSCE se entiende hecha al OECE)"
+                ),
+            ),
+        ),
+        creation_basis="Ley N° 32069, Ley General de Contrataciones Públicas (crea el OECE)",
+        attached_to="Ministerio de Economía y Finanzas",
+    ),
+    StateEntity(
         "Superintendencia Nacional de Aduanas y de Administración Tributaria",
         "SUNAT",
         entity_type="SPECIALIZED_TECHNICAL_BODY",
@@ -256,7 +283,41 @@ ATTACHED_ENTITIES: tuple[StateEntity, ...] = (
     ),
 )
 
-_ALL_ENTITIES: tuple[StateEntity, ...] = MINISTRIES + ATTACHED_ENTITIES
+# Organismos constitucionalmente autónomos que publican actos de personal en el
+# diario oficial. No dependen de ministerio alguno: su `attached_to` es None por
+# derecho propio, no por curaduría pendiente.
+AUTONOMOUS_ENTITIES: tuple[StateEntity, ...] = (
+    StateEntity(
+        "Superintendencia de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones",
+        "SBS",
+        entity_type="CONSTITUTIONAL_AUTONOMOUS_BODY",
+        creation_basis=(
+            "Constitución Política del Perú, artículo 87; Ley N° 26702, Ley General del "
+            "Sistema Financiero y del Sistema de Seguros y Orgánica de la SBS"
+        ),
+    ),
+    StateEntity(
+        "Banco Central de Reserva del Perú",
+        "BCRP",
+        entity_type="CONSTITUTIONAL_AUTONOMOUS_BODY",
+        creation_basis=(
+            "Constitución Política del Perú, artículo 84; Decreto Ley N° 26123 "
+            "(Ley Orgánica del BCRP)"
+        ),
+    ),
+    StateEntity(
+        "Jurado Nacional de Elecciones",
+        "JNE",
+        entity_type="CONSTITUTIONAL_AUTONOMOUS_BODY",
+        creation_basis=(
+            "Constitución Política del Perú, artículo 177; Ley N° 26486 (Ley Orgánica del JNE)"
+        ),
+    ),
+)
+
+_ALL_ENTITIES: tuple[StateEntity, ...] = MINISTRIES + ATTACHED_ENTITIES + AUTONOMOUS_ENTITIES
+
+_SECTOR_PREFIX_RE = re.compile(r"^Ministerio de(?:l| la)?\s+")
 
 
 def _index() -> dict[str, tuple[StateEntity, bool]]:
@@ -275,9 +336,22 @@ def _index() -> dict[str, tuple[StateEntity, bool]]:
                     entity,
                     True,
                 )
+            # También rematan el nombre con la sigla entre paréntesis
+            # ("… Eficientes (OECE)"): misma grafía vigente.
+            table[normalize_org_name(f"{entity.canonical_name} ({entity.acronym})")] = (
+                entity,
+                True,
+            )
             # También nombran a la entidad por su sigla sola ("… del FONDEPES"):
             # es la misma grafía vigente, declarada por el catálogo.
             table[normalize_org_name(entity.acronym)] = (entity, True)
+        if entity.entity_type == "MINISTRY":
+            # El índice del diario rotula al emisor por su sector, sin la
+            # palabra "Ministerio" ("VIVIENDA, CONSTRUCCIÓN Y SANEAMIENTO"):
+            # es el mismo nombre vigente dicho como sector.
+            sector = _SECTOR_PREFIX_RE.sub("", entity.canonical_name)
+            if sector != entity.canonical_name:
+                table[normalize_org_name(sector)] = (entity, True)
         for former in entity.former_names:
             table[normalize_org_name(former.name)] = (entity, False)
     return table

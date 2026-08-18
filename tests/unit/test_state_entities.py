@@ -125,6 +125,53 @@ def test_catalog_acronyms_exclude_homographs_of_name_words():
     assert "CULTURA" not in acronyms
 
 
+def test_parenthesized_acronym_is_a_current_spelling():
+    """ "… Eficientes (OECE)" es la tercera grafía real con que la fuente remata
+    un nombre; debe converger en la misma ficha que la desnuda."""
+    plain = catalog_entity(
+        normalize_org_name("Organismo Especializado para las Contrataciones Públicas Eficientes")
+    )
+    parenthesized = catalog_entity(
+        normalize_org_name(
+            "Organismo Especializado para las Contrataciones Públicas Eficientes (OECE)"
+        )
+    )
+    assert plain is not None and parenthesized is plain
+
+
+def test_oece_succeeds_osce_without_collapsing_the_succession():
+    former = normalize_org_name("Organismo Supervisor de las Contrataciones del Estado")
+    assert catalog_knows(former)
+    assert catalog_entity(former) is None  # el OSCE habla de la entidad en su época
+
+
+def test_sector_label_of_the_daily_index_resolves_to_the_ministry():
+    """El índice del diario rotula al emisor por su sector, sin "Ministerio"
+    ("VIVIENDA, CONSTRUCCIÓN Y SANEAMIENTO"): misma entidad, misma grafía
+    vigente. La palabra completa sigue resolviendo igual."""
+    sector = catalog_entity(normalize_org_name("VIVIENDA, CONSTRUCCIÓN Y SANEAMIENTO"))
+    assert sector is not None and sector.acronym == "MVCS"
+    assert catalog_entity(normalize_org_name("RELACIONES EXTERIORES")).acronym == "RREE"
+
+
+def test_autonomous_bodies_are_curated_without_attachment():
+    """La SBS, el BCRP y el JNE no dependen de ministerio alguno: su
+    adscripción vacía es un hecho constitucional, no curaduría pendiente."""
+    from kipu_knowledge.domain.state_entities import AUTONOMOUS_ENTITIES
+
+    assert {entity.acronym for entity in AUTONOMOUS_ENTITIES} >= {"SBS", "BCRP", "JNE"}
+    for entity in AUTONOMOUS_ENTITIES:
+        assert entity.creation_basis, f"{entity.acronym}: sin norma curada"
+        assert entity.attached_to is None
+        assert parent_entity(entity) is None
+    sbs = catalog_entity(
+        normalize_org_name(
+            "Superintendencia de Banca, Seguros y Administradoras Privadas de Fondos de Pensiones"
+        )
+    )
+    assert sbs is not None and sbs.acronym == "SBS"
+
+
 def test_essalud_and_ipen_resolve_from_their_published_spellings():
     essalud = catalog_entity(normalize_org_name("Seguro Social de Salud – ESSALUD"))
     assert essalud is not None and essalud.acronym == "ESSALUD"

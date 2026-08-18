@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Despacho en lote — Kipu Knowledge{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="meta">
+    <span class="pill pending">ENTITY_RESOLUTION</span>
+    <span class="muted">{{ rows | length }} despachable{{ "s" if rows | length != 1 }}
+      {% if multi_candidate_count %} · {{ multi_candidate_count }} con varios candidatos (revisión una a una){% endif %}
+    </span>
+  </div>
+  <h1>Despacho en lote de identidades</h1>
+  <p class="muted" style="max-width:60rem">
+    Menciones cuya grafía coincide con exactamente <strong>una</strong> ficha existente.
+    Marcar una fila y despachar equivale a decidir «es la misma persona» en su tarea:
+    cada vinculación queda firmada por quien revisa y siembra su precedente, que puede
+    resolver en cadena a las hermanas pendientes. Ante cualquier duda, deja la fila sin
+    marcar y revísala una a una.
+  </p>
+</div>
+
+{% if message %}<section class="card"><p class="ok" style="margin:0">{{ message }}</p></section>{% endif %}
+{% if error %}<section class="card"><p class="warn" style="margin:0">{{ error }}</p></section>{% endif %}
+
+{% if not rows %}
+<section class="card"><p class="muted" style="margin:0">No hay menciones con candidata única pendientes.</p></section>
+{% else %}
+<form method="post" action="/review/dispatch">
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th><input type="checkbox" onclick="document.querySelectorAll('input[name=task_id]').forEach(c => c.checked = this.checked)"></th>
+        <th>Mención</th>
+        <th>Cargo declarado junto al nombre</th>
+        <th>Documento</th>
+        <th>Ficha candidata</th>
+        <th>Cargo conocido de la ficha</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><input type="checkbox" name="task_id" value="{{ r.task.id }}"></td>
+      <td><strong>{{ r.mention.text_raw }}</strong></td>
+      <td class="muted">{{ r.mention.role_context_raw or "—" }}</td>
+      <td class="muted">{{ r.document_number or "?" }}{% if r.publication_code %} · {{ r.publication_code }}{% endif %}</td>
+      <td><a href="/review/persons/{{ r.person.id }}">{{ r.person.preferred_name }}</a></td>
+      <td class="muted">{{ r.known_role or "—" }}</td>
+      <td><a href="/review/tasks/{{ r.task.id }}">una a una →</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <section class="card" style="margin-top:1rem">
+    <label>Revisor (firma de cada vinculación)
+      <input type="text" name="reviewer" placeholder="nombre de quien revisa" required>
+    </label>
+    <button type="submit" style="margin-left:1rem">Despachar las marcadas</button>
+  </section>
+</form>
+{% endif %}
+{% endblock %}

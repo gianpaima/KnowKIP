@@ -344,14 +344,26 @@ def test_reprocess_leaves_no_pending_task_on_a_retired_person_mention(session, i
         reason="coincide por nombre con una persona existente",
     )
     session.add(task)
+    # Misma familia sobre el evento: LINK_AFFECTED_ASSIGNMENT pendiente cuyo
+    # evento la re-extracción va a retirar.
+    event = session.execute(select(m.PersonnelEvent)).scalars().first()
+    event_task = m.ReviewTask(
+        task_type=e.ReviewTaskType.LINK_AFFECTED_ASSIGNMENT,
+        target_type="personnel_event",
+        target_id=event.id,
+        reason="el término no enlaza asignación previa",
+    )
+    session.add(event_task)
     session.commit()
     task_id = task.id
+    event_task_id = event_task.id
     session.expunge_all()
 
     ingest_service.reprocess(ENCARGO_CODE)
     session.commit()
 
     assert session.get(m.ReviewTask, task_id) is None
+    assert session.get(m.ReviewTask, event_task_id) is None
     orphaned = (
         session.execute(
             select(m.ReviewTask).where(

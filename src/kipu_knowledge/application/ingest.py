@@ -508,6 +508,11 @@ class IngestService:
             for event in session.execute(
                 select(m.PersonnelEvent).where(m.PersonnelEvent.id.in_(event_ids))
             ).scalars():
+                # Igual que menciones, puestos y organizaciones: las tareas
+                # PENDING sobre el evento retirado (LINK_AFFECTED_ASSIGNMENT,
+                # EFFECTIVE_DATE_UNSTATED) son residuo de la extracción
+                # reemplazada; la re-extracción abre las suyas.
+                self._drop_pending_tasks_for("personnel_event", event.id)
                 session.delete(event)
             session.flush()
         self._detach_evidence_from_superseded_sections(doc)

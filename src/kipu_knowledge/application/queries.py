@@ -284,3 +284,90 @@ def document_uncertainty_flags(session: Session, document_id: str) -> list[dict[
                 }
             )
     return flags
+
+
+def succession_chain_ids(session: Session, organization_id: str) -> list[str]:
+    """Fichas de la misma cartera a través de su cadena de sucesión.
+
+    De la época más reciente a la más antigua. La cadena la declara el catálogo
+    (la escribe `sync-org-catalog` en `predecessor_organization_id`); aquí solo
+    se recorre, en ambas direcciones desde la ficha dada. Sin cadena, la lista
+    es la propia ficha: la pregunta "¿cuántos ministros tuvo X?" sigue teniendo
+    respuesta, solo que de una única época.
+    """
+    org = session.get(m.Organization, organization_id)
+    if org is None:
+        return []
+    chain = [org.id]
+    current = org
+    hops = 0
+    while current is not None and current.predecessor_organization_id is not None and hops < 10:
+        current = session.get(m.Organization, current.predecessor_organization_id)
+        if current is None:
+            break
+        chain.append(current.id)
+        hops += 1
+    newest_id = org.id
+    hops = 0
+    while hops < 10:
+        successor = (
+            session.execute(
+                select(m.Organization).where(
+                    m.Organization.predecessor_organization_id == newest_id,
+                    m.Organization.merged_into_organization_id.is_(None),
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if successor is None:
+            break
+        chain.insert(0, successor.id)
+        newest_id = successor.id
+        hops += 1
+    return chain
+
+
+def assignments_across_succession(session: Session, organization_id: str) -> list[dict[str, Any]]:
+    """Asignaciones de rol de la cartera a través de todas sus épocas.
+
+    Es la materia prima de "¿cuántos ministros tuvo X?": cada fila dice quién,
+    qué puesto, en qué época del nombre y con qué fechas. No colapsa nada: la
+    época queda dicha en cada fila.
+    """
+    ids = succession_chain_ids(session, organization_id)
+    if not ids:
+        return []
+    rows = (
+        session.execute(
+            select(m.RoleAssignment)
+            .where(
+                m.RoleAssignment.organization_id.in_(ids),
+                m.RoleAssignment.superseded_at.is_(None),
+            )
+            .order_by(m.RoleAssignment.valid_from.nulls_last(), m.RoleAssignment.recorded_at)
+        )
+        .scalars()
+        .all()
+    )
+    payload: list[dict[str, Any]] = []
+    for ra in rows:
+        person = session.get(m.Person, ra.person_id) if ra.person_id else None
+        era = session.get(m.Organization, ra.organization_id) if ra.organization_id else None
+        position = session.get(m.Position, ra.position_id) if ra.position_id else None
+        payload.append(
+            {
+                "assignment_id": ra.id,
+                "person_id": person.id if person else None,
+                "person_name": person.preferred_name if person else None,
+                "position_label": (
+                    position.preferred_label if position is not None else ra.position_label_raw
+                ),
+                "organization_era": era.preferred_name if era else None,
+                "valid_from": ra.valid_from.isoformat() if ra.valid_from else None,
+                "valid_from_status": str(ra.valid_from_status),
+                "valid_to": ra.valid_to.isoformat() if ra.valid_to else None,
+                "valid_to_status": str(ra.valid_to_status),
+            }
+        )
+    return payload

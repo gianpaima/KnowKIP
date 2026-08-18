@@ -499,6 +499,12 @@ class Organization(PKMixin, Base):
     # a su ministerio). Solo lo escribe la adscripción curada del catálogo
     # (domain/state_entities.py) o una decisión humana; nunca se infiere del texto.
     parent_organization_id: Mapped[str | None] = mapped_column(ForeignKey("organization.id"))
+    # Ficha del nombre ANTERIOR de la misma cartera (MIDAGRI → MINAGRI →
+    # Ministerio de Agricultura): la sucesión que "¿cuántos ministros tuvo X?"
+    # necesita recorrer sin colapsar las épocas. Distinta de la fusión (misma
+    # entidad, grafía duplicada) y de la adscripción. Solo la escribe la
+    # sincronización del catálogo o una decisión humana; nunca se infiere.
+    predecessor_organization_id: Mapped[str | None] = mapped_column(ForeignKey("organization.id"))
 
 
 class OrganizationMention(PKMixin, Base):

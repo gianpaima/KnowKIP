@@ -324,6 +324,21 @@ def get_organization(organization_id: str, db: Session = Depends(get_db)) -> dic
     positions = (
         db.execute(select(m.Position).where(m.Position.organization_id == org.id)).scalars().all()
     )
+    from kipu_knowledge.application.queries import (
+        assignments_across_succession,
+        succession_chain_ids,
+    )
+
+    chain = succession_chain_ids(db, org.id)
+    succession = [
+        {
+            "id": era.id,
+            "preferred_name": era.preferred_name,
+            "is_current_era": era.id == chain[0],
+        }
+        for era_id in chain
+        if (era := db.get(m.Organization, era_id)) is not None
+    ]
     return {
         "id": org.id,
         "preferred_name": org.preferred_name,
@@ -334,6 +349,11 @@ def get_organization(organization_id: str, db: Session = Depends(get_db)) -> dic
             for u in units
         ],
         "positions": [{"id": p.id, "preferred_label": p.preferred_label} for p in positions],
+        # La cadena de sucesión declarada por el catálogo (de la época vigente a
+        # la más antigua) y las asignaciones a través de todas las épocas: la
+        # materia prima de "¿cuántos ministros tuvo X?" sin colapsar la historia.
+        "succession": succession,
+        "assignments_across_succession": assignments_across_succession(db, org.id),
     }
 
 

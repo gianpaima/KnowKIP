@@ -51,17 +51,53 @@ MINISTRIES: tuple[StateEntity, ...] = (
         "Presidencia del Consejo de Ministros",
         "PCM",
         entity_type="EXECUTIVE_OFFICE",
+        creation_basis="Ley N° 29158, Ley Orgánica del Poder Ejecutivo (régimen de la PCM)",
     ),
-    StateEntity("Ministerio de Relaciones Exteriores", "RREE"),
-    StateEntity("Ministerio de Defensa", "MINDEF"),
-    StateEntity("Ministerio de Economía y Finanzas", "MEF"),
-    StateEntity("Ministerio del Interior", "MININTER"),
-    StateEntity("Ministerio de Justicia y Derechos Humanos", "MINJUSDH"),
-    StateEntity("Ministerio de Educación", "MINEDU"),
-    StateEntity("Ministerio de Salud", "MINSA"),
+    StateEntity(
+        "Ministerio de Relaciones Exteriores",
+        "RREE",
+        creation_basis="Ley N° 29357 (Ley de Organización y Funciones del RREE)",
+    ),
+    StateEntity(
+        "Ministerio de Defensa",
+        "MINDEF",
+        creation_basis="Decreto Legislativo N° 1134 (Ley de Organización y Funciones del MINDEF)",
+    ),
+    StateEntity(
+        "Ministerio de Economía y Finanzas",
+        "MEF",
+        creation_basis="Decreto Legislativo N° 183, Ley Orgánica del MEF (con modificatorias)",
+    ),
+    StateEntity(
+        "Ministerio del Interior",
+        "MININTER",
+        creation_basis="Decreto Legislativo N° 1266 (Ley de Organización y Funciones del MININTER)",
+    ),
+    StateEntity(
+        "Ministerio de Justicia y Derechos Humanos",
+        "MINJUSDH",
+        creation_basis="Ley N° 29809 (Ley de Organización y Funciones del MINJUSDH)",
+    ),
+    StateEntity(
+        "Ministerio de Educación",
+        "MINEDU",
+        creation_basis=(
+            "Decreto Ley N° 25762, Ley Orgánica del Ministerio de Educación; "
+            "LOF vigente: Ley N° 31224"
+        ),
+    ),
+    StateEntity(
+        "Ministerio de Salud",
+        "MINSA",
+        creation_basis="Decreto Legislativo N° 1161 (Ley de Organización y Funciones del MINSA)",
+    ),
     StateEntity(
         "Ministerio de Desarrollo Agrario y Riego",
         "MIDAGRI",
+        creation_basis=(
+            "Decreto Legislativo N° 997 (Ley de Organización y Funciones de la cartera "
+            "agraria; renombrada por Ley N° 30048 y Ley N° 31075)"
+        ),
         former_names=(
             FormerName(
                 "Ministerio de Agricultura y Riego",
@@ -73,16 +109,51 @@ MINISTRIES: tuple[StateEntity, ...] = (
             ),
         ),
     ),
-    StateEntity("Ministerio de Trabajo y Promoción del Empleo", "MTPE"),
-    StateEntity("Ministerio de la Producción", "PRODUCE"),
-    StateEntity("Ministerio de Comercio Exterior y Turismo", "MINCETUR"),
-    StateEntity("Ministerio de Energía y Minas", "MINEM"),
-    StateEntity("Ministerio de Transportes y Comunicaciones", "MTC"),
-    StateEntity("Ministerio de Vivienda, Construcción y Saneamiento", "MVCS"),
+    StateEntity(
+        "Ministerio de Trabajo y Promoción del Empleo",
+        "MTPE",
+        creation_basis="Ley N° 29381 (Ley de Organización y Funciones del MTPE)",
+    ),
+    StateEntity(
+        "Ministerio de la Producción",
+        "PRODUCE",
+        creation_basis=(
+            "Ley N° 27779 (crea el Ministerio de la Producción); LOF: Decreto Legislativo N° 1047"
+        ),
+    ),
+    StateEntity(
+        "Ministerio de Comercio Exterior y Turismo",
+        "MINCETUR",
+        creation_basis="Ley N° 27790 (Ley de Organización y Funciones del MINCETUR)",
+    ),
+    StateEntity(
+        "Ministerio de Energía y Minas",
+        "MINEM",
+        creation_basis="Ley N° 30705 (Ley de Organización y Funciones del MINEM)",
+    ),
+    StateEntity(
+        "Ministerio de Transportes y Comunicaciones",
+        "MTC",
+        creation_basis="Ley N° 29370 (Ley de Organización y Funciones del MTC)",
+    ),
+    StateEntity(
+        "Ministerio de Vivienda, Construcción y Saneamiento",
+        "MVCS",
+        creation_basis="Ley N° 27792 (crea el MVCS); LOF vigente: Ley N° 30156",
+    ),
     StateEntity(
         "Ministerio de la Mujer y Poblaciones Vulnerables",
         "MIMP",
-        former_names=(FormerName("Ministerio de la Mujer y Desarrollo Social"),),
+        creation_basis=(
+            "Decreto Legislativo N° 1098 (Ley de Organización y Funciones del MIMP; "
+            "reorganiza el MIMDES como MIMP)"
+        ),
+        former_names=(
+            FormerName(
+                "Ministerio de la Mujer y Desarrollo Social",
+                basis="Decreto Legislativo N° 1098 (reorganiza el MIMDES como MIMP)",
+            ),
+        ),
     ),
     StateEntity(
         "Ministerio del Ambiente",

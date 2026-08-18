@@ -106,6 +106,13 @@ def test_every_attached_entity_is_curated_and_resolves_in_all_its_spellings():
             )
 
 
+def test_every_ministry_declares_its_organic_norm():
+    """Cada cartera cita su norma de creación u organización vigente: sin la
+    cita, "¿desde cuándo existe X?" no tendría con qué responderse."""
+    for entity in MINISTRIES:
+        assert entity.creation_basis, f"{entity.acronym}: sin norma curada"
+
+
 def test_acronym_alone_is_a_current_spelling():
     """ "… del FONDEPES" nombra a la entidad solo por su sigla: es grafía
     vigente declarada por el catálogo, no una variante que curar."""

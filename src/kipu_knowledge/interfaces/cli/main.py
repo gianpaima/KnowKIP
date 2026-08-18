@@ -121,104 +121,28 @@ def reprocess(publication_code: str = typer.Option(..., "--publication-code")) -
 
 
 @app.command("sync-org-catalog")
-def sync_org_catalog(dry_run: bool = typer.Option(False, "--dry-run")) -> None:
-    """Enriquece con sigla y tipo las organizaciones que el catálogo curado conoce.
+def sync_org_catalog_cmd(dry_run: bool = typer.Option(False, "--dry-run")) -> None:
+    """Sincroniza las fichas de organización con el catálogo curado.
 
-    Solo toca coincidencias exactas del nombre normalizado con el nombre vigente
-    del catálogo (domain/state_entities.py) y solo completa lo que falta o
-    difiere: es idempotente y cada cambio se imprime, que es su auditoría.
-
-    Además fusiona las fichas vivas cuyas grafías el catálogo declara de la
-    misma entidad ("… (OECE)" y "… – OECE" son el mismo organismo por dato
-    declarado): es el espejo persistente de la convergencia que la ingesta
-    aplica al crear, para fichas nacidas antes de que el catálogo conociera a
-    la entidad. Sobrevive la de nombre canónico; si ninguna lo lleva, la más
-    antigua. Las tareas pendientes sobre la absorbida quedan resueltas con su
-    decisión firmada por esta sincronización.
+    Tres pasadas declarativas (application/org_catalog_sync.py): enriquecer
+    sigla y tipo, fusionar las grafías que el catálogo declara de la misma
+    entidad, y tender la cadena de sucesión entre las fichas de los nombres de
+    una misma cartera (MIDAGRI → MINAGRI → Ministerio de Agricultura). Es
+    idempotente y cada cambio se imprime, que es su auditoría.
     """
-    from sqlalchemy import select
+    from kipu_knowledge.application.org_catalog_sync import sync_org_catalog
 
-    from kipu_knowledge.adapters.db import models as m
-    from kipu_knowledge.application.review import ReviewService
-    from kipu_knowledge.domain import enums as e
-    from kipu_knowledge.domain.normalization import normalize_org_name
-    from kipu_knowledge.domain.state_entities import StateEntity, catalog_entity
-
-    changed = 0
-    merged = 0
     with session_scope() as session:
-        by_entity: dict[int, tuple[StateEntity, list[m.Organization]]] = {}
-        for org in session.execute(select(m.Organization).order_by(m.Organization.id)).scalars():
-            if org.merged_into_organization_id is not None:
-                continue
-            entry = catalog_entity(org.name_normalized)
-            if entry is None:
-                continue
-            by_entity.setdefault(id(entry), (entry, []))[1].append(org)
-            updates: list[str] = []
-            if org.acronym != entry.acronym:
-                updates.append(f"acronym: {org.acronym!r} -> {entry.acronym!r}")
-                if not dry_run:
-                    org.acronym = entry.acronym
-            if org.organization_type != entry.entity_type:
-                updates.append(f"type: {org.organization_type!r} -> {entry.entity_type!r}")
-                if not dry_run:
-                    org.organization_type = entry.entity_type
-            if updates:
-                changed += 1
-                typer.echo(f"{org.preferred_name}: " + "; ".join(updates))
-
-        service = ReviewService(session)
-        for entry, group in by_entity.values():
-            if len(group) < 2:
-                continue
-            canonical_normalized = normalize_org_name(entry.canonical_name)
-            survivor = next(
-                (o for o in group if o.name_normalized == canonical_normalized), group[0]
-            )
-            for org in group:
-                if org.id == survivor.id:
-                    continue
-                merged += 1
-                typer.echo(
-                    f"fusión declarada: '{org.preferred_name}' -> '{survivor.preferred_name}' "
-                    f"({entry.acronym or entry.canonical_name})"
-                )
-                if dry_run:
-                    continue
-                pending = (
-                    session.execute(
-                        select(m.ReviewTask).where(
-                            m.ReviewTask.target_type == "organization",
-                            m.ReviewTask.target_id == org.id,
-                            m.ReviewTask.status == e.ReviewTaskStatus.PENDING,
-                        )
-                    )
-                    .scalars()
-                    .all()
-                )
-                if pending:
-                    # La fusión resuelve la pregunta que la tarea hacía; la
-                    # decisión queda firmada por la sincronización, no anónima.
-                    service.decide(
-                        pending[0].id,
-                        e.DecisionAction.LINK_ENTITY,
-                        reviewer="sync-org-catalog",
-                        payload={"entity_id": survivor.id},
-                        notes="grafías declaradas de la misma entidad por el catálogo curado",
-                    )
-                    for task in pending[1:]:
-                        service.decide(
-                            task.id,
-                            e.DecisionAction.DISMISS,
-                            reviewer="sync-org-catalog",
-                            notes="resuelta por la fusión declarada del catálogo",
-                        )
-                else:
-                    service.merge_declared_duplicate(org.id, survivor.id)
+        report = sync_org_catalog(session, dry_run=dry_run)
+    for line in report.enriched:
+        typer.echo(line)
+    for line in report.merged:
+        typer.echo(f"fusión declarada: {line}")
+    for line in report.succession:
+        typer.echo(f"sucesión: {line}")
     typer.echo(
-        f"{'(dry-run) ' if dry_run else ''}organizaciones actualizadas={changed} "
-        f"fusionadas={merged}"
+        f"{'(dry-run) ' if dry_run else ''}organizaciones actualizadas={len(report.enriched)} "
+        f"fusionadas={len(report.merged)} eslabones de sucesión={len(report.succession)}"
     )
 
 

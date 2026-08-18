@@ -147,6 +147,151 @@ def task_list(db: Session = Depends(get_db), status: str = "PENDING") -> HTMLRes
     return _render("tasks.html", tasks=tasks, status=status)
 
 
+def _dispatch_rows(db: Session) -> tuple[list[dict[str, Any]], int]:
+    """Tareas de resolución de identidad despachables en lote.
+
+    Solo entran las menciones con exactamente UNA ficha candidata por nombre:
+    el lote acelera la confirmación humana, no la reemplaza (regla 13) — cada
+    fila marcada es una decisión LINK_ENTITY del revisor, con su firma y su
+    precedente. Las de candidatos múltiples siguen en la revisión una a una,
+    donde está el contexto completo. Devuelve (filas, cuántas quedaron fuera
+    por tener más de un candidato).
+    """
+    tasks = (
+        db.execute(
+            select(m.ReviewTask)
+            .where(
+                m.ReviewTask.task_type == e.ReviewTaskType.ENTITY_RESOLUTION,
+                m.ReviewTask.status == e.ReviewTaskStatus.PENDING,
+            )
+            .order_by(m.ReviewTask.created_at)
+        )
+        .scalars()
+        .all()
+    )
+    resolver = SimpleEntityResolver(db)
+    rows: list[dict[str, Any]] = []
+    multi = 0
+    for task in tasks:
+        mention = db.get(m.PersonMention, task.target_id)
+        if mention is None:
+            continue
+        proposals = resolver.propose_matches(mention.text_normalized, {"kind": "person"})
+        if len(proposals) != 1:
+            multi += 1
+            continue
+        person = db.get(m.Person, proposals[0].entity_id)
+        if person is None or person.merged_into_person_id is not None:
+            multi += 1
+            continue
+        doc = db.get(m.LegalDocument, mention.legal_document_id)
+        item = db.get(m.PublicationItem, doc.publication_item_id) if doc is not None else None
+        # El cargo vigente conocido de la ficha: es el contexto mínimo con que
+        # el revisor juzga si la mención habla de la misma persona.
+        last = (
+            db.execute(
+                select(m.RoleAssignment)
+                .where(
+                    m.RoleAssignment.person_id == person.id,
+                    m.RoleAssignment.superseded_at.is_(None),
+                )
+                .order_by(m.RoleAssignment.recorded_at.desc())
+            )
+            .scalars()
+            .first()
+        )
+        known_role = last.position_label_raw if last is not None else None
+        if known_role is None and last is not None and last.position_id is not None:
+            position = db.get(m.Position, last.position_id)
+            known_role = position.preferred_label if position is not None else None
+        rows.append(
+            {
+                "task": task,
+                "mention": mention,
+                "person": person,
+                "known_role": known_role,
+                "document_number": doc.number_raw if doc is not None else None,
+                "publication_code": item.publication_code if item is not None else None,
+            }
+        )
+    return rows, multi
+
+
+@router.get("/dispatch", response_class=HTMLResponse)
+def dispatch_view(db: Session = Depends(get_db)) -> HTMLResponse:
+    rows, multi = _dispatch_rows(db)
+    return _render(
+        "dispatch.html", rows=rows, multi_candidate_count=multi, message=None, error=None
+    )
+
+
+@router.post("/dispatch")
+def dispatch_submit(
+    db: Session = Depends(get_db),
+    reviewer: str = Form(""),
+    task_id: list[str] = Form([]),
+) -> Response:
+    def render(message: str | None, error: str | None, status_code: int = 200) -> HTMLResponse:
+        rows, multi = _dispatch_rows(db)
+        return HTMLResponse(
+            _env.get_template("dispatch.html").render(
+                rows=rows, multi_candidate_count=multi, message=message, error=error
+            ),
+            status_code=status_code,
+        )
+
+    if not reviewer.strip():
+        return render(None, "Indica quién revisa: cada vinculación queda firmada.", 422)
+    if not task_id:
+        return render(None, "No se marcó ninguna fila.", 422)
+
+    resolver = SimpleEntityResolver(db)
+    service = ReviewService(db)
+    linked = 0
+    already = 0
+    failed: list[str] = []
+    for tid in task_id:
+        task = db.get(m.ReviewTask, tid)
+        if (
+            task is None
+            or task.task_type != e.ReviewTaskType.ENTITY_RESOLUTION
+            or task.status != e.ReviewTaskStatus.PENDING
+        ):
+            # El precedente sembrado por una fila anterior del propio lote pudo
+            # resolverla ya: no es un fallo, es el lote trabajando en cadena.
+            already += 1
+            continue
+        mention = db.get(m.PersonMention, task.target_id)
+        proposals = (
+            resolver.propose_matches(mention.text_normalized, {"kind": "person"})
+            if mention is not None
+            else []
+        )
+        if len(proposals) != 1:
+            failed.append(tid)
+            continue
+        savepoint = db.begin_nested()
+        try:
+            service.decide(
+                task.id,
+                e.DecisionAction.LINK_ENTITY,
+                reviewer=reviewer.strip(),
+                payload={"entity_id": proposals[0].entity_id},
+                notes="despacho en lote: coincidencia única de nombre confirmada por el revisor",
+            )
+        except (ReviewError, ValueError) as exc:
+            savepoint.rollback()
+            failed.append(f"{tid}: {exc}")
+            continue
+        linked += 1
+    parts = [f"{linked} mención(es) vinculada(s)"]
+    if already:
+        parts.append(f"{already} ya estaban resueltas (precedentes del propio lote)")
+    if failed:
+        parts.append(f"{len(failed)} no despachadas: {'; '.join(failed[:5])}")
+    return render("; ".join(parts), None)
+
+
 @router.get("/crawls", response_class=HTMLResponse)
 def crawl_runs(db: Session = Depends(get_db)) -> HTMLResponse:
     """Bitácora operativa de las recolecciones diarias.

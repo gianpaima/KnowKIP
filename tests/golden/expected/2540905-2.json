@@ -48,6 +48,7 @@
             "org_path": {
               "organization_name": "Banco Central de Reserva del Perú",
               "path_raw": "miembros del Directorio del Banco Central de Reserva del Perú",
+              "role_label": "miembros",
               "unit_chain": [
                 "Directorio"
               ]
@@ -83,6 +84,7 @@
             "org_path": {
               "organization_name": "Banco Central de Reserva del Perú",
               "path_raw": "miembros del Directorio del Banco Central de Reserva del Perú",
+              "role_label": "miembros",
               "unit_chain": [
                 "Directorio"
               ]
@@ -118,6 +120,7 @@
             "org_path": {
               "organization_name": "Banco Central de Reserva del Perú",
               "path_raw": "miembros del Directorio del Banco Central de Reserva del Perú",
+              "role_label": "miembros",
               "unit_chain": [
                 "Directorio"
               ]

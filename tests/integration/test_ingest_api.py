@@ -550,6 +550,93 @@ class TestCandidateContextOnTaskPage:
         assert "sin etiqueta de artículo" not in page
 
 
+class TestScopedOrganizationChoices:
+    """RESOLVE_POSITION ofrece las organizaciones que la resolución involucra.
+
+    La tarea pregunta a qué órgano pertenece un puesto concreto; listar el
+    registro entero obligaba a leer decenas de fichas para encontrar las dos
+    que el documento efectivamente nombra. Las candidatas salen de la ruta
+    cruda del puesto, del documento de origen y de la adscripción curada; el
+    registro completo queda plegado como salida de emergencia.
+    """
+
+    PATH_RAW = (
+        "Directora del Sistema Administrativo II de la Unidad de Recursos Humanos "
+        "de la Oficina General de Administración del Programa Nacional de "
+        "Infraestructura Educativa - PRONIED"
+    )
+
+    def _scenario(self, session) -> tuple[m.ReviewTask, m.Organization, m.Organization]:
+        from kipu_knowledge.domain.normalization import (
+            normalize_org_name,
+            normalize_position_label,
+        )
+
+        minedu = m.Organization(
+            preferred_name="Ministerio de Educación",
+            name_normalized=normalize_org_name("Ministerio de Educación"),
+            acronym="MINEDU",
+        )
+        session.add(minedu)
+        session.flush()
+        pronied = m.Organization(
+            preferred_name="Programa Nacional de Infraestructura Educativa - PRONIED",
+            name_normalized=normalize_org_name(
+                "Programa Nacional de Infraestructura Educativa - PRONIED"
+            ),
+            acronym="PRONIED",
+            parent_organization_id=minedu.id,
+        )
+        session.add(pronied)
+        position = m.Position(
+            preferred_label="Directora del Sistema Administrativo II",
+            label_normalized=normalize_position_label("Directora del Sistema Administrativo II"),
+        )
+        session.add(position)
+        session.flush()
+        # La asignación aporta la ruta cruda y ancla el puesto a un documento ya
+        # ingerido, que es de donde la página toma la evidencia y el origen.
+        mention = session.execute(select(m.PersonMention)).scalars().first()
+        session.add(
+            m.RoleAssignment(
+                person_mention_id=mention.id,
+                position_id=position.id,
+                position_label_raw=self.PATH_RAW,
+                organization_path_raw=self.PATH_RAW,
+            )
+        )
+        task = m.ReviewTask(
+            task_type=e.ReviewTaskType.POSITION_ORG_UNRESOLVED,
+            target_type="position",
+            target_id=position.id,
+            reason="prueba: candidatas acotadas",
+            priority=3,
+        )
+        session.add(task)
+        session.flush()
+        return task, pronied, minedu
+
+    def test_candidates_come_from_the_resolution_not_the_whole_registry(
+        self, api_client, ingested_session
+    ):
+        task, pronied, minedu = self._scenario(ingested_session)
+        page = api_client.get(f"/review/tasks/{task.id}").text
+        # La nombrada en la ruta va primera y preseleccionada, con su motivo.
+        assert f'value="{pronied.id}" checked' in page
+        assert "su nombre aparece en la ruta del puesto" in page
+        # El ministerio entra por la adscripción declarada, no por adivinanza.
+        assert f'value="{minedu.id}"' in page
+        assert "entidad de la que depende" in page
+        # El resto del registro sigue disponible, pero plegado.
+        assert "Registro completo" in page
+
+    def test_the_structural_cargo_is_explained(self, api_client, ingested_session):
+        task, _, _ = self._scenario(ingested_session)
+        page = api_client.get(f"/review/tasks/{task.id}").text
+        assert "Clasificador de Cargos" in page
+        assert "nivel II" in page
+
+
 class TestReviewFlow:
     def test_review_tasks_and_decision(self, api_client, ingested_session):
         tasks = api_client.get("/v1/review-tasks").json()["items"]

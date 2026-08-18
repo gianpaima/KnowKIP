@@ -36,6 +36,7 @@
             "org_path": {
               "organization_name": "Ministerio de Desarrollo Agrario y Riego",
               "path_raw": "Jefa de Atención al Ciudadano y Gestión Documental de la Oficina de Atención al Ciudadano y Gestión Documental de la Secretaría General del Ministerio de Desarrollo Agrario y Riego",
+              "role_label": "Jefa de Atención al Ciudadano y Gestión Documental",
               "unit_chain": [
                 "Oficina de Atención al Ciudadano y Gestión Documental",
                 "Secretaría General"

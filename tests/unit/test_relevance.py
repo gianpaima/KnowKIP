@@ -114,3 +114,49 @@ def test_noun_designacion_alone_is_not_a_personnel_verb() -> None:
     )
     assert verdict.relevance is Relevance.NOT_RELEVANT
     assert not verdict.should_ingest
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        "Confirman la Resolución N.º 00028-2026-JEE-QSPI/JNE emitida por el Jurado "
+        "Electoral Especial de Quispicanchi",
+        "Revocan extremo de la Res. N.° 03459-2026-JEE-LICN/JNE emitida por el JEE",
+        "Declaran nula la Resolución N.º 00053-2026-JEE-CHAN/JNE",
+        "Declaran infundado el recurso de apelación interpuesto contra la resolución",
+        "Resuelven recurso extraordinario por afectación al debido proceso",
+        "Integran credenciales a la Resolución Nº 1021-2026-JNE",
+    ],
+)
+def test_jurisdictional_appeals_are_not_personnel_acts(summary: str) -> None:
+    """El JNE en temporada electoral resuelve recursos por decenas al día
+    (70 de 102 dispositivos el 2026-08-11): confirman o anulan resoluciones,
+    no designan a nadie."""
+    verdict = classify_summary(summary)
+    assert verdict.relevance is Relevance.NOT_RELEVANT
+    assert not verdict.should_ingest
+
+
+def test_declaring_a_vacancy_is_still_a_personnel_act() -> None:
+    """El catálogo positivo se evalúa antes: la vacancia sí es un acto sobre el
+    cargo, aunque empiece con 'Declaran'."""
+    verdict = classify_summary("Declaran vacancia del cargo de alcalde de la Municipalidad")
+    assert verdict.relevance is Relevance.RELEVANT
+
+
+def test_summoning_a_citizen_to_assume_office_is_still_ingested() -> None:
+    """'Convocan a ciudadano para que asuma el cargo' es un acto sobre el cargo:
+    queda UNDECIDED y se ingiere, no se cataloga como jurisdiccional."""
+    verdict = classify_summary(
+        "Convocan a ciudadana para que asuma, provisionalmente, el cargo de "
+        "alcaldesa de la Municipalidad Distrital"
+    )
+    assert verdict.relevance is Relevance.UNDECIDED
+    assert verdict.should_ingest
+
+
+def test_a_mixed_summary_with_a_personnel_act_still_ingests() -> None:
+    verdict = classify_summary(
+        "Revocan credenciales y designan fedatarios institucionales de la entidad"
+    )
+    assert verdict.relevance is Relevance.RELEVANT

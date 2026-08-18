@@ -396,8 +396,12 @@ class PersonMention(PKMixin, Base):
     # Cargo declarado junto al nombre en el documento (p.ej. la capacidad con que
     # firma). Señal corroborante independiente del nombre para la resolución de
     # identidad; NULL cuando el documento no la expresa.
-    role_context_raw: Mapped[str | None] = mapped_column(String(400))
-    role_context_normalized: Mapped[str | None] = mapped_column(String(400), index=True)
+    # 1000 y no 400: el contexto de rol conserva lo que la fuente escribió, y una
+    # celda con notas al pie legítimas superaba los 400 caracteres y abortaba la
+    # ingesta del documento entero (RM 197-2026-PCM, 2541397-1). Ancho de sobra
+    # convierte ese fallo fatal en una mención registrada que la revisión ve.
+    role_context_raw: Mapped[str | None] = mapped_column(String(1000))
+    role_context_normalized: Mapped[str | None] = mapped_column(String(1000), index=True)
     evidence_span_id: Mapped[str] = mapped_column(ForeignKey("evidence_span.id"))
     canonical_person_id: Mapped[str | None] = mapped_column(ForeignKey("person.id"), index=True)
     resolution_status: Mapped[e.ResolutionStatus] = mapped_column(
@@ -491,6 +495,10 @@ class Organization(PKMixin, Base):
     # `Person.merged_into_person_id`). La fila nunca se borra (regla 3): queda
     # apuntando a la superviviente para que su identificador siga resolviendo.
     merged_into_organization_id: Mapped[str | None] = mapped_column(ForeignKey("organization.id"))
+    # Entidad de la que esta organización depende (un programa nacional adscrito
+    # a su ministerio). Solo lo escribe la adscripción curada del catálogo
+    # (domain/state_entities.py) o una decisión humana; nunca se infiere del texto.
+    parent_organization_id: Mapped[str | None] = mapped_column(ForeignKey("organization.id"))
 
 
 class OrganizationMention(PKMixin, Base):

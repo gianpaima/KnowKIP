@@ -11,6 +11,7 @@ import re
 from dataclasses import dataclass, field
 
 from kipu_knowledge.domain.normalization import collapse_whitespace, strip_accents
+from kipu_knowledge.domain.state_entities import catalog_acronyms
 
 DATE_ES = r"\d{1,2}\s+de\s+[a-záéíóúñ]+\s+del?\s+\d{4}"
 
@@ -31,7 +32,41 @@ ORG_HEAD_WORDS = (
     # esta cabecera el segmentador no encontraba dónde terminar el nombre anterior
     # y lo extendía hasta el final del artículo.
     "Organismo",
+    # Los programas nacionales ("Programa Nacional de Infraestructura Educativa
+    # - PRONIED") también son entidades con puestos propios, no unidades. Se exige
+    # el compuesto completo: "Programa" a secas partiría el cargo estructural
+    # "Director de Programa Sectorial II" del clasificador.
+    "Programa Nacional",
+    # Organismos adscritos que designan en sus propias resoluciones o reciben
+    # representantes del Estado. Compuestos a propósito: "Instituto" o "Fondo" a
+    # secas también nombran unidades y fondos internos.
+    "Seguro Social de Salud",
+    "Instituto Peruano",
+    "Comisión de Promoción",
+    "Fondo Nacional",
+    # Ampliación de la puesta al día de agosto 2026: organismos y programas que
+    # designan en resoluciones propias (AGRO RURAL, SENCICO, APCI, INGEMMET,
+    # ITP, ANIN, SERVIR, ANA, SENASA…). Compuestos a propósito, como arriba:
+    # "Programa", "Instituto" o "Dirección" a secas nombran también unidades y
+    # cargos estructurales del clasificador.
+    "Programa de Desarrollo",
+    "Servicio Nacional",
+    "Agencia Peruana",
+    "Autoridad Nacional",
+    "Instituto Geológico",
+    "Instituto Tecnológico",
+    # La DINI es entidad por derecho propio pese a llamarse "Dirección …": sin
+    # esta cabecera exacta caía como unidad y su puesto nacía sin organización.
+    "Dirección Nacional de Inteligencia",
 )
+
+# Las resoluciones también nombran a la entidad solo por su sigla ("Jefe de la
+# Oficina General de Asesoría Jurídica del FONDEPES"). Las siglas son dato
+# declarado del catálogo curado (domain/state_entities.py, que ya excluye las
+# homógrafas de palabras de nombres, como CULTURA); la comparación es sensible
+# a mayúsculas, así que "FONDEPES" nunca calza con una palabra corriente.
+ACRONYM_ORG_HEADS = catalog_acronyms()
+_ACRONYM_ORG_RE = re.compile(r"^(?:" + "|".join(re.escape(a) for a in ACRONYM_ORG_HEADS) + r")\b")
 
 UNIT_HEAD_WORDS = (
     "Oficina General",
@@ -49,7 +84,7 @@ UNIT_HEAD_WORDS = (
     "Directorio",
 )
 
-_ALL_HEADS = sorted(ORG_HEAD_WORDS + UNIT_HEAD_WORDS, key=len, reverse=True)
+_ALL_HEADS = sorted(ORG_HEAD_WORDS + UNIT_HEAD_WORDS + ACRONYM_ORG_HEADS, key=len, reverse=True)
 _HEADS_ALT = "|".join(re.escape(h) for h in _ALL_HEADS)
 _BOUNDARY_RE = re.compile(r"\s+(?:de la|del|de los|de)\s+(?=(?:" + _HEADS_ALT + r")\b)")
 _ANTE_ORG_RE = re.compile(
@@ -84,11 +119,15 @@ def split_org_path(role_text: str) -> OrgPathSplit:
     organization: str | None = None
     units: list[str] = []
     for seg in rest:
-        if organization is None and any(seg.startswith(h) for h in ORG_HEAD_WORDS):
+        if organization is None and _is_org_segment(seg):
             organization = seg
         else:
             units.append(seg)
     return OrgPathSplit(role_label=role, unit_chain=units, organization=organization)
+
+
+def _is_org_segment(seg: str) -> bool:
+    return any(seg.startswith(h) for h in ORG_HEAD_WORDS) or _ACRONYM_ORG_RE.match(seg) is not None
 
 
 # --- Limpieza de textos de rol ---
@@ -303,9 +342,13 @@ END_CONDITION_RE = re.compile(
 # "…, a partir del 7 de agosto de 2026" declarado al final del encargo en lugar
 # de junto al nombre. Es la misma fecha de eficacia que ENCARGAR_PERSON_RE captura
 # en la posición temprana; aquí se recorta para que no viaje dentro del puesto.
+# La variante "a partir de la fecha" —sin cifra— también es coletilla de
+# eficacia y también contaminaba la ruta del puesto ("… – APCI, a partir de la
+# fecha"); se recorta igual, pero NO produce fecha: el grupo `date` queda vacío
+# y la fecha sigue sin expresar, que la determine legal_effect o el revisor.
 TRAILING_EFFECTIVE_FROM_RE = re.compile(
     r"[,;]?\s*(?:y\s+|e\s+)?(?:con eficacia(?:\s+anticipada)?\s+)?"
-    r"a partir del\s+(?P<date>" + DATE_ES + r")",
+    r"a partir de(?:l\s+(?P<date>" + DATE_ES + r")|\s+la\s+fecha\b)",
     re.IGNORECASE,
 )
 

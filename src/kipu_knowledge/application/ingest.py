@@ -73,6 +73,7 @@ from kipu_knowledge.domain.parsed import ParsedDocument
 from kipu_knowledge.domain.state_entities import (
     catalog_entity,
     looks_like_uncatalogued_ministry,
+    parent_entity,
 )
 from kipu_knowledge.ontology_version import ONTOLOGY_VERSION
 
@@ -529,6 +530,12 @@ class IngestService:
             for derived in session.execute(
                 select(table).where(table.legal_document_id == doc.id)
             ).scalars():
+                # Las tareas abiertas sobre la mención que se retira son residuo
+                # de la extracción reemplazada: la re-extracción abre las suyas
+                # sobre las menciones nuevas. Sin esto quedaban tareas PENDING
+                # apuntando a filas inexistentes (igual que puestos y orgs).
+                if table is m.PersonMention:
+                    self._drop_pending_tasks_for("person_mention", derived.id)
                 session.delete(derived)
         # Las menciones de organización se rehacen como las de persona. El emisor
         # apunta a una de ellas desde el propio documento, así que ese puntero se
@@ -1236,19 +1243,80 @@ class _ResultPersister:
 
     def _organization(self, name: str, evidence: m.EvidenceSpan | None) -> m.Organization:
         normalized = normalize_org_name(name)
-        proposals = self._resolver.propose_matches(normalized, {"kind": "organization"})
-        if proposals:
-            org = self._s.get(m.Organization, proposals[0].entity_id)
-            assert org is not None
-            return org
         # El catálogo curado enriquece la ficha nueva cuando la grafía coincide
         # exactamente con el nombre vigente de una entidad conocida: la sigla y
         # el tipo son datos declarados, no inferencias.
         entry = catalog_entity(normalized)
+        if entry is not None:
+            # Dos grafías vigentes de la misma entidad del catálogo ("Instituto
+            # Peruano de Energía Nuclear" con o sin "– IPEN") son la misma
+            # organización por dato declarado, no por inferencia de nombres:
+            # reutilizar la ficha evita fabricar un duplicado que después solo
+            # una fusión humana podría deshacer. Se resuelve antes que la
+            # coincidencia exacta de grafía, y con preferencia determinista por
+            # la ficha del nombre canónico, para que dos fichas de la misma
+            # entidad converjan en una al reprocesar en vez de sostenerse
+            # mutuamente.
+            same_entity = [
+                existing
+                for existing in self._s.execute(
+                    select(m.Organization)
+                    .where(m.Organization.merged_into_organization_id.is_(None))
+                    .order_by(m.Organization.id)
+                ).scalars()
+                if catalog_entity(existing.name_normalized) is entry
+            ]
+            if same_entity:
+                canonical_normalized = normalize_org_name(entry.canonical_name)
+                org = next(
+                    (o for o in same_entity if o.name_normalized == canonical_normalized),
+                    same_entity[0],
+                )
+                if org.name_normalized != normalized:
+                    # La grafía distinta queda documentada como mención de la
+                    # misma ficha; la idéntica ya lo está desde su creación.
+                    self._s.add(
+                        m.OrganizationMention(
+                            legal_document_id=self._doc.id,
+                            text_raw=name,
+                            text_normalized=normalized,
+                            canonical_organization_id=org.id,
+                            resolution_status=e.ResolutionStatus.AUTO_LINKED,
+                            evidence_span_id=evidence.id if evidence else None,
+                        )
+                    )
+                    self._s.flush()
+                return org
+        proposals = self._resolver.propose_matches(normalized, {"kind": "organization"})
+        if proposals:
+            proposed = self._s.get(m.Organization, proposals[0].entity_id)
+            assert proposed is not None
+            return proposed
         org = m.Organization(preferred_name=name, name_normalized=normalized)
         if entry is not None:
             org.acronym = entry.acronym
             org.organization_type = entry.entity_type
+            # La adscripción es dato curado del catálogo, no inferencia: si la
+            # entidad madre ya tiene ficha, el programa cuelga de ella. Si aún
+            # no la tiene, no se crea (el catálogo no crea filas): el vínculo
+            # se sentará cuando una mención con evidencia la haga nacer.
+            parent = parent_entity(entry)
+            if parent is not None:
+                parent_row = self._s.execute(
+                    select(m.Organization).where(
+                        m.Organization.name_normalized.in_(
+                            [
+                                normalize_org_name(parent.canonical_name),
+                                normalize_org_name(f"{parent.canonical_name} - {parent.acronym}"),
+                            ]
+                            if parent.acronym
+                            else [normalize_org_name(parent.canonical_name)]
+                        ),
+                        m.Organization.merged_into_organization_id.is_(None),
+                    )
+                ).scalar_one_or_none()
+                if parent_row is not None:
+                    org.parent_organization_id = parent_row.id
         self._s.add(org)
         self._s.flush()
         mention = m.OrganizationMention(
@@ -1698,7 +1766,19 @@ class _ResultPersister:
                 )
             position = None
             if extracted_assignment.position_label_raw:
-                position = self._position(extracted_assignment.position_label_raw, org, unit, slot)
+                # Con el órgano resuelto, la etiqueta del puesto es el cargo sin la
+                # ruta: la ruta ya vive en organización + unidades, y dejarla dentro
+                # de la etiqueta creaba un Position distinto por cada grafía de la
+                # misma ruta. Sin órgano se conserva la etiqueta completa: recortar
+                # perdería la única seña de a quién pertenece el puesto.
+                position_label = extracted_assignment.position_label_raw
+                if (
+                    org is not None
+                    and extracted_assignment.org_path
+                    and extracted_assignment.org_path.role_label
+                ):
+                    position_label = extracted_assignment.org_path.role_label
+                position = self._position(position_label, org, unit, slot)
 
             ra_mention: m.PersonMention | None = None
             if extracted_assignment.person is not None:

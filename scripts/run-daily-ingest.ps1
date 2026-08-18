@@ -23,8 +23,21 @@ $runDate = Get-Date -Format "yyyy-MM-dd"
 $env:LIVE_SOURCE_ENABLED = "true"
 
 Add-Content -LiteralPath $logPath -Value "[$(Get-Date -Format o)] Inicio de ingesta $runDate"
-& $uvPath run kipu ingest-date --date $runDate 2>&1 |
-    Tee-Object -FilePath $logPath -Append
-$exitCode = $LASTEXITCODE
+# El comando nativo corre con preferencia Continue: bajo Windows PowerShell 5.1,
+# $ErrorActionPreference=Stop convierte cualquier línea de stderr redirigida con
+# 2>&1 en error terminante, y el script moría sin registrar ni el motivo ni el
+# "Fin" (corridas del 2026-08-14 al 17: código 0x1 y bitácora vacía).
+$exitCode = 1
+try {
+    $ErrorActionPreference = "Continue"
+    & $uvPath run kipu ingest-date --date $runDate 2>&1 |
+        ForEach-Object { "$_" } |
+        Tee-Object -FilePath $logPath -Append
+    $exitCode = $LASTEXITCODE
+} catch {
+    Add-Content -LiteralPath $logPath -Value "[$(Get-Date -Format o)] ERROR: $_"
+} finally {
+    $ErrorActionPreference = "Stop"
+}
 Add-Content -LiteralPath $logPath -Value "[$(Get-Date -Format o)] Fin de ingesta $runDate (código $exitCode)"
 exit $exitCode

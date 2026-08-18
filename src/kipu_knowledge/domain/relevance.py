@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from kipu_knowledge.domain.enums import Relevance
 from kipu_knowledge.domain.normalization import collapse_whitespace, strip_accents
 
-RULE_VERSION = "personnel-relevance/1.0"
+RULE_VERSION = "personnel-relevance/1.1"
 
 # Actos de personal: si alguno aparece en cualquier parte de la sumilla, entra.
 # Se buscan en cualquier posición a propósito, porque hay sumillas compuestas
@@ -58,6 +58,19 @@ _NON_PERSONNEL_PREFIXES: tuple[tuple[str, str], ...] = (
     (r"^MODIFICAN\b", "modificación de otra norma o contrato"),
     (r"^PRORROGAN\b", "prórroga de plazos o vigencias"),
     (r"^DISPONEN\s+LA\s+(?:NOTIFICACION|PUBLICACION)\b", "trámite de notificación o publicación"),
+    # Actos jurisdiccionales en grado —del JNE sobre resoluciones de los JEE en
+    # temporada electoral, y análogos de otros tribunales—: resuelven recursos,
+    # no designan a nadie. En la edición del 2026-08-11 fueron 70 de 102
+    # dispositivos. "Declaran vacancia" no pasa por aquí: el catálogo positivo
+    # se evalúa antes y esa fórmula sí es un acto sobre el cargo.
+    (r"^CONFIRMAN\b", "confirmación en grado de una resolución (acto jurisdiccional)"),
+    (r"^REVOCAN\b", "revocación en grado de una resolución (acto jurisdiccional)"),
+    (r"^RESUELVEN\b", "resolución de un recurso o pedido (acto jurisdiccional)"),
+    (
+        r"^DECLARAN\s+(?:NUL[AO]|FUNDAD[AO]|INFUNDAD[AO]|IMPROCEDENTE|INADMISIBLE)\b",
+        "pronunciamiento sobre un recurso (acto jurisdiccional)",
+    ),
+    (r"^INTEGRAN\s+CREDENCIAL(?:ES)?\b", "integración de credenciales electorales"),
 )
 
 _COMPILED_PERSONNEL = tuple((re.compile(p), why) for p, why in _PERSONNEL_MARKERS)

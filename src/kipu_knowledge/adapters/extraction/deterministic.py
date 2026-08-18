@@ -123,6 +123,7 @@ def _org_path(role_text: str, organization: str | None = None) -> ExtractedOrgPa
         path_raw=role_text,
         organization_name=organization or split.organization,
         unit_chain=split.unit_chain,
+        role_label=split.role_label,
     )
 
 
@@ -377,6 +378,18 @@ class DeterministicExtractor:
             role_text = role_text[: first_day.start()].strip().rstrip(".;,")
             if effective.status != DateStatus.EXPLICIT:
                 effective = _explicit_date(first_day.group(0).strip(" ,"))
+        # "… del Instituto Peruano de Energía Nuclear, a partir del 13 de agosto
+        # de 2026": la eficacia declarada al final del cargo en lugar de junto al
+        # verbo. Es la misma fecha que el patrón captura en la posición temprana;
+        # aquí se recorta para que no viaje dentro de la ruta del puesto y se
+        # aprovecha como fecha expresada, no inferida.
+        trailing = p.TRAILING_EFFECTIVE_FROM_RE.search(role_text)
+        if trailing:
+            role_text = role_text[: trailing.start()].strip().rstrip(".;,")
+            # "a partir de la fecha" (sin cifra) se recorta igual pero no es una
+            # fecha expresada: el grupo queda vacío y la fecha sigue NOT_STATED.
+            if trailing.group("date") and effective.status != DateStatus.EXPLICIT:
+                effective = _explicit_date(f"a partir del {trailing.group('date')}")
         mention = _mention(article, m.group("name"))
         assignment = ExtractedAssignment(
             person=mention,

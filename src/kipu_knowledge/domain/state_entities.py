@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from kipu_knowledge.domain.normalization import normalize_org_name
+from kipu_knowledge.domain.normalization import normalize_org_name, strip_accents
 
 
 @dataclass(frozen=True)
@@ -37,6 +37,9 @@ class StateEntity:
     entity_type: str = "MINISTRY"
     former_names: tuple[FormerName, ...] = field(default_factory=tuple)
     creation_basis: str | None = None  # norma de creación, cuando está curada
+    # Nombre canónico de la entidad de la que depende (adscripción declarada por
+    # su norma de creación). Solo se cura aquí; nunca se infiere del texto.
+    attached_to: str | None = None
 
 
 # Ministerios del Poder Ejecutivo (más la PCM, que encabeza el Consejo de
@@ -98,11 +101,183 @@ MINISTRIES: tuple[StateEntity, ...] = (
 )
 
 
+# Programas y organismos adscritos que aparecen en resoluciones de personal.
+# Mismo contrato que MINISTRIES: referencia declarada y curada a mano, con la
+# norma de creación cuando la cita está verificada. `attached_to` registra la
+# adscripción que su norma dispone; es lo que permite colgar el programa de su
+# ministerio sin inferir nada del texto.
+ATTACHED_ENTITIES: tuple[StateEntity, ...] = (
+    StateEntity(
+        "Programa Nacional de Infraestructura Educativa",
+        "PRONIED",
+        entity_type="NATIONAL_PROGRAM",
+        creation_basis="Decreto Supremo N° 004-2014-MINEDU (crea el PRONIED)",
+        attached_to="Ministerio de Educación",
+    ),
+    StateEntity(
+        "Seguro Social de Salud",
+        "ESSALUD",
+        entity_type="DECENTRALIZED_PUBLIC_BODY",
+        creation_basis="Ley N° 27056 (crea el Seguro Social de Salud, adscrito al Sector Trabajo)",
+        attached_to="Ministerio de Trabajo y Promoción del Empleo",
+    ),
+    StateEntity(
+        "Instituto Peruano de Energía Nuclear",
+        "IPEN",
+        entity_type="PUBLIC_EXECUTING_BODY",
+        creation_basis="Decreto Ley N° 21094 (Ley del Sector Energía y Minas, crea el IPEN)",
+        attached_to="Ministerio de Energía y Minas",
+    ),
+    StateEntity(
+        "Comisión de Promoción del Perú para la Exportación y el Turismo",
+        "PROMPERÚ",
+        entity_type="SPECIALIZED_TECHNICAL_BODY",
+        creation_basis=(
+            "Decreto Supremo N° 003-2007-MINCETUR (fusiona PromPerú y PROMPEX en la "
+            "Comisión de Promoción del Perú para la Exportación y el Turismo)"
+        ),
+        attached_to="Ministerio de Comercio Exterior y Turismo",
+    ),
+    StateEntity(
+        "Fondo Nacional de Desarrollo Pesquero",
+        "FONDEPES",
+        entity_type="PUBLIC_EXECUTING_BODY",
+        creation_basis=(
+            "Decreto Supremo N° 010-92-PE (crea el FONDEPES; con fuerza de ley por el "
+            "artículo 57 del Decreto Ley N° 25977, Ley General de Pesca)"
+        ),
+        attached_to="Ministerio de la Producción",
+    ),
+    StateEntity(
+        "Programa de Desarrollo Productivo Agrario Rural",
+        "AGRO RURAL",
+        entity_type="NATIONAL_PROGRAM",
+        creation_basis=(
+            "Decreto Legislativo N° 997, Segunda Disposición Complementaria Final (crea "
+            "AGRO RURAL); creación formalizada por Decreto Supremo N° 012-2020-MIDAGRI"
+        ),
+        attached_to="Ministerio de Desarrollo Agrario y Riego",
+    ),
+    StateEntity(
+        "Servicio Nacional de Capacitación para la Industria de la Construcción",
+        "SENCICO",
+        entity_type="DECENTRALIZED_PUBLIC_BODY",
+        creation_basis="Decreto Ley N° 21673 (Ley Orgánica del SENCICO)",
+        attached_to="Ministerio de Vivienda, Construcción y Saneamiento",
+    ),
+    StateEntity(
+        "Agencia Peruana de Cooperación Internacional",
+        "APCI",
+        entity_type="PUBLIC_EXECUTING_BODY",
+        creation_basis="Ley N° 27692 (Ley de Creación de la APCI)",
+        attached_to="Ministerio de Relaciones Exteriores",
+    ),
+    StateEntity(
+        "Instituto Geológico, Minero y Metalúrgico",
+        "INGEMMET",
+        entity_type="SPECIALIZED_TECHNICAL_BODY",
+        creation_basis=(
+            "Decreto Supremo N° 021-78-EM/OR (fusiona INGEOMIN e INCITEMI en el "
+            "INGEMMET); Ley Orgánica: Decreto Ley N° 22631"
+        ),
+        attached_to="Ministerio de Energía y Minas",
+    ),
+    StateEntity(
+        "Dirección Nacional de Inteligencia",
+        "DINI",
+        entity_type="PUBLIC_EXECUTING_BODY",
+        creation_basis=(
+            "Ley N° 28664 (Ley del Sistema de Inteligencia Nacional - SINA y de la "
+            "DINI); régimen vigente: Decreto Legislativo N° 1141"
+        ),
+        attached_to="Presidencia del Consejo de Ministros",
+    ),
+    StateEntity(
+        "Instituto Tecnológico de la Producción",
+        "ITP",
+        entity_type="SPECIALIZED_TECHNICAL_BODY",
+        former_names=(
+            FormerName(
+                "Instituto Tecnológico Pesquero del Perú",
+                basis=(
+                    "Ley N° 29951, Ley de Presupuesto 2013 (renombra el Instituto "
+                    "Tecnológico Pesquero del Perú como Instituto Tecnológico de la "
+                    "Producción)"
+                ),
+            ),
+        ),
+        creation_basis=(
+            "Decreto Legislativo N° 92 (crea el Instituto Tecnológico Pesquero del Perú)"
+        ),
+        attached_to="Ministerio de la Producción",
+    ),
+    StateEntity(
+        "Autoridad Nacional de Infraestructura",
+        "ANIN",
+        entity_type="PUBLIC_EXECUTING_BODY",
+        creation_basis="Ley N° 31841 (crea la Autoridad Nacional de Infraestructura)",
+        attached_to="Presidencia del Consejo de Ministros",
+    ),
+    StateEntity(
+        "Superintendencia Nacional de Bienes Estatales",
+        "SBN",
+        entity_type="PUBLIC_EXECUTING_BODY",
+        former_names=(
+            FormerName(
+                "Superintendencia de Bienes Nacionales",
+                basis=(
+                    "Ley N° 29151, Ley General del Sistema Nacional de Bienes Estatales "
+                    "(fija la denominación Superintendencia Nacional de Bienes Estatales)"
+                ),
+            ),
+        ),
+        creation_basis=(
+            "Decreto Ley N° 25556, Cuarta Disposición Final, modificado por Decreto Ley "
+            "N° 25738 (crea la Superintendencia de Bienes Nacionales)"
+        ),
+        attached_to="Ministerio de Vivienda, Construcción y Saneamiento",
+    ),
+    StateEntity(
+        "Superintendencia Nacional de Aduanas y de Administración Tributaria",
+        "SUNAT",
+        entity_type="SPECIALIZED_TECHNICAL_BODY",
+        former_names=(
+            FormerName(
+                "Superintendencia Nacional de Administración Tributaria",
+                basis=(
+                    "Ley N° 29816, Ley de Fortalecimiento de la SUNAT (fija la "
+                    "denominación Superintendencia Nacional de Aduanas y de "
+                    "Administración Tributaria)"
+                ),
+            ),
+        ),
+        creation_basis="Ley N° 24829 (crea la SUNAT)",
+        attached_to="Ministerio de Economía y Finanzas",
+    ),
+)
+
+_ALL_ENTITIES: tuple[StateEntity, ...] = MINISTRIES + ATTACHED_ENTITIES
+
+
 def _index() -> dict[str, tuple[StateEntity, bool]]:
     """Nombre normalizado → (entidad, es_nombre_vigente)."""
     table: dict[str, tuple[StateEntity, bool]] = {}
-    for entity in MINISTRIES:
+    for entity in _ALL_ENTITIES:
         table[normalize_org_name(entity.canonical_name)] = (entity, True)
+        if entity.acronym:
+            # Las publicaciones suelen rematar el nombre con su sigla, unas veces
+            # con guion corto ("… - PRONIED") y otras con guion largo
+            # ("… – IPEN"): es la misma grafía vigente, no una variante que
+            # curar. La normalización conserva el guion largo, así que ambas
+            # formas se registran.
+            for dash in ("-", "–"):
+                table[normalize_org_name(f"{entity.canonical_name} {dash} {entity.acronym}")] = (
+                    entity,
+                    True,
+                )
+            # También nombran a la entidad por su sigla sola ("… del FONDEPES"):
+            # es la misma grafía vigente, declarada por el catálogo.
+            table[normalize_org_name(entity.acronym)] = (entity, True)
         for former in entity.former_names:
             table[normalize_org_name(former.name)] = (entity, False)
     return table
@@ -111,6 +286,29 @@ def _index() -> dict[str, tuple[StateEntity, bool]]:
 _BY_NORMALIZED = _index()
 
 _MINISTRY_HEAD = "MINISTERIO "
+
+
+def catalog_acronyms() -> tuple[str, ...]:
+    """Siglas vigentes que nombran a la entidad por sí solas ("del FONDEPES").
+
+    Sirven de cabecera de organización al segmentador de rutas de puesto. Se
+    excluye toda sigla que además sea palabra de un nombre del catálogo
+    ("CULTURA" lo es de "Ministerio de Cultura"): como cabecera partiría el
+    nombre completo por la mitad. La comparación del segmentador es sensible a
+    mayúsculas, así que una sigla nunca calza con la palabra homógrafa en
+    minúsculas de un nombre corriente.
+    """
+    name_words = {
+        strip_accents(word).upper()
+        for entity in _ALL_ENTITIES
+        for name in (entity.canonical_name, *(f.name for f in entity.former_names))
+        for word in name.replace(",", " ").split()
+    }
+    return tuple(
+        entity.acronym
+        for entity in _ALL_ENTITIES
+        if entity.acronym and entity.acronym not in name_words
+    )
 
 
 def catalog_entity(name_normalized: str) -> StateEntity | None:
@@ -146,3 +344,11 @@ def looks_like_uncatalogued_ministry(name_normalized: str) -> bool:
 def succession_chain(entity: StateEntity) -> list[FormerName]:
     """Nombres anteriores, del más reciente al más antiguo."""
     return list(entity.former_names)
+
+
+def parent_entity(entity: StateEntity) -> StateEntity | None:
+    """Entidad del catálogo a la que `entity` está adscrita, si declara una."""
+    if entity.attached_to is None:
+        return None
+    hit = _BY_NORMALIZED.get(normalize_org_name(entity.attached_to))
+    return hit[0] if hit is not None else None

@@ -85,6 +85,10 @@ class ExtractedOrgPath(StrictModel):
     path_raw: str = Field(min_length=1)
     organization_name: str | None = None
     unit_chain: list[str] = Field(default_factory=list)  # de más específica a más general
+    # El cargo sin la ruta ("Directora del Sistema Administrativo II"). Solo es
+    # utilizable como etiqueta del puesto cuando la organización quedó resuelta:
+    # sin órgano, recortar la ruta perdería la única seña de a quién pertenece.
+    role_label: str | None = None
 
 
 class ExtractedPositionSlot(StrictModel):

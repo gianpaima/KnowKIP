@@ -48,6 +48,7 @@
             "org_path": {
               "organization_name": "Biblioteca Nacional del Perú",
               "path_raw": "Gerenta General de la Biblioteca Nacional del Perú",
+              "role_label": "Gerenta General",
               "unit_chain": []
             },
             "person": {

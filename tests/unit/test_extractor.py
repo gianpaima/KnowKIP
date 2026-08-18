@@ -86,6 +86,23 @@ class TestVerbPatterns:
         assert event.effective_from.status == DateStatus.EXPLICIT
         assert event.effective_from.source_phrase  # la fecha lleva su frase fuente
 
+    def test_designar_a_partir_de_la_fecha_no_fabrica_fecha(self, extractor):
+        """ "… – APCI, a partir de la fecha": coletilla de eficacia sin cifra. Se
+        recorta de la ruta del puesto —o viajaba dentro del nombre de la
+        organización— pero NO produce fecha: sin cifra no hay fecha expresada."""
+        doc = _doc_with_articles(
+            "Artículo 1.- Designar a la señora ROSA ELVIRA PAREDES ROJAS en el cargo de "
+            "Directora Ejecutiva de la Agencia Peruana de Cooperación Internacional – APCI, "
+            "a partir de la fecha."
+        )
+        event = extractor.extract(doc).events[0]
+        assert event.effective_from.status == DateStatus.NOT_STATED
+        assignment = event.assignments[0]
+        assert assignment.org_path.organization_name == (
+            "Agencia Peruana de Cooperación Internacional – APCI"
+        )
+        assert "a partir" not in assignment.position_label_raw
+
     def test_nombrar_es_appointment(self, extractor):
         doc = _doc_with_articles(
             "Artículo 2.- Nombrar a la señora Clara Rossana Urteaga Goldstein como "
@@ -323,6 +340,110 @@ class TestOrgPathSplit:
             "Secretaría General",
         ]
         assert split.role_label == "Jefa de Atención al Ciudadano y Gestión Documental"
+
+    def test_programa_nacional_es_organizacion_no_unidad(self):
+        # RD 000128-2026-MINEDU-VMGI-PRONIED-DE: sin "Programa Nacional" como
+        # cabecera de órgano, la ruta entera quedaba dentro del cargo y el
+        # puesto nacía sin organización (POSITION_ORG_UNRESOLVED evitable).
+        split = split_org_path(
+            "Directora del Sistema Administrativo II de la Unidad de Recursos Humanos "
+            "de la Oficina General de Administración del Programa Nacional de "
+            "Infraestructura Educativa - PRONIED"
+        )
+        assert split.organization == "Programa Nacional de Infraestructura Educativa - PRONIED"
+        assert split.unit_chain == [
+            "Unidad de Recursos Humanos",
+            "Oficina General de Administración",
+        ]
+        assert split.role_label == "Directora del Sistema Administrativo II"
+
+    def test_organismos_adscritos_son_organizacion(self):
+        # Casos reales pendientes de agosto 2026: EsSalud, IPEN, PROMPERÚ y
+        # FONDEPES designan (o reciben representantes) y sus cabeceras no se
+        # reconocían, así que cada puesto nacía sin organización.
+        essalud = split_org_path(
+            "representante del Estado ante el Consejo Directivo del "
+            "Seguro Social de Salud – ESSALUD"
+        )
+        assert essalud.organization == "Seguro Social de Salud – ESSALUD"
+        assert essalud.role_label == "representante del Estado ante el Consejo Directivo"
+
+        ipen = split_org_path(
+            "Director de la Oficina de Planeamiento y Presupuesto del "
+            "Instituto Peruano de Energía Nuclear – IPEN"
+        )
+        assert ipen.organization == "Instituto Peruano de Energía Nuclear – IPEN"
+        assert ipen.unit_chain == ["Oficina de Planeamiento y Presupuesto"]
+
+        promperu = split_org_path(
+            "Gerente General de la Comisión de Promoción del Perú para la "
+            "Exportación y el Turismo - PROMPERÚ"
+        )
+        assert promperu.organization == (
+            "Comisión de Promoción del Perú para la Exportación y el Turismo - PROMPERÚ"
+        )
+        assert promperu.role_label == "Gerente General"
+
+        fondepes = split_org_path(
+            "Director de la Dirección General de Proyectos y Gestión Financiera para el "
+            "Desarrollo Pesquero Artesanal y Acuícola del Fondo Nacional de Desarrollo Pesquero"
+        )
+        assert fondepes.organization == "Fondo Nacional de Desarrollo Pesquero"
+        assert fondepes.unit_chain == [
+            "Dirección General de Proyectos y Gestión Financiera para el "
+            "Desarrollo Pesquero Artesanal y Acuícola"
+        ]
+        assert fondepes.role_label == "Director"
+
+    def test_sigla_sola_del_catalogo_es_organizacion(self):
+        # Cola de agosto 2026: "… del FONDEPES" nombra a la entidad solo por su
+        # sigla y el puesto nacía sin organización (3 tareas evitables). La
+        # comparación es sensible a mayúsculas: solo la sigla, nunca la palabra.
+        split = split_org_path("Jefe de la Oficina General de Asesoría Jurídica del FONDEPES")
+        assert split.organization == "FONDEPES"
+        assert split.unit_chain == ["Oficina General de Asesoría Jurídica"]
+        assert split.role_label == "Jefe"
+
+    def test_organismos_de_la_puesta_al_dia_son_organizacion(self):
+        # Casos reales de la cola de agosto 2026: AGRO RURAL, DINI, ANIN,
+        # SENCICO e INGEMMET designan en resoluciones propias y sus cabeceras
+        # no se reconocían, así que cada puesto nacía sin organización.
+        agro = split_org_path(
+            "Jefe de la Unidad de Asesoría Jurídica del Programa de Desarrollo "
+            "Productivo Agrario Rural – AGRO RURAL"
+        )
+        assert agro.organization == "Programa de Desarrollo Productivo Agrario Rural – AGRO RURAL"
+        assert agro.unit_chain == ["Unidad de Asesoría Jurídica"]
+
+        dini = split_org_path("Director Ejecutivo de la Dirección Nacional de Inteligencia – DINI")
+        assert dini.organization == "Dirección Nacional de Inteligencia – DINI"
+        assert dini.role_label == "Director Ejecutivo"
+
+        anin = split_org_path("Asesor de Jefatura de la Autoridad Nacional de Infraestructura")
+        assert anin.organization == "Autoridad Nacional de Infraestructura"
+        assert anin.unit_chain == ["Jefatura"]
+
+        ingemmet = split_org_path(
+            "miembro del Consejo Directivo del Instituto Geológico, Minero y Metalúrgico – INGEMMET"
+        )
+        assert ingemmet.organization == "Instituto Geológico, Minero y Metalúrgico – INGEMMET"
+        assert ingemmet.role_label == "miembro del Consejo Directivo"
+
+        sencico = split_org_path(
+            "Presidente Ejecutivo del Servicio Nacional de Capacitación para la "
+            "Industria de la Construcción - SENCICO"
+        )
+        assert sencico.organization == (
+            "Servicio Nacional de Capacitación para la Industria de la Construcción - SENCICO"
+        )
+        assert sencico.role_label == "Presidente Ejecutivo"
+
+    def test_programa_sectorial_no_es_cabecera_de_organizacion(self):
+        # "Programa" a secas partiría el cargo estructural del clasificador.
+        split = split_org_path("Director de Programa Sectorial II de la Oficina de Presupuesto")
+        assert split.role_label == "Director de Programa Sectorial II"
+        assert split.organization is None
+        assert split.unit_chain == ["Oficina de Presupuesto"]
 
     def test_no_org_head_is_conservative(self):
         split = split_org_path("Superintendente Nacional de Aduanas y de Administración Tributaria")

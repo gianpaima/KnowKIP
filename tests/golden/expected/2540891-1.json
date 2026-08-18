@@ -96,6 +96,7 @@
             "org_path": {
               "organization_name": "SERVICIO NACIONAL DE SANIDAD AGRARIA - SENASA",
               "path_raw": "Jefe/a del Órgano de Control Institucional",
+              "role_label": "Jefe/a del Órgano de Control Institucional",
               "unit_chain": []
             },
             "person": {
@@ -141,6 +142,7 @@
             "org_path": {
               "organization_name": "MINISTERIO DE SALUD",
               "path_raw": "Jefe/a del Órgano de Control Institucional",
+              "role_label": "Jefe/a del Órgano de Control Institucional",
               "unit_chain": []
             },
             "person": {
@@ -280,6 +282,7 @@
             "org_path": {
               "organization_name": "MINISTERIO DE SALUD",
               "path_raw": "Jefe/a del Órgano de Control Institucional",
+              "role_label": "Jefe/a del Órgano de Control Institucional",
               "unit_chain": []
             },
             "person": {
@@ -325,6 +328,7 @@
             "org_path": {
               "organization_name": "ACADEMIA DE LA MAGISTRATURA",
               "path_raw": "Jefe/a del Órgano de Control Institucional",
+              "role_label": "Jefe/a del Órgano de Control Institucional",
               "unit_chain": []
             },
             "person": {

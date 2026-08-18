@@ -24,6 +24,7 @@ from kipu_knowledge.application.daily_ingest import (
 )
 from kipu_knowledge.application.ingest import IngestService
 from kipu_knowledge.domain import enums as e
+from kipu_knowledge.domain.relevance import RULE_VERSION
 
 FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures"
 
@@ -63,7 +64,7 @@ def test_run_ingests_personnel_acts_and_records_everything_it_saw(session, daily
     skipped = next(r for r in rows if r.publication_code == "2540896-1")
     assert skipped.status is e.CrawlItemStatus.SKIPPED_NOT_RELEVANT
     assert skipped.relevance is e.Relevance.NOT_RELEVANT
-    assert skipped.relevance_rule == "personnel-relevance/1.0"
+    assert skipped.relevance_rule == RULE_VERSION
     assert "no personal" in (skipped.relevance_rationale or "")
     assert skipped.summary_raw == "Aprueban el Reglamento Interno de Trabajo"
     assert skipped.publication_item_id is None

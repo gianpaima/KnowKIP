@@ -8,6 +8,7 @@ from kipu_knowledge.domain.state_entities import (
     catalog_entity,
     catalog_knows,
     looks_like_uncatalogued_ministry,
+    parent_entity,
     succession_chain,
 )
 
@@ -53,9 +54,81 @@ def test_known_ministries_and_non_ministries_are_not_flagged():
 
 
 def test_catalogue_has_no_duplicate_normalized_names():
+    from kipu_knowledge.domain.state_entities import ATTACHED_ENTITIES
+
     seen: set[str] = set()
-    for entity in MINISTRIES:
+    for entity in MINISTRIES + ATTACHED_ENTITIES:
         for name in (entity.canonical_name, *(f.name for f in entity.former_names)):
             normalized = normalize_org_name(name)
             assert normalized not in seen, f"nombre repetido en el catálogo: {name}"
             seen.add(normalized)
+
+
+def test_attached_program_resolves_with_and_without_acronym_suffix():
+    """Las publicaciones rematan el nombre con la sigla ("… - PRONIED"): es la
+    misma grafía vigente y debe enriquecer la ficha igual que la desnuda."""
+    plain = catalog_entity(normalize_org_name("Programa Nacional de Infraestructura Educativa"))
+    suffixed = catalog_entity(
+        normalize_org_name("Programa Nacional de Infraestructura Educativa - PRONIED")
+    )
+    assert plain is not None and suffixed is plain
+    assert plain.acronym == "PRONIED"
+    assert plain.entity_type == "NATIONAL_PROGRAM"
+
+
+def test_attached_program_declares_its_ministry():
+    pronied = catalog_entity(normalize_org_name("Programa Nacional de Infraestructura Educativa"))
+    assert pronied is not None
+    parent = parent_entity(pronied)
+    assert parent is not None
+    assert parent.acronym == "MINEDU"
+    # Un ministerio no depende de nadie: la adscripción es del programa.
+    assert parent_entity(parent) is None
+
+
+def test_every_attached_entity_is_curated_and_resolves_in_all_its_spellings():
+    """Cada adscrita declara su norma de creación y su ministerio, y resuelve
+    con y sin sigla, con guion corto o largo — las tres grafías reales."""
+    from kipu_knowledge.domain.state_entities import ATTACHED_ENTITIES
+
+    for entity in ATTACHED_ENTITIES:
+        assert entity.creation_basis, f"{entity.acronym}: sin norma de creación curada"
+        parent = parent_entity(entity)
+        assert parent is not None, f"{entity.acronym}: adscripción sin resolver"
+        assert parent.entity_type in ("MINISTRY", "EXECUTIVE_OFFICE")
+        for spelling in (
+            entity.canonical_name,
+            f"{entity.canonical_name} - {entity.acronym}",
+            f"{entity.canonical_name} – {entity.acronym}",
+        ):
+            assert catalog_entity(normalize_org_name(spelling)) is entity, (
+                f"{entity.acronym}: la grafía «{spelling}» no resuelve"
+            )
+
+
+def test_acronym_alone_is_a_current_spelling():
+    """ "… del FONDEPES" nombra a la entidad solo por su sigla: es grafía
+    vigente declarada por el catálogo, no una variante que curar."""
+    fondepes = catalog_entity(normalize_org_name("FONDEPES"))
+    assert fondepes is not None
+    assert fondepes.canonical_name == "Fondo Nacional de Desarrollo Pesquero"
+
+
+def test_catalog_acronyms_exclude_homographs_of_name_words():
+    """ "CULTURA" es palabra de "Ministerio de Cultura": como cabecera de
+    segmentación partiría el nombre completo, así que no se ofrece."""
+    from kipu_knowledge.domain.state_entities import catalog_acronyms
+
+    acronyms = catalog_acronyms()
+    assert "FONDEPES" in acronyms
+    assert "AGRO RURAL" in acronyms
+    assert "CULTURA" not in acronyms
+
+
+def test_essalud_and_ipen_resolve_from_their_published_spellings():
+    essalud = catalog_entity(normalize_org_name("Seguro Social de Salud – ESSALUD"))
+    assert essalud is not None and essalud.acronym == "ESSALUD"
+    assert parent_entity(essalud).acronym == "MTPE"
+    ipen = catalog_entity(normalize_org_name("Instituto Peruano de Energía Nuclear"))
+    assert ipen is not None
+    assert parent_entity(ipen).acronym == "MINEM"

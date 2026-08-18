@@ -144,8 +144,21 @@ Fecha efectiva: {{ event.effective_from or "no expresada" }} <code>{{ event.effe
 <section class="card">
 <h2>Puesto</h2>
 <p style="margin:0">{{ position.preferred_label }}</p>
+{% if position_units %}
+<p class="muted" style="margin:.35rem 0 0">Unidad:
+{{ position_units | join(" → ") }}</p>
+{% endif %}
 <p class="muted" style="margin:.35rem 0 0">Organización:
-{% if position.organization_id %}<code>{{ position.organization_id }}</code>{% else %}sin determinar{% endif %}</p>
+{% if position_org %}{{ position_org.preferred_name }}{% if position_org.acronym %} <span class="chip">{{ position_org.acronym }}</span>{% endif %}
+{% elif position.organization_id %}<code>{{ position.organization_id }}</code>
+{% else %}sin determinar{% endif %}</p>
+{% if structural_cargo %}
+<p class="hint" style="margin:.5rem 0 0">«{{ position.preferred_label }}» es un <strong>cargo
+estructural del Clasificador de Cargos</strong> de la entidad ({{ structural_cargo.family|lower }},
+nivel {{ structural_cargo.level }}): es la denominación con que el CAP nombra el cargo, no el
+puesto funcional. El puesto que la persona ejerce es la jefatura de la unidad indicada en la
+ruta (p. ej. el portal de la entidad lo presenta como «Director/a de la Unidad»).</p>
+{% endif %}
 </section>
 {% endif %}
 
@@ -249,15 +262,34 @@ Estado de resolución: <code>{{ org_mention.resolution_status.value }}</code></p
   </fieldset>
   {% endif %}
 
-  {% if organizations %}
+  {% if organizations or organizations_rest %}
   <fieldset class="choices" data-when="RESOLVE_POSITION">
     <legend>Organización a la que pertenece el puesto</legend>
+    {% if organizations %}
+    {# Candidatas acotadas: solo las que la propia resolución involucra (ruta del
+       puesto, emisora, menciones, siglas del número), cada una con su motivo. #}
     {% for o in organizations %}
     <label class="choice">
       <input type="radio" name="organization_id" value="{{ o.id }}"{% if loop.first %} checked{% endif %}>
-      <span>{{ o.preferred_name }}</span>
+      <span>{{ o.label }}{% if o.acronym %} <span class="chip">{{ o.acronym }}</span>{% endif %}
+      <br><span class="muted">{{ o.reasons | join(" · ") }}</span></span>
     </label>
     {% endfor %}
+    {% else %}
+    <p class="hint">Ningún registro coincide con lo que la resolución nombra: elige del
+    registro completo o crea la ficha ingiriendo un documento que la mencione.</p>
+    {% endif %}
+    {% if organizations_rest %}
+    <details>
+      <summary>Registro completo ({{ organizations_rest | length }} organizaciones más)</summary>
+      {% for o in organizations_rest %}
+      <label class="choice">
+        <input type="radio" name="organization_id" value="{{ o.id }}"{% if not organizations and loop.first %} checked{% endif %}>
+        <span>{{ o.preferred_name }}{% if o.acronym %} <span class="chip">{{ o.acronym }}</span>{% endif %}</span>
+      </label>
+      {% endfor %}
+    </details>
+    {% endif %}
   </fieldset>
   {% endif %}
 

@@ -47,3 +47,41 @@ def test_catalogued_ministries_are_enriched_at_creation(ingested_session):
     ).scalar_one()
     assert org.acronym == "MIDAGRI"
     assert org.organization_type == "MINISTRY"
+
+
+def test_two_current_spellings_of_a_catalogued_entity_share_one_ficha(ingested_session):
+    """ "Instituto Peruano de Energía Nuclear" y "… – IPEN" son la misma entidad
+    por dato declarado del catálogo: dos fichas repartirían sus puestos y solo
+    una fusión humana podría deshacerlo. La segunda grafía reutiliza la ficha y
+    deja su mención apuntándola."""
+    from kipu_knowledge.application.ingest import _ResultPersister
+    from kipu_knowledge.domain.parsed import ParsedDocument
+
+    doc = ingested_session.execute(select(m.LegalDocument)).scalars().first()
+    run = ingested_session.execute(select(m.ExtractionRun)).scalars().first()
+    version = ingested_session.get(m.ArtifactVersion, doc.parsed_from_artifact_version_id)
+    persister = _ResultPersister(
+        ingested_session, doc, run, version, {}, ParsedDocument.model_construct()
+    )
+
+    first = persister._organization("Instituto Peruano de Energía Nuclear", None)
+    second = persister._organization("Instituto Peruano de Energía Nuclear – IPEN", None)
+    assert second.id == first.id
+    rows = (
+        ingested_session.execute(select(m.Organization).where(m.Organization.acronym == "IPEN"))
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].organization_type == "PUBLIC_EXECUTING_BODY"
+    # La grafía con sigla queda documentada como mención de la misma ficha.
+    mention = (
+        ingested_session.execute(
+            select(m.OrganizationMention).where(
+                m.OrganizationMention.text_raw == "Instituto Peruano de Energía Nuclear – IPEN"
+            )
+        )
+        .scalars()
+        .one()
+    )
+    assert mention.canonical_organization_id == first.id

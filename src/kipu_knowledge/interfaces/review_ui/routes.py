@@ -8,6 +8,7 @@ marcar fecha no expresada, resolver puesto y ver historial de decisiones.
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
@@ -25,8 +26,11 @@ from kipu_knowledge.application.legal_effect import determined_payload, verdict_
 from kipu_knowledge.application.person_dossier import build_dossier, search_persons
 from kipu_knowledge.application.review import ReviewError, ReviewService
 from kipu_knowledge.domain import enums as e
+from kipu_knowledge.domain.cargos import structural_cargo
 from kipu_knowledge.domain.contracts import ArtifactStore
 from kipu_knowledge.domain.legal_effect import LegalEffectVerdict
+from kipu_knowledge.domain.normalization import normalize_org_name, strip_accents
+from kipu_knowledge.domain.state_entities import catalog_entity, parent_entity
 from kipu_knowledge.interfaces.api.deps import get_db, get_store
 
 router = APIRouter(prefix="/review", tags=["review-ui"])
@@ -209,6 +213,10 @@ def _task_context(task_id: str, db: Session, error: str | None = None) -> dict[s
         "entity_choices": [],
         "entity_kind": "person",
         "organizations": [],
+        "organizations_rest": [],
+        "position_org": None,
+        "position_units": [],
+        "structural_cargo": None,
         "error": error,
     }
     evidence = None
@@ -287,21 +295,32 @@ def _task_context(task_id: str, db: Session, error: str | None = None) -> dict[s
     elif task.target_type == "position":
         position = db.get(m.Position, task.target_id)
         context["position"] = position
-        context["organizations"] = db.execute(select(m.Organization)).scalars().all()
         origins = _position_origins(db, task.target_id)
         context["origins_title"] = "De dónde procede este puesto"
-        if not origins:
-            # Un puesto creado desde un CAP (PositionSlot) no tiene mención de
-            # persona detrás; el documento que lo declaró es lo único que queda.
-            document = (
-                db.execute(
-                    select(m.LegalDocument)
-                    .join(m.PositionSlot, m.PositionSlot.source_document_id == m.LegalDocument.id)
-                    .where(m.PositionSlot.position_id == task.target_id)
-                )
-                .scalars()
-                .first()
+        # Un puesto creado desde un CAP (PositionSlot) no tiene mención de
+        # persona detrás; el documento que lo declaró es lo único que queda.
+        slot_documents = (
+            db.execute(
+                select(m.LegalDocument)
+                .join(m.PositionSlot, m.PositionSlot.source_document_id == m.LegalDocument.id)
+                .where(m.PositionSlot.position_id == task.target_id)
             )
+            .scalars()
+            .all()
+        )
+        if not origins and slot_documents:
+            document = slot_documents[0]
+        if position is not None:
+            candidates_orgs, rest = _position_org_choices(db, position, origins, slot_documents)
+            context["organizations"] = candidates_orgs
+            context["organizations_rest"] = rest
+            context["position_org"] = (
+                db.get(m.Organization, position.organization_id)
+                if position.organization_id
+                else None
+            )
+            context["position_units"] = _unit_chain_labels(db, position.organizational_unit_id)
+            context["structural_cargo"] = structural_cargo(position.label_normalized)
     elif task.target_type == "organization":
         organization = db.get(m.Organization, task.target_id)
         context["organization"] = organization
@@ -538,6 +557,149 @@ def _position_origins(db: Session, position_id: str) -> list[dict[str, Any]]:
             }
         )
     return origins
+
+
+def _canonical_org(db: Session, organization_id: str | None) -> m.Organization | None:
+    """Sigue la cadena de fusiones hasta la organización superviviente."""
+    org = db.get(m.Organization, organization_id) if organization_id else None
+    hops = 0
+    while org is not None and org.merged_into_organization_id and hops < 10:
+        org = db.get(m.Organization, org.merged_into_organization_id)
+        hops += 1
+    return org
+
+
+def _unit_chain_labels(db: Session, unit_id: str | None) -> list[str]:
+    """Nombres de la cadena de unidades, de la más específica a la más general."""
+    labels: list[str] = []
+    seen: set[str] = set()
+    while unit_id and unit_id not in seen:
+        seen.add(unit_id)
+        unit = db.get(m.OrganizationalUnit, unit_id)
+        if unit is None:
+            break
+        labels.append(unit.preferred_name)
+        unit_id = unit.parent_unit_id
+    return labels
+
+
+def _acronym_in(acronym: str | None, haystack_upper: str) -> bool:
+    if not acronym or not haystack_upper:
+        return False
+    # La sigla curada puede llevar tilde (PROMPERÚ) y los números de documento
+    # no la llevan (000139-2026-PROMPERU/PE): se compara sin acentos.
+    pattern = rf"(?<![A-Z0-9]){re.escape(strip_accents(acronym).upper())}(?![A-Z0-9])"
+    return re.search(pattern, haystack_upper) is not None
+
+
+def _position_org_choices(
+    db: Session,
+    position: m.Position,
+    origins: Sequence[dict[str, Any]],
+    slot_documents: Sequence[m.LegalDocument],
+) -> tuple[list[dict[str, Any]], list[m.Organization]]:
+    """Organizaciones candidatas para RESOLVE_POSITION, con su motivo visible.
+
+    La tarea pregunta a qué órgano pertenece un puesto concreto: las candidatas
+    salen de la propia resolución —la ruta cruda del puesto, la entidad emisora,
+    las organizaciones que el documento menciona y las siglas de su número—,
+    no del registro entero. Ofrecer las 40 fichas del registro obligaba a leer
+    una lista inmensa para encontrar las dos que el documento efectivamente
+    nombra. El registro completo sigue disponible, plegado, como salida de
+    emergencia: acotar es priorizar, no afirmar que la respuesta esté dentro.
+    """
+    documents: list[m.LegalDocument] = [
+        o["document"] for o in origins if o.get("document") is not None
+    ]
+    for doc in slot_documents:
+        if all(doc.id != d.id for d in documents):
+            documents.append(doc)
+
+    # La ruta tal como la escribió cada documento + la etiqueta del puesto.
+    path_texts: list[str] = [position.preferred_label]
+    for ra in db.execute(
+        select(m.RoleAssignment).where(m.RoleAssignment.position_id == position.id)
+    ).scalars():
+        for text in (ra.organization_path_raw, ra.position_label_raw):
+            if text and text not in path_texts:
+                path_texts.append(text)
+    path_normalized = " | ".join(normalize_org_name(t) for t in path_texts)
+    path_upper = strip_accents(" | ".join(path_texts)).upper()
+    numbers_upper = " | ".join((d.number_raw or "").upper() for d in documents)
+
+    registry = (
+        db.execute(
+            select(m.Organization)
+            .where(m.Organization.merged_into_organization_id.is_(None))
+            .order_by(m.Organization.preferred_name)
+        )
+        .scalars()
+        .all()
+    )
+
+    chosen: dict[str, dict[str, Any]] = {}
+
+    def add(org: m.Organization | None, reason: str) -> None:
+        if org is None or org.merged_into_organization_id is not None:
+            return
+        entry = chosen.setdefault(
+            org.id,
+            {"id": org.id, "label": org.preferred_name, "acronym": org.acronym, "reasons": []},
+        )
+        if reason not in entry["reasons"]:
+            entry["reasons"].append(reason)
+
+    # 1) La ruta del puesto nombra a la organización (o a su sigla).
+    for org in registry:
+        if org.name_normalized and org.name_normalized in path_normalized:
+            add(org, "su nombre aparece en la ruta del puesto")
+        elif _acronym_in(org.acronym, path_upper):
+            add(org, "su sigla aparece en la ruta del puesto")
+
+    # 2) La entidad emisora y las organizaciones mencionadas en los documentos
+    #    de origen: son las únicas que la resolución efectivamente involucra.
+    for doc in documents:
+        if doc.issuer_mention_id:
+            mention = db.get(m.OrganizationMention, doc.issuer_mention_id)
+            if mention is not None:
+                add(_canonical_org(db, mention.canonical_organization_id), "emisora del documento")
+        for mention in db.execute(
+            select(m.OrganizationMention).where(m.OrganizationMention.legal_document_id == doc.id)
+        ).scalars():
+            add(
+                _canonical_org(db, mention.canonical_organization_id),
+                f"mencionada en el documento como «{mention.text_raw}»",
+            )
+
+    # 3) Siglas dentro del número del documento (000128-2026-MINEDU-VMGI-PRONIED-DE
+    #    nombra al ministerio y al programa aunque el cuerpo no los repita).
+    for org in registry:
+        if org.id not in chosen and _acronym_in(org.acronym, numbers_upper):
+            add(org, "su sigla figura en el número del documento")
+
+    # 4) La entidad de la que depende una candidata (adscripción curada): si el
+    #    puesto es del programa, el ministerio del que depende también es una
+    #    respuesta plausible, y viceversa.
+    for entry in list(chosen.values()):
+        child = db.get(m.Organization, entry["id"])
+        if child is None:
+            continue
+        parent = _canonical_org(db, child.parent_organization_id)
+        if parent is None:
+            catalogued = catalog_entity(child.name_normalized)
+            declared = parent_entity(catalogued) if catalogued else None
+            if declared is not None:
+                names = [normalize_org_name(declared.canonical_name)]
+                if declared.acronym:
+                    names.append(
+                        normalize_org_name(f"{declared.canonical_name} - {declared.acronym}")
+                    )
+                parent = next((o for o in registry if o.name_normalized in names), None)
+        if parent is not None and parent.id != child.id:
+            add(parent, f"entidad de la que depende {child.preferred_name}")
+
+    rest = [org for org in registry if org.id not in chosen]
+    return list(chosen.values()), rest
 
 
 def _organization_choices(db: Session, organization: m.Organization) -> list[dict[str, Any]]:

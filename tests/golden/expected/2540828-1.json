@@ -48,6 +48,7 @@
             "org_path": {
               "organization_name": "Ministerio de Desarrollo e Inclusión Social",
               "path_raw": "Jefa de la Oficina General de Recursos Humanos del Ministerio de Desarrollo e Inclusión Social",
+              "role_label": "Jefa",
               "unit_chain": [
                 "Oficina General de Recursos Humanos"
               ]

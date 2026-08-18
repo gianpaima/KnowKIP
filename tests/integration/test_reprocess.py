@@ -329,6 +329,47 @@ def test_reprocess_drops_the_residue_of_a_polluted_organization(session, ingest_
     assert session.execute(select(func.count(m.Organization.id))).scalar_one() == orgs_before - 1
 
 
+def test_reprocess_leaves_no_pending_task_on_a_retired_person_mention(session, ingest_service):
+    """Regresión de la puesta al día de agosto 2026: al re-extraer, las menciones
+    de persona se retiran y renacen, pero sus tareas PENDING de resolución se
+    quedaban apuntando a filas inexistentes — la cola crecía con fantasmas que
+    ningún revisor podía despachar. Igual que puestos y organizaciones: la tarea
+    sin decisión es residuo mecánico y se va con su mención."""
+    _ingest_then_forget(session, ingest_service)
+    mention = session.execute(select(m.PersonMention)).scalars().first()
+    task = m.ReviewTask(
+        task_type=e.ReviewTaskType.ENTITY_RESOLUTION,
+        target_type="person_mention",
+        target_id=mention.id,
+        reason="coincide por nombre con una persona existente",
+    )
+    session.add(task)
+    session.commit()
+    task_id = task.id
+    session.expunge_all()
+
+    ingest_service.reprocess(ENCARGO_CODE)
+    session.commit()
+
+    assert session.get(m.ReviewTask, task_id) is None
+    orphaned = (
+        session.execute(
+            select(m.ReviewTask).where(
+                m.ReviewTask.target_type == "person_mention",
+                m.ReviewTask.status == e.ReviewTaskStatus.PENDING,
+                ~select(m.PersonMention.id)
+                .where(m.PersonMention.id == m.ReviewTask.target_id)
+                .exists(),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert orphaned == [], (
+        f"tareas pendientes sobre menciones retiradas: {[t.id for t in orphaned]}"
+    )
+
+
 def test_reprocess_keeps_a_dismissed_task_even_if_its_target_goes_away(session, ingest_service):
     """Una tarea con decisión humana es trabajo humano: sobrevive a su objetivo."""
     _ingest_then_forget(session, ingest_service)

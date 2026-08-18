@@ -48,6 +48,7 @@
             "org_path": {
               "organization_name": "Ministerio de la Producción",
               "path_raw": "Jefa de Presupuesto de la Oficina de Presupuesto de la Oficina General de Planeamiento, Presupuesto y Modernización del Ministerio de la Producción",
+              "role_label": "Jefa de Presupuesto",
               "unit_chain": [
                 "Oficina de Presupuesto",
                 "Oficina General de Planeamiento, Presupuesto y Modernización"

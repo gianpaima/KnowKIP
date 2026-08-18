@@ -60,6 +60,7 @@
             "org_path": {
               "organization_name": "Ministerio de Economía y Finanzas",
               "path_raw": "Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas",
+              "role_label": "Presidenta",
               "unit_chain": [
                 "Tribunal Fiscal"
               ]
@@ -136,6 +137,7 @@
             "org_path": {
               "organization_name": "Ministerio de Economía y Finanzas",
               "path_raw": "Presidenta del Tribunal Fiscal del Ministerio de Economía y Finanzas",
+              "role_label": "Presidenta",
               "unit_chain": [
                 "Tribunal Fiscal"
               ]

@@ -195,11 +195,25 @@ def find_position_by_code_or_label(session: Session, text: str) -> m.Position | 
     from kipu_knowledge.domain.normalization import normalize_position_label
 
     normalized = normalize_position_label(text)
-    return (
+    position = (
         session.execute(select(m.Position).where(m.Position.label_normalized == normalized))
         .scalars()
         .first()
     )
+    if position is not None:
+        return position
+    # La etiqueta del puesto ya no arrastra la ruta organizacional (esa vive en
+    # organización + unidades), pero la frase completa tal como la escribió el
+    # documento se conserva en la asignación: buscar por ella debe seguir
+    # encontrando el puesto.
+    for ra in (
+        session.execute(select(m.RoleAssignment).where(m.RoleAssignment.position_id.is_not(None)))
+        .scalars()
+        .all()
+    ):
+        if ra.position_label_raw and normalize_position_label(ra.position_label_raw) == normalized:
+            return session.get(m.Position, ra.position_id)
+    return None
 
 
 def assignments_for_person(session: Session, person_id: str) -> list[dict[str, Any]]:
